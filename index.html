@@ -1,0 +1,1261 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistem Inventaris ZS & SHI (Online Firebase)</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- FIREBASE SDK (CDN) -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore-compat.js"></script>
+
+    <style>
+        :root {
+            --primary: #0f172a; --primary-hover: #1e293b;
+            --secondary: #3b82f6; --secondary-hover: #2563eb;
+            --success: #10b981; --success-hover: #059669;
+            --danger: #ef4444; --danger-hover: #dc2626;
+            --warning: #f59e0b;
+            --bg-color: #f1f5f9; --card-bg: #ffffff;
+            --text-main: #334155; --text-muted: #64748b;
+            --border: #e2e8f0;
+        }
+
+        body { font-family: 'Inter', sans-serif; background-color: var(--bg-color); color: var(--text-main); margin: 0; padding: 30px 15px; display: flex; justify-content: center; }
+        .container { width: 100%; max-width: 1200px; }
+        .card { background: var(--card-bg); padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.03); margin-bottom: 20px; }
+        .hidden { display: none !important; }
+        .fade-in { animation: fadeIn 0.3s ease-out forwards; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        h2, h3 { margin-top: 0; color: var(--primary); }
+        .flex-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--border); padding-bottom: 15px; margin-bottom: 20px; }
+
+        .form-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 15px; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; font-weight: 600; margin-bottom: 6px; font-size: 0.85em; color: var(--primary); }
+        
+        .pwd-wrapper { position: relative; }
+        .eye-icon { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); cursor: pointer; font-size: 1.1em; user-select: none; color: #888; }
+        input[type="text"], input[type="password"], input[type="number"], input[type="date"], select {
+            width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 6px; box-sizing: border-box; font-family: 'Inter', sans-serif; transition: 0.2s;
+        }
+        .pwd-wrapper input { padding-right: 40px; }
+        input:focus, select:focus { outline: none; border-color: var(--secondary); box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15); }
+        input[readonly] { background-color: #f8fafc; color: #94a3b8; cursor: not-allowed; }
+
+        button { padding: 10px 16px; border: none; border-radius: 6px; font-weight: 600; font-size: 0.9em; cursor: pointer; transition: 0.2s ease; font-family: 'Inter', sans-serif; }
+        .btn-primary { background-color: var(--secondary); color: white; } .btn-primary:hover { background-color: var(--secondary-hover); }
+        .btn-dark { background-color: var(--primary); color: white; } .btn-dark:hover { background-color: var(--primary-hover); }
+        .btn-success { background-color: var(--success); color: white; } .btn-success:hover { background-color: var(--success-hover); }
+        .btn-danger { background-color: var(--danger); color: white; } .btn-danger:hover { background-color: var(--danger-hover); }
+        .btn-warning { background-color: var(--warning); color: white; }
+        .btn-small { padding: 6px 10px; font-size: 0.8em; }
+
+        .size-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 10px; background: var(--bg-color); padding: 15px; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 15px; }
+        .size-item { background: white; padding: 10px; border-radius: 6px; text-align: center; border: 1px solid var(--border); }
+        .size-item input[type="number"] { margin-top: 8px; padding: 6px; text-align: center; }
+        .size-item label { cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 5px; margin:0; }
+        .custom-size-box { display: flex; gap: 10px; margin-top: 10px; align-items: center; }
+
+        .table-container { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.9em; }
+        th, td { border-bottom: 1px solid var(--border); padding: 12px; text-align: left; vertical-align: middle; }
+        th { background-color: #f8fafc; font-weight: 600; color: var(--text-muted); text-transform: uppercase; font-size: 0.8em; }
+        
+        .badge { padding: 4px 8px; border-radius: 20px; font-size: 0.75em; font-weight: 700; display: inline-block; }
+        .badge-zs { background-color: #fce7f3; color: #be185d; } .badge-shi { background-color: #e0e7ff; color: #4338ca; }
+        .badge-both { background-color: #f3e8ff; color: #6b21a8; border: 1px solid #d8b4fe; }
+        .badge-oke { background-color: #d1fae5; color: #047857; } .badge-defect { background-color: #fee2e2; color: #b91c1c; }
+        .progress-text { font-size: 0.85em; font-weight: 600; color: var(--secondary); margin-top: 5px; display: inline-block; }
+        .status-pending { background-color: #fef08a; color: #b45309; padding: 3px 8px; border-radius: 4px; font-size: 0.8em; font-weight: bold; }
+        .status-approved { background-color: #d1fae5; color: #047857; padding: 3px 8px; border-radius: 4px; font-size: 0.8em; font-weight: bold; }
+
+        .filter-bar { display: flex; flex-wrap: wrap; gap: 10px; background: #f8fafc; padding: 15px; border-radius: 8px; align-items: center; border: 1px solid var(--border); margin-bottom: 0; flex-grow: 1;}
+        .tabs { display: flex; gap: 5px; margin-bottom: 15px; border-bottom: 2px solid var(--border); overflow-x: auto;}
+        .tab-btn { background: none; color: var(--text-muted); padding: 10px 15px; border-radius: 8px 8px 0 0; font-weight: 600; font-size: 0.9em; border-bottom: 3px solid transparent; white-space: nowrap;}
+        .tab-btn.active { color: var(--secondary); border-bottom: 3px solid var(--secondary); }
+        .tab-btn:hover:not(.active) { background: #f1f5f9; color: var(--primary); }
+
+        .parent-row { cursor: pointer; transition: background 0.2s; } .parent-row:hover { background-color: #f8fafc; }
+        .child-row { background-color: #f8fafc; box-shadow: inset 0 3px 5px rgba(0,0,0,0.02); }
+        
+        .size-alloc-card { background: white; border: 1px solid var(--border); border-radius: 8px; padding: 15px; margin-bottom: 15px; }
+        .alloc-grid-inputs { display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 10px; margin-top:10px; }
+        .alloc-grid-inputs label { font-size: 0.75em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 4px; line-height: 1.2; }
+        .alloc-grid-inputs input { width: 100%; padding: 8px; font-size: 0.95em; text-align: center; }
+        
+        .alloc-badge { background: #e2e8f0; color: #334155; padding: 4px 8px; border-radius: 4px; font-size: 0.85em; margin-right: 5px; display: inline-block; font-weight: 600; margin-bottom: 5px; }
+        .alloc-badge-mitra { background: #dbeafe; color: #1e40af; border: 1px solid #bfdbfe; }
+        
+        .paste-zone { border: 2px dashed #cbd5e1; background: #f8fafc; padding: 15px; text-align: center; color: var(--text-muted); font-size: 0.85em; border-radius: 8px; cursor: pointer; outline: none; margin-bottom: 15px; transition: 0.2s; }
+        .paste-zone:focus { border-color: var(--secondary); background: #eff6ff; }
+        .item-image-preview { max-width: 150px; max-height: 150px; border-radius: 8px; border: 1px solid var(--border); object-fit: cover; }
+
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; z-index: 1000; }
+        .modal-content { background: white; padding: 25px; border-radius: 12px; width: 90%; max-width: 800px; max-height: 90vh; overflow-y: auto; }
+        
+        .header-actions { display: flex; gap: 10px; align-items: center; margin-bottom: 15px; }
+        .clickable-dates:hover { color: var(--secondary-hover) !important; cursor: pointer; }
+
+        /* Server Loading Indicator */
+        #server-status { position: fixed; bottom: 10px; right: 10px; background: var(--primary); color: white; padding: 8px 15px; border-radius: 20px; font-size: 0.8em; z-index: 9999; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+    </style>
+</head>
+<body>
+
+<div id="server-status">🔴 Menyambungkan ke Server...</div>
+
+<div class="container">
+    
+    <!-- ================= HALAMAN AUTENTIKASI ================= -->
+    <div id="auth-section" class="card fade-in" style="max-width: 400px; margin: 40px auto;">
+        <div id="login-view">
+            <h2 style="text-align: center;">Login Sistem</h2>
+            <div id="login-msg" style="color: var(--danger); text-align: center; font-size: 0.85em; margin-bottom: 10px;"></div>
+            <div class="form-group"><label>Username</label><input type="text" id="login-username" placeholder="Masukkan username"></div>
+            <div class="form-group">
+                <label>Password</label>
+                <div class="pwd-wrapper">
+                    <input type="password" id="login-password" placeholder="Masukkan password">
+                    <span class="eye-icon" onclick="toggleEye('login-password')">👁️</span>
+                </div>
+            </div>
+            <button class="btn-primary" style="width:100%" onclick="login()">Masuk</button>
+            <div style="display:flex; justify-content:space-between; margin-top: 15px; font-size: 0.85em;">
+                <span style="cursor: pointer; color: var(--secondary);" onclick="toggleAuth('forgot')">Lupa Password?</span>
+                <span style="cursor: pointer; color: var(--secondary);" onclick="toggleAuth('register')">Daftar Akun Baru</span>
+            </div>
+        </div>
+
+        <div id="register-view" class="hidden">
+            <h2 style="text-align: center;">Daftar Akun</h2>
+            <div id="reg-msg" style="color: var(--danger); text-align: center; font-size: 0.85em; margin-bottom: 10px;"></div>
+            <div class="form-group"><label>Username</label><input type="text" id="reg-username"></div>
+            <div class="form-group">
+                <label>Password</label>
+                <div class="pwd-wrapper">
+                    <input type="password" id="reg-password">
+                    <span class="eye-icon" onclick="toggleEye('reg-password')">👁️</span>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Bagian (Role)</label>
+                <select id="reg-role" onchange="toggleSalesLevel()">
+                    <option value="gudang">Gudang</option>
+                    <option value="sales">Sales</option>
+                </select>
+            </div>
+            <div class="form-group hidden" id="reg-sales-level-group">
+                <label>Posisi Sales</label>
+                <select id="reg-sales-level">
+                    <option value="staff">Staff</option>
+                    <option value="leader">Leader (SPV)</option>
+                </select>
+            </div>
+            <button class="btn-dark" style="width:100%" onclick="register()">Daftar</button>
+            <div style="text-align: center; margin-top: 15px; font-size: 0.85em; cursor: pointer; color: var(--secondary);" onclick="toggleAuth('login')">Kembali ke Login</div>
+        </div>
+
+        <div id="forgot-view" class="hidden">
+            <h2 style="text-align: center;">Lupa Password</h2>
+            <div id="forgot-msg" style="color: var(--success); text-align: center; font-size: 0.85em; margin-bottom: 10px;"></div>
+            <div class="form-group"><label>Masukkan Username Anda</label><input type="text" id="forgot-username"></div>
+            <button class="btn-warning" style="width:100%" onclick="requestReset()">Minta Reset ke Admin</button>
+            <div style="text-align: center; margin-top: 15px; font-size: 0.85em; cursor: pointer; color: var(--secondary);" onclick="toggleAuth('login')">Kembali ke Login</div>
+        </div>
+    </div>
+
+    <!-- ================= HALAMAN FORCE GANTI PASSWORD ================= -->
+    <div id="force-pwd-section" class="card fade-in hidden" style="max-width: 400px; margin: 40px auto;">
+        <h2 style="text-align: center; color:var(--danger);">Ganti Password Wajib</h2>
+        <p style="font-size:0.85em; text-align:center; color:var(--text-muted);">Password Anda telah direset oleh Admin. Silakan buat password baru untuk melanjutkan.</p>
+        <div class="form-group">
+            <label>Password Baru</label>
+            <div class="pwd-wrapper">
+                <input type="password" id="force-new-pwd"><span class="eye-icon" onclick="toggleEye('force-new-pwd')">👁️</span>
+            </div>
+        </div>
+        <button class="btn-success" style="width:100%" onclick="saveForcedPassword()">Simpan & Lanjutkan</button>
+    </div>
+
+    <!-- ================= HALAMAN ADMIN (SUPERADMIN) ================= -->
+    <div id="admin-section" class="hidden fade-in">
+        <div class="card">
+            <div class="flex-header">
+                <h2>Dashboard Superadmin</h2>
+                <button class="btn-danger btn-small" onclick="logout()">Logout</button>
+            </div>
+            
+            <div class="tabs">
+                <button class="tab-btn active" id="tab-admin-users" onclick="switchAdminTab('users')">Manajemen User</button>
+                <button class="tab-btn" id="tab-admin-logs" onclick="switchAdminTab('logs')">📋 Log Aktivitas Sistem</button>
+            </div>
+
+            <div id="admin-view-users">
+                <div class="table-container">
+                    <table id="admin-table">
+                        <thead><tr><th>Username</th><th>Role / Posisi</th><th>Status Reset</th><th>Aksi</th></tr></thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div id="admin-view-logs" class="hidden">
+                <div class="header-actions">
+                    <button class="btn-success btn-small" onclick="exportExcel('log')">📥 Download Log Excel</button>
+                </div>
+                <div class="table-container">
+                    <table id="admin-logs-table">
+                        <thead><tr><th>Waktu</th><th>User</th><th>Aksi</th><th>Detail Keterangan</th></tr></thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= HALAMAN GUDANG ================= -->
+    <div id="gudang-section" class="hidden fade-in">
+        <div class="card">
+            <div class="flex-header">
+                <h2>Dashboard Gudang</h2>
+                <button class="btn-danger btn-small" onclick="logout()">Logout</button>
+            </div>
+
+            <div class="tabs">
+                <button class="tab-btn active" id="tab-gudang-input" onclick="switchGudangTab('input')">Input & Stok Gudang</button>
+                <button class="tab-btn" id="tab-gudang-alokasi" onclick="switchGudangTab('alokasi')">Tinjau Hasil Alokasi Sales</button>
+            </div>
+
+            <div id="gudang-view-input">
+                <h3 style="font-size: 1.1em; color: var(--text-muted); border-top: 1px solid #eee; padding-top:15px;">Input Barang Masuk</h3>
+                <div class="form-row">
+                    <div class="form-group"><label>Nama Baju / Artikel</label><input type="text" id="itemName"></div>
+                    <div class="form-group"><label>Target Qty Produksi</label><input type="number" id="itemQtyProduksi" min="1"></div>
+                    <div class="form-group"><label>Tgl Masuk Gudang</label><input type="date" id="itemDate"></div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group"><label>Brand</label><select id="itemBrand"><option value="ZS">Zaskia Sungkar (ZS)</option><option value="SHI">Shi By Shireen (SHI)</option></select></div>
+                    <div class="form-group"><label>Kondisi</label><select id="itemCondition"><option value="Oke">Barang Oke</option><option value="Defect">Barang Defect</option></select></div>
+                </div>
+                
+                <label>Pilih/Input Size & Masukkan Quantity Masuk</label>
+                <div class="size-grid" id="size-container"></div>
+                <div class="custom-size-box">
+                    <input type="text" id="custom-size-input" placeholder="Ketik size lain"><button class="btn-primary btn-small" onclick="addCustomSize('main')">+ Tambah Size</button>
+                </div>
+                <button class="btn-success" onclick="saveInventory()" style="margin-top: 20px;">Simpan Barang Masuk</button>
+
+                <h3 style="margin-top:30px; border-top: 1px solid #eee; padding-top:20px;">Riwayat Stok Gudang</h3>
+                <div class="header-actions">
+                    <div class="filter-bar">
+                        <input type="text" id="gudang-filter-nama" placeholder="Cari Nama Baju..." oninput="loadGudangData()">
+                        <select id="gudang-filter-brand" onchange="loadGudangData()"><option value="ALL">Semua Brand</option><option value="ZS">ZS</option><option value="SHI">SHI</option></select>
+                    </div>
+                    <button class="btn-success" onclick="exportExcel('gudang_input')">📥 Download Laporan Stok Excel</button>
+                </div>
+                <div class="table-container">
+                    <table id="gudang-table">
+                        <thead><tr><th>Artikel & Info Masuk</th><th>Foto</th><th>Total Masuk (All)</th><th>Aksi</th></tr></thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- VIEW: GUDANG ALOKASI -->
+            <div id="gudang-view-alokasi" class="hidden">
+                <div class="header-actions" style="margin-top:10px;">
+                    <p style="font-size:0.85em; color:var(--text-muted); flex-grow: 1; margin:0;">Di tab ini Anda hanya dapat memantau barang yang <b>sudah di-Approve</b> oleh Sales Leader.</p>
+                    <button class="btn-success" onclick="exportExcel('alokasi')">📥 Download Laporan Alokasi Excel</button>
+                </div>
+                <div class="table-container">
+                    <table id="gudang-alokasi-table">
+                        <thead><tr><th>Artikel</th><th>Foto</th><th>Rincian Alokasi (Approved)</th></tr></thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODALS GUDANG -->
+    <div id="modal-history" class="modal-overlay hidden">
+        <div class="modal-content fade-in">
+            <div class="flex-header">
+                <h3 id="history-title">Riwayat Detail Masuk</h3>
+                <button class="btn-dark btn-small" onclick="closeHistoryModal()">Tutup</button>
+            </div>
+            <div class="table-container">
+                <table id="history-table">
+                    <thead><tr><th>Tanggal Masuk</th><th>Rincian Size & Qty</th><th id="history-action-th">Aksi</th></tr></thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-edit-batch" class="modal-overlay hidden">
+        <div class="modal-content fade-in">
+            <h3>Edit Stok (Berdasarkan Tgl Masuk)</h3>
+            <input type="hidden" id="edit-batch-itemId">
+            <input type="hidden" id="edit-batch-entryId">
+            <div class="form-row">
+                <div class="form-group"><label>Ubah Tanggal Masuk</label><input type="date" id="edit-batch-date"></div>
+            </div>
+            <label>Update Qty Masuk Pada Tanggal Ini:</label>
+            <div class="size-grid" id="edit-batch-size-container"></div>
+            <div class="custom-size-box">
+                <input type="text" id="edit-batch-custom-size-input" placeholder="Ketik size lain"><button class="btn-primary btn-small" onclick="addCustomSize('batch')">+ Tambah Size</button>
+            </div>
+            <div style="margin-top: 25px; display: flex; gap: 10px; justify-content: flex-end;">
+                <button class="btn-dark" onclick="closeEditBatchModal()">Batal</button>
+                <button class="btn-success" onclick="saveEditBatch()">Simpan Perubahan Qty</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-edit-info" class="modal-overlay hidden">
+        <div class="modal-content fade-in" style="max-width: 600px;">
+            <h3>Edit Info Utama Barang</h3><input type="hidden" id="edit-info-id">
+            <div class="form-row">
+                <div class="form-group"><label>Nama Baju</label><input type="text" id="edit-info-name"></div>
+                <div class="form-group"><label>Target Qty Produksi</label><input type="number" id="edit-info-qty" min="1"></div>
+            </div>
+            <div class="form-row">
+                <div class="form-group"><label>Brand</label><select id="edit-info-brand"><option value="ZS">ZS</option><option value="SHI">SHI</option></select></div>
+                <div class="form-group"><label>Kondisi</label><select id="edit-info-condition"><option value="Oke">Oke</option><option value="Defect">Defect</option></select></div>
+            </div>
+            <div style="margin-top: 25px; display: flex; gap: 10px; justify-content: flex-end;">
+                <button class="btn-dark" onclick="closeEditInfoModal()">Batal</button><button class="btn-success" onclick="saveEditInfo()">Simpan Info</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= HALAMAN SALES ================= -->
+    <div id="sales-section" class="hidden fade-in">
+        <div class="card">
+            <div class="flex-header">
+                <h2>Dashboard Sales <span id="sales-role-badge" style="font-size:0.6em; background:var(--primary); color:#fff; padding:3px 8px; border-radius:12px; vertical-align:middle; margin-left:10px;"></span></h2>
+                <button class="btn-danger btn-small" onclick="logout()">Logout</button>
+            </div>
+
+            <div class="tabs">
+                <button class="tab-btn active" id="tab-sales-belum" onclick="switchSalesTab('belum')">Daftar Stok</button>
+                <button class="tab-btn" id="tab-sales-pending" onclick="switchSalesTab('pending')">Menunggu Approval</button>
+                <button class="tab-btn" id="tab-sales-sudah" onclick="switchSalesTab('sudah')">Telah Dialokasikan</button>
+                <button class="tab-btn" id="tab-sales-mitra" onclick="switchSalesTab('mitra')">⚙️ Mitra</button>
+            </div>
+
+            <div id="sales-view-data">
+                <div class="header-actions">
+                    <div class="filter-bar">
+                        <input type="text" id="sales-filter-nama" placeholder="Cari Nama Baju..." oninput="loadSalesData()">
+                        <select id="sales-filter-brand" onchange="loadSalesData()"><option value="ALL">Semua Brand</option><option value="ZS">ZS</option><option value="SHI">SHI</option></select>
+                    </div>
+                    <button class="btn-success" id="btn-export-sales" onclick="exportExcel('sales_belum')">📥 Download Laporan Excel</button>
+                </div>
+                <div class="table-container">
+                    <table id="sales-table">
+                        <thead><tr><th>Artikel & Progress Produksi</th><th>Foto / Gambar</th><th>Kondisi</th><th>Sisa Stok</th><th>Aksi</th></tr></thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- VIEW: MANAJEMEN MITRA -->
+            <div id="sales-view-mitra" class="hidden">
+                <div style="background:#f8fafc; padding:20px; border-radius:8px; border:1px solid var(--border); margin-bottom:20px;">
+                    <h3 style="margin-bottom: 15px; font-size:1.1em;">Tambah Mitra Baru</h3>
+                    <div class="form-row">
+                        <div class="form-group"><label>Nama Mitra</label><input type="text" id="mitraName" placeholder="Contoh: Toko Hijab Indah"></div>
+                        <div class="form-group"><label>Lokasi / Kota</label><input type="text" id="mitraLoc" placeholder="Contoh: Jakarta"></div>
+                        <div class="form-group"><label>Brand Mitra</label>
+                            <select id="mitraBrand">
+                                <option value="ZS">Zaskia Sungkar (ZS)</option>
+                                <option value="SHI">Shi By Shireen (SHI)</option>
+                                <option value="BOTH">Keduanya (ZS & SHI)</option>
+                            </select>
+                        </div>
+                    </div>
+                    <button class="btn-success" onclick="saveMitra()">Simpan Mitra Baru</button>
+                </div>
+                
+                <div class="header-actions" style="margin-top: 30px;">
+                    <h3 style="margin:0; font-size:1.1em; flex-grow: 1;">Daftar Mitra Tersimpan</h3>
+                    <div class="filter-bar" style="padding: 10px; background: transparent; border:none; margin:0;">
+                        <label style="margin:0; font-weight:600;">Filter Brand:</label>
+                        <select id="mitra-filter-brand" onchange="loadMitraData()" style="max-width: 200px; margin:0;">
+                            <option value="ALL">Semua Brand</option><option value="ZS">Hanya ZS</option><option value="SHI">Hanya SHI</option><option value="BOTH">Keduanya (ZS & SHI)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="table-container">
+                    <table id="mitra-table">
+                        <thead><tr><th>Nama Mitra</th><th>Lokasi</th><th>Brand Terdaftar</th><th>Aksi</th></tr></thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL EDIT MITRA -->
+    <div id="modal-edit-mitra" class="modal-overlay hidden">
+        <div class="modal-content fade-in" style="max-width: 500px;">
+            <h3>Edit Mitra</h3><input type="hidden" id="edit-mitra-id">
+            <div class="form-group"><label>Nama Mitra</label><input type="text" id="edit-mitra-name"></div>
+            <div class="form-group"><label>Lokasi / Kota</label><input type="text" id="edit-mitra-loc"></div>
+            <div class="form-group"><label>Brand Mitra</label>
+                <select id="edit-mitra-brand">
+                    <option value="ZS">Zaskia Sungkar (ZS)</option>
+                    <option value="SHI">Shi By Shireen (SHI)</option>
+                    <option value="BOTH">Keduanya (ZS & SHI)</option>
+                </select>
+            </div>
+            <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
+                <button class="btn-dark" onclick="closeEditMitraModal()">Batal</button>
+                <button class="btn-success" onclick="saveEditMitra()">Simpan Perubahan</button>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    // ==========================================
+    // KONFIGURASI FIREBASE ANDA
+    // ==========================================
+    const firebaseConfig = {
+        apiKey: "AIzaSyBoKfKIpm35hMDq8MWVQSr6T7JSqpml0JA",
+        authDomain: "mitra-9e542.firebaseapp.com",
+        projectId: "mitra-9e542",
+        storageBucket: "mitra-9e542.firebasestorage.app",
+        messagingSenderId: "264625351884",
+        appId: "1:264625351884:web:efcb125104cf30dfb9e669"
+    };
+
+    // Inisialisasi Firebase
+    if (!firebase.apps.length) { firebase.initializeApp(firebaseConfig); }
+    const db = firebase.firestore();
+
+    // ==========================================
+    // GLOBAL STATE VARIABLES 
+    // ==========================================
+    let _users = {};
+    let _inventory = [];
+    let _mitras = [];
+    let _logs = [];
+    let globalSizes = ['S', 'M', 'L', 'XL', 'All Size', 'S-M', 'L-XL', 'XXL'];
+    let activeSalesTab = 'belum';
+    let currentUser = null;
+    let currentUserRole = null;
+
+    document.getElementById('itemDate').valueAsDate = new Date();
+
+    function toggleSalesLevel() {
+        let r = document.getElementById('reg-role').value;
+        if(r === 'sales') document.getElementById('reg-sales-level-group').classList.remove('hidden');
+        else document.getElementById('reg-sales-level-group').classList.add('hidden');
+    }
+
+    // ==========================================
+    // FIREBASE REAL-TIME LISTENERS
+    // ==========================================
+    
+    // Listener Users
+    db.collection("users").onSnapshot(snap => {
+        _users = {};
+        snap.forEach(doc => { _users[doc.id] = doc.data(); });
+        
+        // Buat akun admin default jika belum ada
+        if (!_users['admin']) {
+            db.collection("users").doc("admin").set({ password: 'admin', role: 'admin', reqReset: false, mustChange: false });
+        }
+        
+        if(!document.getElementById('admin-section').classList.contains('hidden')) loadAdminData();
+        document.getElementById('server-status').innerText = "🟢 Terhubung ke Server";
+        document.getElementById('server-status').style.backgroundColor = "var(--success)";
+    }, err => { console.error(err); document.getElementById('server-status').innerText = "🔴 Gagal Konek Database (Cek Config Firebase)"; });
+
+    // Listener Inventory
+    db.collection("inventory").onSnapshot(snap => {
+        _inventory = [];
+        snap.forEach(doc => { 
+            let data = doc.data();
+            data.id = doc.id; 
+            _inventory.push(data); 
+        });
+        
+        // Refresh UI secara real-time
+        if(!document.getElementById('gudang-section').classList.contains('hidden')) {
+            if(document.getElementById('gudang-view-input').classList.contains('hidden') === false) loadGudangData();
+            else loadGudangAlokasiData();
+        }
+        if(!document.getElementById('sales-section').classList.contains('hidden')) {
+            if(document.getElementById('sales-view-data').classList.contains('hidden') === false) loadSalesData();
+        }
+    });
+
+    // Listener Mitras
+    db.collection("mitras").onSnapshot(snap => {
+        _mitras = [];
+        snap.forEach(doc => { _mitras.push({id: doc.id, ...doc.data()}); });
+        if(!document.getElementById('sales-view-mitra').classList.contains('hidden')) loadMitraData();
+    });
+
+    // Listener Logs
+    db.collection("logs").orderBy("timestamp", "asc").onSnapshot(snap => {
+        _logs = [];
+        snap.forEach(doc => { _logs.push(doc.data()); });
+        if(!document.getElementById('admin-view-logs').classList.contains('hidden')) loadAdminLogs();
+    });
+
+
+    // --- FUNGSI LOGGING (AUDIT TRAIL) KE FIREBASE ---
+    function logActivity(action, details) {
+        let uName = currentUser || 'Guest'; let uRole = currentUserRole || '-';
+        db.collection("logs").add({ 
+            timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+            time: new Date().toLocaleString('id-ID'), 
+            user: uName, 
+            role: uRole, 
+            action: action, 
+            details: details 
+        });
+    }
+
+    function toggleEye(inputId) { let input = document.getElementById(inputId); input.type = input.type === "password" ? "text" : "password"; }
+    function safeId(str) { return str.replace(/[^a-zA-Z0-9]/g, '_'); }
+    function getBadge(val, type) { 
+        if(type === 'brand') {
+            if(val === 'ZS') return `<span class="badge badge-zs">ZS</span>`;
+            if(val === 'SHI') return `<span class="badge badge-shi">SHI</span>`;
+            if(val === 'BOTH') return `<span class="badge badge-both">ZS & SHI</span>`;
+        }
+        return (val === 'Oke' ? `<span class="badge badge-oke">Oke</span>` : `<span class="badge badge-defect">Defect</span>`); 
+    }
+    function formatDateDisplay(dateStr) { return dateStr ? dateStr.split('-').reverse().join('-') : '-'; }
+
+    function getDatesDisplay(item, role) {
+        if(!item.history) return '-';
+        let dates = [...new Set(item.history.map(h => h.date))].sort();
+        let displayStr = dates.map(d => formatDateDisplay(d)).join(', ');
+        return `<span class="clickable-dates" style="font-weight:600; text-decoration: underline; color:var(--secondary);" onclick="openHistoryModal('${item.id}', '${role}'); event.stopPropagation();" title="Klik untuk lihat detail ukuran masuk per tanggal">${displayStr} <br><small><i>(Klik lihat detail)</i></small></span>`;
+    }
+
+    // --- SETUP SIZES CHECKBOXES ---
+    function renderSizeCheckboxes(containerId, prefix) {
+        const container = document.getElementById(containerId); container.innerHTML = '';
+        globalSizes.forEach(size => {
+            const sid = safeId(size);
+            container.innerHTML += `<div class="size-item" id="${prefix}box-${sid}"><label><input type="checkbox" id="${prefix}chk-${sid}" onchange="toggleSizeInput('${prefix}', '${sid}')"> ${size}</label><input type="number" id="${prefix}qty-${sid}" class="hidden" min="1" placeholder="Qty"></div>`;
+        });
+    }
+    function toggleSizeInput(prefix, sid) { const input = document.getElementById(`${prefix}qty-${sid}`); input.classList.toggle('hidden'); if(input.classList.contains('hidden')) input.value = ''; }
+    function addCustomSize(ctx) {
+        let inputEl;
+        if(ctx === 'main') inputEl = document.getElementById('custom-size-input');
+        else if (ctx === 'batch') inputEl = document.getElementById('edit-batch-custom-size-input');
+        
+        const val = inputEl.value.trim();
+        if(val && !globalSizes.includes(val)) { 
+            globalSizes.push(val); 
+            renderSizeCheckboxes('size-container', ''); 
+            if(!document.getElementById('modal-edit-batch').classList.contains('hidden')) renderSizeCheckboxes('edit-batch-size-container', 'edit-batch-'); 
+        }
+        inputEl.value = '';
+    }
+    renderSizeCheckboxes('size-container', '');
+
+    // --- AUTENTIKASI ---
+    function toggleAuth(view) {
+        document.getElementById('login-msg').innerText = ''; document.getElementById('reg-msg').innerText = ''; document.getElementById('forgot-msg').innerText = '';
+        ['login-view', 'register-view', 'forgot-view'].forEach(v => document.getElementById(v).classList.add('hidden'));
+        document.getElementById(`${view}-view`).classList.remove('hidden');
+    }
+
+    function register() {
+        const u = document.getElementById('reg-username').value.trim().toLowerCase(); 
+        const p = document.getElementById('reg-password').value; 
+        let r = document.getElementById('reg-role').value;
+        if(r === 'sales') r = 'sales_' + document.getElementById('reg-sales-level').value;
+
+        if (!u || !p) return document.getElementById('reg-msg').innerText = 'Username & password wajib!';
+        if (_users[u]) return document.getElementById('reg-msg').innerText = 'Username sudah terdaftar!';
+        
+        db.collection("users").doc(u).set({ password: p, role: r, reqReset: false, mustChange: false }).then(() => {
+            logActivity('Daftar Akun Baru', `User baru didaftarkan dengan username: ${u} (Role: ${r})`);
+            document.getElementById('reg-msg').style.color = 'green'; document.getElementById('reg-msg').innerText = 'Sukses! Kembali ke login...'; setTimeout(() => toggleAuth('login'), 1200);
+        });
+    }
+
+    function login() {
+        const u = document.getElementById('login-username').value.trim().toLowerCase(); 
+        const p = document.getElementById('login-password').value;
+
+        if (_users[u] && _users[u].password === p) {
+            document.getElementById('login-msg').innerText = ''; document.getElementById('auth-section').classList.add('hidden'); 
+            currentUser = u;
+            currentUserRole = _users[u].role;
+
+            if (_users[u].mustChange) { document.getElementById('force-pwd-section').classList.remove('hidden'); } 
+            else { logActivity('Login Berhasil', `Masuk ke dalam sistem`); routeUser(currentUserRole); }
+        } else { document.getElementById('login-msg').innerText = 'Login gagal! Cek username/password.'; }
+    }
+
+    function routeUser(role) {
+        if (role === 'admin') { document.getElementById('admin-section').classList.remove('hidden'); loadAdminData(); }
+        else if (role === 'gudang') { document.getElementById('gudang-section').classList.remove('hidden'); loadGudangData(); } 
+        else { 
+            document.getElementById('sales-section').classList.remove('hidden'); 
+            let badgeRole = role === 'sales_leader' ? 'LEADER / SPV' : 'STAFF';
+            document.getElementById('sales-role-badge').innerText = badgeRole;
+            if(role === 'sales_leader') document.getElementById('sales-role-badge').style.backgroundColor = '#6b21a8';
+            else document.getElementById('sales-role-badge').style.backgroundColor = '#0f172a';
+            loadSalesData(); 
+        }
+    }
+
+    function logout() {
+        if(currentUser) logActivity('Logout', `Keluar dari sistem`);
+        ['gudang-section', 'sales-section', 'admin-section', 'force-pwd-section'].forEach(id => document.getElementById(id).classList.add('hidden'));
+        document.getElementById('auth-section').classList.remove('hidden'); document.getElementById('login-username').value = ''; document.getElementById('login-password').value = ''; 
+        currentUser = null; currentUserRole = null;
+    }
+
+    function requestReset() {
+        const u = document.getElementById('forgot-username').value.trim().toLowerCase();
+        if (_users[u]) {
+            db.collection("users").doc(u).update({ reqReset: true }).then(() => {
+                logActivity('Minta Reset Password', `User ${u} mengajukan permintaan reset password`);
+                document.getElementById('forgot-msg').innerText = "Permintaan terkirim! Admin akan mereset password Anda.";
+            });
+        } else { document.getElementById('forgot-msg').style.color = "red"; document.getElementById('forgot-msg').innerText = "Username tidak ditemukan!"; }
+    }
+
+    function saveForcedPassword() {
+        const p = document.getElementById('force-new-pwd').value;
+        if(p.length < 3) return alert('Password minimal 3 karakter');
+        
+        db.collection("users").doc(currentUser).update({ password: p, mustChange: false }).then(() => {
+            logActivity('Ganti Password Wajib', `User berhasil mengganti password sementara`);
+            document.getElementById('force-pwd-section').classList.add('hidden'); alert('Password berhasil diubah!'); routeUser(currentUserRole);
+        });
+    }
+
+    // --- SUPERADMIN ---
+    function switchAdminTab(tab) {
+        document.getElementById('tab-admin-users').classList.toggle('active', tab === 'users'); document.getElementById('tab-admin-logs').classList.toggle('active', tab === 'logs');
+        if(tab === 'logs') { document.getElementById('admin-view-users').classList.add('hidden'); document.getElementById('admin-view-logs').classList.remove('hidden'); loadAdminLogs(); } 
+        else { document.getElementById('admin-view-logs').classList.add('hidden'); document.getElementById('admin-view-users').classList.remove('hidden'); loadAdminData(); }
+    }
+
+    function loadAdminData() {
+        const tbody = document.querySelector('#admin-table tbody'); tbody.innerHTML = '';
+        for (const [uname, data] of Object.entries(_users)) {
+            if (uname === 'admin') continue;
+            let reqAlert = data.reqReset ? `<span style="color:var(--danger); font-weight:bold;">Minta Reset!</span>` : `Aman`;
+            tbody.innerHTML += `<tr><td><strong>${uname}</strong></td><td>${data.role.toUpperCase().replace('_', ' ')}</td><td>${reqAlert}</td>
+                <td><button class="btn-warning btn-small" onclick="resetUserPwd('${uname}')">Reset Pwd (1234)</button> <button class="btn-danger btn-small" onclick="deleteUser('${uname}')">Hapus</button></td></tr>`;
+        }
+    }
+
+    function loadAdminLogs() {
+        const tbody = document.querySelector('#admin-logs-table tbody'); tbody.innerHTML = '';
+        _logs.slice().reverse().forEach(log => {
+            tbody.innerHTML += `<tr><td style="font-size:0.85em; color:var(--text-muted);">${log.time}</td>
+                <td><strong>${log.user}</strong> <br><small style="color:var(--secondary)">[${log.role.toUpperCase().replace('_', ' ')}]</small></td>
+                <td><span class="badge" style="background:#e2e8f0; color:#334155;">${log.action}</span></td><td>${log.details}</td></tr>`;
+        });
+    }
+
+    function resetUserPwd(uname) {
+        if(!confirm(`Reset password ${uname} menjadi "1234"?`)) return;
+        db.collection("users").doc(uname).update({ password: "1234", mustChange: true, reqReset: false }).then(() => {
+            logActivity('Admin Reset Password', `Admin mereset password milik user: ${uname}`);
+            alert(`Password ${uname} direset ke 1234.`);
+        });
+    }
+
+    function deleteUser(uname) {
+        if(!confirm(`Hapus akun ${uname} selamanya?`)) return;
+        db.collection("users").doc(uname).delete().then(() => {
+            logActivity('Admin Hapus User', `Admin menghapus permanen user: ${uname}`);
+        });
+    }
+
+    // --- IMAGE PASTE ---
+    function handleImagePaste(e, itemId) {
+        let items = (e.clipboardData || e.originalEvent.clipboardData).items;
+        for (let index in items) {
+            let item = items[index];
+            if (item.kind === 'file' && item.type.includes('image')) {
+                let blob = item.getAsFile(); let reader = new FileReader();
+                reader.onload = function(event) {
+                    let img = new Image();
+                    img.onload = function() {
+                        let cvs = document.createElement('canvas'); let maxW = 300; let scale = maxW / img.width;
+                        cvs.width = maxW; cvs.height = img.height * scale;
+                        let ctx = cvs.getContext('2d'); ctx.drawImage(img, 0, 0, cvs.width, cvs.height);
+                        let dataUrl = cvs.toDataURL('image/jpeg', 0.8);
+                        
+                        db.collection("inventory").doc(itemId).update({ image: dataUrl }).then(() => {
+                            let invItem = _inventory.find(x => x.id === itemId);
+                            logActivity('Upload Foto', `Menyisipkan foto pada barang: ${invItem ? invItem.name : itemId}`); 
+                            alert('Foto tersimpan!'); 
+                        });
+                    }
+                    img.src = event.target.result;
+                };
+                reader.readAsDataURL(blob); e.preventDefault(); return;
+            }
+        }
+    }
+
+    // ================= BAGIAN GUDANG =================
+    function switchGudangTab(tab) {
+        document.getElementById('tab-gudang-input').classList.toggle('active', tab === 'input'); document.getElementById('tab-gudang-alokasi').classList.toggle('active', tab === 'alokasi');
+        if (tab === 'alokasi') { document.getElementById('gudang-view-input').classList.add('hidden'); document.getElementById('gudang-view-alokasi').classList.remove('hidden'); loadGudangAlokasiData(); } 
+        else { document.getElementById('gudang-view-alokasi').classList.add('hidden'); document.getElementById('gudang-view-input').classList.remove('hidden'); loadGudangData(); }
+    }
+
+    function saveInventory() {
+        const name = document.getElementById('itemName').value.trim(); const brand = document.getElementById('itemBrand').value;
+        const condition = document.getElementById('itemCondition').value; const qtyProduksi = parseInt(document.getElementById('itemQtyProduksi').value) || 0;
+        const dateInput = document.getElementById('itemDate').value; const dateStr = dateInput ? dateInput : new Date().toISOString().split('T')[0];
+
+        if (!name || qtyProduksi <= 0) return alert('Nama dan Target Qty wajib diisi!');
+        
+        let inputDetails = [];
+        globalSizes.forEach(size => {
+            const sid = safeId(size); const chk = document.getElementById(`chk-${sid}`);
+            if(chk && chk.checked) {
+                const qty = parseInt(document.getElementById(`qty-${sid}`).value);
+                if(qty > 0) inputDetails.push({ size: size, totalQty: qty, allocationStatus: 'none', allocated: { mitra: {}, tiktok:0, shopee:0, web:0, butik:0, foc:0 } });
+            }
+        });
+        if (inputDetails.length === 0) return alert('Pilih minimal 1 size!');
+
+        let existingItem = _inventory.find(i => i.name.toLowerCase() === name.toLowerCase() && i.brand === brand && i.condition === condition);
+        
+        if (existingItem) {
+            let updateData = { history: existingItem.history || [], details: existingItem.details };
+            updateData.history.push({ entryId: Date.now(), date: dateStr, added: inputDetails.map(d=>({size: d.size, qty: d.totalQty})) });
+            if(qtyProduksi > 0) updateData.qtyProduksi = qtyProduksi; 
+
+            inputDetails.forEach(newD => {
+                let existD = updateData.details.find(d => d.size === newD.size);
+                if(existD) { existD.totalQty += newD.totalQty; if(existD.allocationStatus === 'approved') existD.allocationStatus = 'pending'; } 
+                else { updateData.details.push(newD); }
+            });
+            
+            db.collection("inventory").doc(existingItem.id).update(updateData).then(() => {
+                logActivity('Restok Gudang', `Menambah kuantitas artikel: ${name} pada tgl ${dateStr}`);
+                alert('Tersimpan dan berhasil digabungkan dengan stok sebelumnya!');
+            });
+
+        } else {
+            let newItem = { 
+                name, brand, condition, qtyProduksi, details: inputDetails, image: '', date: dateStr,
+                history: [{ entryId: Date.now(), date: dateStr, added: inputDetails.map(d=>({size: d.size, qty: d.totalQty})) }]
+            };
+            db.collection("inventory").add(newItem).then(() => {
+                logActivity('Input Barang Masuk', `Menambahkan artikel baru: ${name} ke dalam sistem`);
+                alert('Barang Baru Tersimpan!');
+            });
+        }
+
+        document.getElementById('itemName').value = ''; document.getElementById('itemQtyProduksi').value = ''; document.getElementById('itemDate').valueAsDate = new Date(); renderSizeCheckboxes('size-container', ''); 
+    }
+
+    function loadGudangData() {
+        const fName = document.getElementById('gudang-filter-nama').value.toLowerCase(); const fBrand = document.getElementById('gudang-filter-brand').value;
+        const tbody = document.querySelector('#gudang-table tbody'); tbody.innerHTML = '';
+        _inventory.slice().reverse().forEach(item => {
+            if ((fName !== '' && !item.name.toLowerCase().includes(fName)) || (fBrand !== 'ALL' && item.brand !== fBrand)) return;
+            let totalMasuk = 0; item.details.forEach(d => totalMasuk += d.totalQty);
+            let percent = item.qtyProduksi > 0 ? ((totalMasuk / item.qtyProduksi) * 100).toFixed(1) : 0;
+            let detailStr = item.details.map(d => `<span style="background:#f1f5f9; padding:2px 6px; border-radius:4px; font-size:0.9em; margin-right:5px; white-space:nowrap; display:inline-block; margin-bottom:5px;"><b>${d.size}</b>: ${d.totalQty}</span>`).join(' ');
+            let imgStr = item.image ? `<img src="${item.image}" class="item-image-preview">` : `<span style="font-size:0.8em; color:#999;">No Image</span>`;
+            
+            tbody.innerHTML += `<tr>
+                <td><strong>${item.name}</strong><br><small style="color:var(--text-muted); display:block; margin:4px 0;">📅 Tgl Masuk: <br>${getDatesDisplay(item, 'gudang')}</small>${getBadge(item.brand, 'brand')} ${getBadge(item.condition, 'cond')}<br><span class="progress-text">Progress: ${totalMasuk} / ${item.qtyProduksi || 0} pcs (${percent}%)</span></td>
+                <td>${imgStr}</td><td>${detailStr}</td>
+                <td><button class="btn-warning btn-small" onclick="openEditInfoModal('${item.id}')">Edit Info Utama</button> <br><button class="btn-danger btn-small" style="margin-top:5px;" onclick="deleteGudangItem('${item.id}')">Hapus Permanen</button></td>
+            </tr>`;
+        });
+    }
+
+    function loadGudangAlokasiData() {
+        const tbody = document.querySelector('#gudang-alokasi-table tbody'); tbody.innerHTML = '';
+        _inventory.forEach(item => {
+            let itemMitras = _mitras.filter(m => m.brand === item.brand || m.brand === 'BOTH'); let allocDetails = '';
+            item.details.forEach(d => {
+                if(d.allocationStatus !== 'approved') return; 
+
+                let a = d.allocated; let mHtml = '';
+                if(itemMitras.length > 0) { itemMitras.forEach(m => { let v = (typeof a.mitra === 'object' && a.mitra[m.id]) ? a.mitra[m.id] : 0; if(v > 0) mHtml += `[${m.name} (${m.loc}): ${v}] `; }); }
+                let hasAlloc = (a.tiktok||a.shopee||a.web||a.butik||a.foc||mHtml.length > 0);
+                if(hasAlloc) {
+                    allocDetails += `<div style="border-bottom:1px dashed #ccc; padding:5px 0; font-size:0.85em;"><strong>Size ${d.size}</strong> ➔ Tiktok:${a.tiktok||0}, Shopee:${a.shopee||0}, Web:${a.web||0}, Butik:${a.butik||0}, FOC:${a.foc||0} <br><span style="color:var(--secondary)">Mitra: ${mHtml || 'Tidak ada'}</span></div>`;
+                }
+            });
+            if(allocDetails === '') return; 
+            let imgStr = item.image ? `<img src="${item.image}" style="max-width:80px; border-radius:5px;">` : `-`;
+            tbody.innerHTML += `<tr><td style="width:25%"><strong>${item.name}</strong><br>${getBadge(item.brand, 'brand')}</td><td style="width:15%">${imgStr}</td><td style="width:60%">${allocDetails}</td></tr>`;
+        });
+    }
+
+    function deleteGudangItem(id) { 
+        if(confirm('Hapus barang ini sepenuhnya? Seluruh batch tanggal akan hilang.')) { 
+            let item = _inventory.find(i => i.id === id);
+            db.collection("inventory").doc(id).delete().then(() => {
+                logActivity('Hapus Barang Gudang', `Menghapus artikel: ${item.name} beserta seluruh datanya`);
+            });
+        } 
+    }
+
+    // --- MODAL INFO UTAMA GUDANG ---
+    function openEditInfoModal(id) {
+        let item = _inventory.find(i => i.id === id);
+        document.getElementById('edit-info-id').value = id; document.getElementById('edit-info-name').value = item.name; 
+        document.getElementById('edit-info-qty').value = item.qtyProduksi || 0; document.getElementById('edit-info-brand').value = item.brand; document.getElementById('edit-info-condition').value = item.condition;
+        document.getElementById('modal-edit-info').classList.remove('hidden');
+    }
+    function closeEditInfoModal() { document.getElementById('modal-edit-info').classList.add('hidden'); }
+    
+    function saveEditInfo() {
+        const id = document.getElementById('edit-info-id').value; 
+        const n = document.getElementById('edit-info-name').value.trim(); const q = parseInt(document.getElementById('edit-info-qty').value) || 0;
+        const b = document.getElementById('edit-info-brand').value; const c = document.getElementById('edit-info-condition').value;
+        if (!n) return alert('Data tidak valid!');
+        
+        db.collection("inventory").doc(id).update({ name: n, qtyProduksi: q, brand: b, condition: c }).then(() => {
+            logActivity('Edit Info Utama', `Mengubah info utama artikel: ${n}`); closeEditInfoModal();
+        });
+    }
+
+    // --- MODAL HISTORY (DETAIL TANGGAL) ---
+    function openHistoryModal(itemId, role) {
+        let item = _inventory.find(i => i.id === itemId);
+        document.getElementById('history-title').innerText = `Riwayat Masuk: ${item.name}`;
+        let thAction = document.getElementById('history-action-th');
+        if(role === 'gudang') thAction.classList.remove('hidden'); else thAction.classList.add('hidden');
+
+        const tbody = document.querySelector('#history-table tbody'); tbody.innerHTML = '';
+        if(item.history) {
+            item.history.forEach(entry => {
+                let sizeStr = entry.added.map(a => `<span style="background:#e2e8f0; padding:2px 5px; border-radius:3px; margin-right:4px;"><b>${a.size}</b>: ${a.qty}</span>`).join(' ');
+                let actionStr = role === 'gudang' ? `<td><button class="btn-warning btn-small" onclick="openEditBatchModal('${item.id}', ${entry.entryId})">Edit Stok Batch Ini</button></td>` : '';
+                tbody.innerHTML += `<tr><td>${formatDateDisplay(entry.date)}</td><td>${sizeStr}</td>${actionStr}</tr>`;
+            });
+        }
+        document.getElementById('modal-history').classList.remove('hidden');
+    }
+    function closeHistoryModal() { document.getElementById('modal-history').classList.add('hidden'); }
+
+    // --- MODAL EDIT BATCH ---
+    function openEditBatchModal(itemId, entryId) {
+        closeHistoryModal();
+        let item = _inventory.find(i => i.id === itemId); let entry = item.history.find(e => e.entryId === entryId);
+        document.getElementById('edit-batch-itemId').value = itemId; document.getElementById('edit-batch-entryId').value = entryId;
+        document.getElementById('edit-batch-date').value = entry.date;
+        
+        entry.added.forEach(a => { if(!globalSizes.includes(a.size)) globalSizes.push(a.size); }); renderSizeCheckboxes('edit-batch-size-container', 'edit-batch-');
+        entry.added.forEach(a => { const sid = safeId(a.size); document.getElementById(`edit-batch-chk-${sid}`).checked = true; document.getElementById(`edit-batch-qty-${sid}`).classList.remove('hidden'); document.getElementById(`edit-batch-qty-${sid}`).value = a.qty; });
+        document.getElementById('modal-edit-batch').classList.remove('hidden');
+    }
+    function closeEditBatchModal() { document.getElementById('modal-edit-batch').classList.add('hidden'); }
+
+    function saveEditBatch() {
+        const itemId = document.getElementById('edit-batch-itemId').value; const entryId = parseInt(document.getElementById('edit-batch-entryId').value);
+        let item = JSON.parse(JSON.stringify(_inventory.find(i => i.id === itemId))); 
+        let entry = item.history.find(e => e.entryId === entryId);
+        const newDate = document.getElementById('edit-batch-date').value;
+        let newAdded = []; let hasError = false;
+
+        globalSizes.forEach(size => {
+            const sid = safeId(size); const chk = document.getElementById(`edit-batch-chk-${sid}`);
+            let newQty = 0; if(chk && chk.checked) newQty = parseInt(document.getElementById(`edit-batch-qty-${sid}`).value) || 0;
+            
+            let oldRecord = entry.added.find(a => a.size === size); let oldQty = oldRecord ? oldRecord.qty : 0;
+            let delta = newQty - oldQty;
+            let detail = item.details.find(d => d.size === size);
+
+            if(detail) {
+                let a = detail.allocated; let mitraTotal = 0; if(typeof a.mitra === 'object') Object.values(a.mitra).forEach(v => mitraTotal += (parseInt(v)||0));
+                let totalAllocated = a.tiktok + a.shopee + a.web + (a.butik||0) + (a.foc||0) + mitraTotal;
+                
+                let futureTotal = detail.totalQty + delta;
+                if(futureTotal < totalAllocated) {
+                    alert(`Gagal! Total stok akhir Size ${size} menjadi kurang dari jumlah yang sudah didistribusikan Sales (${totalAllocated}). Cek kembali.`); hasError = true;
+                }
+            }
+            if(newQty > 0) newAdded.push({size, qty: newQty});
+        });
+
+        if(hasError || newAdded.length === 0) return;
+
+        entry.added.forEach(a => { let d = item.details.find(x => x.size === a.size); if(d) d.totalQty -= a.qty; });
+        newAdded.forEach(a => { let d = item.details.find(x => x.size === a.size); if(d) d.totalQty += a.qty; else item.details.push({ size: a.size, totalQty: a.qty, allocationStatus: 'none', allocated: {mitra:{}, tiktok:0, shopee:0, web:0, butik:0, foc:0} }); });
+
+        entry.date = newDate; entry.added = newAdded;
+        
+        db.collection("inventory").doc(itemId).update({ history: item.history, details: item.details }).then(() => {
+            logActivity('Edit Batch Stok', `Mengubah qty/tanggal pada batch masuk artikel: ${item.name}`);
+            closeEditBatchModal();
+        });
+    }
+
+    // ================= FUNGSI KALKULASI SISA STOK REAL-TIME =================
+    function calcSisa(itemId, sid, totalQty) {
+        const vT = parseInt(document.getElementById(`t-${itemId}-${sid}`).value) || 0;
+        const vS = parseInt(document.getElementById(`s-${itemId}-${sid}`).value) || 0;
+        const vW = parseInt(document.getElementById(`w-${itemId}-${sid}`).value) || 0;
+        const vB = parseInt(document.getElementById(`b-${itemId}-${sid}`).value) || 0;
+        const vF = parseInt(document.getElementById(`f-${itemId}-${sid}`).value) || 0;
+
+        let totalMitra = 0;
+        const mitraInputs = document.querySelectorAll(`input[id^="m-${itemId}-${sid}-"]`);
+        mitraInputs.forEach(input => { totalMitra += parseInt(input.value) || 0; });
+
+        let totalInput = vT + vS + vW + vB + vF + totalMitra;
+        let sisa = totalQty - totalInput;
+
+        const sisaEl = document.getElementById(`sisa-${itemId}-${sid}`);
+        if(sisaEl) {
+            sisaEl.innerText = sisa;
+            sisaEl.style.color = sisa < 0 ? 'var(--danger)' : (sisa === 0 ? 'var(--success)' : 'var(--primary)');
+        }
+    }
+
+
+    // ================= BAGIAN SALES =================
+    function switchSalesTab(tab) {
+        activeSalesTab = tab;
+        document.getElementById('tab-sales-belum').classList.toggle('active', tab === 'belum'); 
+        document.getElementById('tab-sales-pending').classList.toggle('active', tab === 'pending');
+        document.getElementById('tab-sales-sudah').classList.toggle('active', tab === 'sudah'); 
+        document.getElementById('tab-sales-mitra').classList.toggle('active', tab === 'mitra');
+        
+        let btnExport = document.getElementById('btn-export-sales');
+        if (tab === 'mitra') { 
+            document.getElementById('sales-view-data').classList.add('hidden'); document.getElementById('sales-view-mitra').classList.remove('hidden'); loadMitraData(); 
+        } 
+        else { 
+            document.getElementById('sales-view-mitra').classList.add('hidden'); document.getElementById('sales-view-data').classList.remove('hidden'); loadSalesData(); 
+            btnExport.innerText = tab === 'belum' ? "📥 Download Laporan Sisa Stok" : (tab === 'pending' ? "📥 Download Ajuan Pending" : "📥 Download Laporan Alokasi Approved");
+            btnExport.onclick = () => exportExcel(tab === 'belum' ? 'sales_belum' : (tab === 'pending' ? 'sales_pending' : 'alokasi'));
+        }
+    }
+
+    function saveMitra() {
+        const n = document.getElementById('mitraName').value.trim(); const l = document.getElementById('mitraLoc').value.trim(); const b = document.getElementById('mitraBrand').value;
+        if(!n || !l) return alert('Nama dan Lokasi Mitra wajib diisi!');
+        
+        db.collection("mitras").add({ name: n, loc: l, brand: b }).then(() => {
+            logActivity('Registrasi Mitra Baru', `Mendaftarkan mitra: ${n} (${b})`);
+            document.getElementById('mitraName').value = ''; document.getElementById('mitraLoc').value = '';
+        });
+    }
+    
+    function loadMitraData() {
+        const fBrand = document.getElementById('mitra-filter-brand').value;
+        const tbody = document.querySelector('#mitra-table tbody'); tbody.innerHTML = '';
+        
+        _mitras.slice().reverse().forEach(m => { 
+            if (fBrand !== 'ALL' && m.brand !== fBrand && m.brand !== 'BOTH') return;
+            tbody.innerHTML += `<tr><td><strong>${m.name}</strong></td><td>${m.loc}</td><td>${getBadge(m.brand, 'brand')}</td><td>
+                <button class="btn-warning btn-small" onclick="openEditMitra('${m.id}')">Edit</button>
+                <button class="btn-danger btn-small" onclick="deleteMitra('${m.id}')">Hapus</button>
+            </td></tr>`; 
+        });
+    }
+    
+    function deleteMitra(id) { 
+        if(confirm('Hapus Mitra ini?')) { 
+            let mName = _mitras.find(m => m.id === id).name;
+            db.collection("mitras").doc(id).delete().then(() => {
+                logActivity('Hapus Mitra', `Menghapus mitra: ${mName}`);
+            });
+        } 
+    }
+
+    function openEditMitra(id) {
+        let m = _mitras.find(x => x.id === id);
+        document.getElementById('edit-mitra-id').value = m.id; document.getElementById('edit-mitra-name').value = m.name; document.getElementById('edit-mitra-loc').value = m.loc; document.getElementById('edit-mitra-brand').value = m.brand;
+        document.getElementById('modal-edit-mitra').classList.remove('hidden');
+    }
+    function closeEditMitraModal() { document.getElementById('modal-edit-mitra').classList.add('hidden'); }
+    
+    function saveEditMitra() {
+        const id = document.getElementById('edit-mitra-id').value;
+        const n = document.getElementById('edit-mitra-name').value.trim(); const l = document.getElementById('edit-mitra-loc').value.trim(); const b = document.getElementById('edit-mitra-brand').value;
+        if(!n || !l) return alert('Data tidak lengkap!');
+        db.collection("mitras").doc(id).update({ name: n, loc: l, brand: b }).then(() => {
+            logActivity('Edit Mitra', `Memperbarui data mitra: ${n}`); closeEditMitraModal();
+        });
+    }
+
+    function toggleEditAlloc(id) { document.getElementById(`summary-${id}`).classList.toggle('hidden'); document.getElementById(`form-${id}`).classList.toggle('hidden'); }
+
+    function loadSalesData() {
+        const fName = document.getElementById('sales-filter-nama').value.toLowerCase(); const fBrand = document.getElementById('sales-filter-brand').value;
+        const tbody = document.querySelector('#sales-table tbody'); tbody.innerHTML = '';
+
+        _inventory.forEach(item => {
+            if((fName && !item.name.toLowerCase().includes(fName)) || (fBrand !== 'ALL' && item.brand !== fBrand)) return;
+
+            let totalStock = 0; let totalAlloc = 0; let sizesToRender = [];
+            let itemMitras = _mitras.filter(m => m.brand === item.brand || m.brand === 'BOTH');
+            
+            item.details.forEach(d => {
+                let a = d.allocated; let mitraTotal = 0;
+                if(typeof a.mitra === 'object') Object.values(a.mitra).forEach(v => mitraTotal += (parseInt(v)||0));
+                let sizeAllocTotal = (a.tiktok + a.shopee + a.web + (a.butik||0) + (a.foc||0) + mitraTotal);
+                
+                totalStock += d.totalQty; totalAlloc += sizeAllocTotal;
+                let status = d.allocationStatus || 'none';
+
+                if(activeSalesTab === 'belum' && status !== 'none') return; 
+                if(activeSalesTab === 'pending' && status !== 'pending') return;
+                if(activeSalesTab === 'sudah' && status !== 'approved') return; 
+                sizesToRender.push(d);
+            });
+
+            if(sizesToRender.length === 0) return; 
+            let sisaGudang = totalStock - totalAlloc;
+            let percent = item.qtyProduksi > 0 ? ((totalStock / item.qtyProduksi) * 100).toFixed(1) : 0;
+
+            let btnText = (activeSalesTab === 'belum' || activeSalesTab === 'pending') ? 'Alokasi/Edit' : 'Lihat Detail';
+            let imgHtml = item.image ? `<img src="${item.image}" class="item-image-preview">` : `<span style="font-size:0.8em;color:#999;">Belum Ada Foto</span>`;
+
+            let trStr = `<tr class="parent-row" onclick="toggleAccordion('${item.id}')">
+                <td><strong>${item.name}</strong><br><small style="color:var(--text-muted); display:block; margin:4px 0;">📅 Tgl Masuk: <br>${getDatesDisplay(item, 'sales')}</small><span style="font-size:0.85em; color:var(--secondary); font-weight:600;">Progress Produksi: <br>${totalStock} / ${item.qtyProduksi || 0} pcs (${percent}%)</span><br><br>${getBadge(item.brand, 'brand')}</td>
+                <td>${imgHtml}</td> <td>${getBadge(item.condition, 'cond')}</td>
+                <td><b>${sisaGudang}</b> / ${totalStock}</td> <td><button class="btn-primary btn-small">${btnText} ▼</button></td>
+            </tr>
+            <tr id="acc-${item.id}" class="hidden child-row"><td colspan="5" style="padding:15px;">`;
+
+            // RINGKASAN APPROVED
+            if (activeSalesTab === 'sudah') {
+                let summaryHtml = '';
+                sizesToRender.forEach(d => {
+                    let a = d.allocated; let badges = [];
+                    if(a.tiktok) badges.push(`<span class="alloc-badge">Tiktok: ${a.tiktok}</span>`); if(a.shopee) badges.push(`<span class="alloc-badge">Shopee: ${a.shopee}</span>`);
+                    if(a.web) badges.push(`<span class="alloc-badge">Web: ${a.web}</span>`); if(a.butik) badges.push(`<span class="alloc-badge">Butik: ${a.butik}</span>`); if(a.foc) badges.push(`<span class="alloc-badge">FOC: ${a.foc}</span>`);
+                    if(typeof a.mitra === 'object') {
+                        for(let mid in a.mitra) {
+                            if(a.mitra[mid] > 0) { let mObj = _mitras.find(x => x.id == mid); let mName = mObj ? `${mObj.name} (${mObj.loc})` : 'Mitra Terhapus'; badges.push(`<span class="alloc-badge alloc-badge-mitra">${mName}: ${a.mitra[mid]}</span>`); }
+                        }
+                    }
+                    if(badges.length > 0) { summaryHtml += `<div style="margin-bottom:8px; padding-bottom:8px; border-bottom:1px solid #eee;"><span style="display:inline-block; width:60px; font-weight:bold; color:var(--primary);">Size ${d.size}</span> ${badges.join(' ')}</div>`; }
+                });
+                
+                trStr += `<div id="summary-${item.id}"><div style="background:#fff; border:1px solid var(--border); border-radius:8px; padding:15px; margin-bottom:15px;"><h4 style="margin-top:0; color:var(--primary); font-size:1em; border-bottom:2px solid var(--border); padding-bottom:8px;">Ringkasan Alokasi Distribusi: <span class="status-approved">APPROVED</span></h4>${summaryHtml}</div>`;
+                if(currentUserRole === 'sales_leader' || currentUserRole === 'admin') {
+                    trStr += `<div style="text-align:right;"><button class="btn-danger" style="margin-right:10px;" onclick="resetAllocation('${item.id}')">Hapus (Reset) Semua Alokasi</button><button class="btn-warning" onclick="toggleEditAlloc('${item.id}')">Edit Mode ➔</button></div>`;
+                }
+                trStr += `</div>`;
+            }
+
+            let formClass = (activeSalesTab === 'sudah') ? 'hidden' : '';
+            trStr += `<div id="form-${item.id}" class="${formClass}">
+                <div class="paste-zone" tabindex="0" onpaste="handleImagePaste(event, '${item.id}')">📸 Klik di sini, lalu Paste (Ctrl+V) Screenshot Foto untuk barang ini</div>`;
+            
+            sizesToRender.forEach(d => {
+                let sid = safeId(d.size); let a = d.allocated;
+                let vT = a.tiktok || ''; let vS = a.shopee || ''; let vW = a.web || ''; let vB = a.butik || ''; let vF = a.foc || '';
+                
+                let suggestedMitraVal = 0; let remainder = 0;
+                if(activeSalesTab === 'belum' && itemMitras.length > 0) {
+                    let suggestTotal = Math.floor(d.totalQty * 0.6); 
+                    suggestedMitraVal = Math.floor(suggestTotal / itemMitras.length);
+                    remainder = suggestTotal % itemMitras.length;
+                }
+
+                let readonlyAttr = (activeSalesTab === 'sudah' && currentUserRole === 'sales_staff') ? 'readonly' : '';
+                let statusBadge = '';
+                if(d.allocationStatus === 'pending') statusBadge = `<span class="status-pending">PENDING APPROVAL</span>`;
+                else if(d.allocationStatus === 'approved') statusBadge = `<span class="status-approved">APPROVED</span>`;
+
+                let sumInputs = (parseInt(vT)||0) + (parseInt(vS)||0) + (parseInt(vW)||0) + (parseInt(vB)||0) + (parseInt(vF)||0);
+
+                let mitraInputsHtml = '';
+                if(itemMitras.length === 0) { 
+                    mitraInputsHtml = `<div style="grid-column: 1/-1; font-size:0.8em; color:var(--danger);">Belum ada Mitra terdaftar untuk brand ini.</div>`; 
+                } else { 
+                    itemMitras.forEach((m, idx) => { 
+                        let vM = '';
+                        if(activeSalesTab === 'belum') {
+                            vM = suggestedMitraVal + (idx < remainder ? 1 : 0); if(vM === 0) vM = '';
+                        } else { vM = a.mitra[m.id] || ''; }
+                        sumInputs += (parseInt(vM)||0);
+                        mitraInputsHtml += `<div><label title="${m.name} - ${m.loc}" style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis; display:block;">${m.name}<br><span style="text-transform:capitalize; font-weight:normal; font-size:0.85em; color:#94a3b8;">${m.loc}</span></label><input type="number" id="m-${item.id}-${sid}-${m.id}" value="${vM}" ${readonlyAttr} oninput="calcSisa('${item.id}', '${sid}', ${d.totalQty})"></div>`; 
+                    }); 
+                }
+
+                let currentSisa = d.totalQty - sumInputs;
+                let sisaColor = currentSisa < 0 ? 'var(--danger)' : (currentSisa === 0 ? 'var(--success)' : 'var(--primary)');
+
+                trStr += `<div class="size-alloc-card">
+                    <div style="display:flex; justify-content:space-between; align-items:center; font-weight:700; color:var(--primary); border-bottom:1px solid #eee; padding-bottom:8px; margin-bottom:12px;">
+                        <span>Size: <b style="font-size:1.2em;">${d.size}</b> <span style="font-weight:normal; font-size:0.8em; color:var(--text-muted); margin-left:8px;">(Qty Awal: ${d.totalQty})</span></span> 
+                        <span style="font-size:0.9em; display:flex; align-items:center;">Sisa Stok: <b id="sisa-${item.id}-${sid}" style="color:${sisaColor}; font-size:1.5em; margin:0 8px;">${currentSisa}</b> ${statusBadge}</span>
+                    </div>
+                    <div class="alloc-grid-inputs">
+                        <div><label>Tiktok</label><input type="number" id="t-${item.id}-${sid}" value="${vT}" ${readonlyAttr} oninput="calcSisa('${item.id}', '${sid}', ${d.totalQty})"></div>
+                        <div><label>Shopee</label><input type="number" id="s-${item.id}-${sid}" value="${vS}" ${readonlyAttr} oninput="calcSisa('${item.id}', '${sid}', ${d.totalQty})"></div>
+                        <div><label>Web</label><input type="number" id="w-${item.id}-${sid}" value="${vW}" ${readonlyAttr} oninput="calcSisa('${item.id}', '${sid}', ${d.totalQty})"></div>
+                        <div><label>Butik</label><input type="number" id="b-${item.id}-${sid}" value="${vB}" ${readonlyAttr} oninput="calcSisa('${item.id}', '${sid}', ${d.totalQty})"></div>
+                        <div><label>FOC</label><input type="number" id="f-${item.id}-${sid}" value="${vF}" ${readonlyAttr} oninput="calcSisa('${item.id}', '${sid}', ${d.totalQty})"></div>
+                    </div>
+                    <div style="margin-top:10px; padding-top:10px; border-top:1px dashed #ccc;">
+                        <div style="font-size:0.8em; font-weight:bold;">MITRA:</div>
+                        <div class="alloc-grid-inputs" style="grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));">
+                            ${mitraInputsHtml}
+                        </div>
+                    </div>
+                </div>`;
+            });
+
+            let actionBtns = '';
+            if(activeSalesTab === 'belum') {
+                if(currentUserRole === 'sales_staff') actionBtns = `<button class="btn-success" onclick="saveAllocation('${item.id}', 'add', 'pending')">Simpan & Request Approval</button>`;
+                else actionBtns = `<button class="btn-success" onclick="saveAllocation('${item.id}', 'add', 'approved')">Simpan & Approve Otomatis</button>`;
+            } 
+            else if(activeSalesTab === 'pending') {
+                if(currentUserRole === 'sales_staff') actionBtns = `<button class="btn-success" onclick="saveAllocation('${item.id}', 'update', 'pending')">Update Ajuan</button>`;
+                else actionBtns = `<button class="btn-danger" style="margin-right:10px;" onclick="resetAllocation('${item.id}')">Tolak (Reset)</button> <button class="btn-success" onclick="saveAllocation('${item.id}', 'update', 'approved')">Simpan & APPROVE</button>`;
+            }
+            else if (activeSalesTab === 'sudah' && (currentUserRole === 'sales_leader' || currentUserRole === 'admin')) {
+                actionBtns = `<button class="btn-dark" style="margin-right:10px;" onclick="toggleEditAlloc('${item.id}')">Batal Edit</button><button class="btn-success" onclick="saveAllocation('${item.id}', 'update', 'approved')">Simpan Perubahan</button>`;
+            }
+
+            trStr += `<div style="margin-top:10px; text-align:right;">${actionBtns}</div></div></td></tr>`;
+            tbody.innerHTML += trStr;
+        });
+    }
+
+    function saveAllocation(itemId, mode, targetStatus) {
+        let item = JSON.parse(JSON.stringify(_inventory.find(i => i.id === itemId))); 
+        let itemMitras = _mitras.filter(m => m.brand === item.brand || m.brand === 'BOTH');
+        let hasError = false;
+        
+        item.details.forEach(d => {
+            const sid = safeId(d.size); const a = d.allocated; if(typeof a.mitra !== 'object') a.mitra = {};
+            if(!document.getElementById(`t-${itemId}-${sid}`)) return; 
+
+            const vT = parseInt(document.getElementById(`t-${itemId}-${sid}`).value) || 0; const vS = parseInt(document.getElementById(`s-${itemId}-${sid}`).value) || 0; const vW = parseInt(document.getElementById(`w-${itemId}-${sid}`).value) || 0; const vB = parseInt(document.getElementById(`b-${itemId}-${sid}`).value) || 0; const vF = parseInt(document.getElementById(`f-${itemId}-${sid}`).value) || 0;
+            let totalInputMitra = 0; let newMitraObj = {};
+            
+            itemMitras.forEach(m => {
+                const el = document.getElementById(`m-${itemId}-${sid}-${m.id}`); const vM = el ? (parseInt(el.value) || 0) : 0;
+                let finalM = (mode === 'add') ? (a.mitra[m.id] || 0) + vM : vM; if(finalM > 0) newMitraObj[m.id] = finalM; totalInputMitra += finalM;
+            });
+            if(mode === 'add') { Object.keys(a.mitra).forEach(k => { if(!newMitraObj[k] && a.mitra[k]) { newMitraObj[k] = a.mitra[k]; totalInputMitra += a.mitra[k]; } }); }
+
+            let fT = mode === 'add' ? a.tiktok + vT : vT; let fS = mode === 'add' ? a.shopee + vS : vS; let fW = mode === 'add' ? a.web + vW : vW; let fB = mode === 'add' ? (a.butik||0) + vB : vB; let fF = mode === 'add' ? (a.foc||0) + vF : vF;
+            const sumFinal = fT + fS + fW + fB + fF + totalInputMitra;
+
+            if (sumFinal > d.totalQty) { alert(`Gagal! Size ${d.size} (${sumFinal}) melebihi stok.`); hasError = true; } 
+            else { 
+                d.allocated = { mitra: newMitraObj, tiktok: fT, shopee: fS, web: fW, butik: fB, foc: fF }; 
+                d.allocationStatus = targetStatus; 
+            }
+        });
+
+        if (!hasError) { 
+            db.collection("inventory").doc(itemId).update({ details: item.details }).then(() => {
+                logActivity('Alokasi Sales', `Distribusi alokasi pada artikel: ${item.name} | Status: ${targetStatus.toUpperCase()}`);
+                alert('Berhasil!'); 
+            });
+        }
+    }
+
+    function resetAllocation(itemId) {
+        if(!confirm('Tolak / Hapus semua alokasi ini (kembali ke 0)?')) return;
+        let item = JSON.parse(JSON.stringify(_inventory.find(i => i.id === itemId)));
+        item.details.forEach(d => { d.allocated = { mitra: {}, tiktok: 0, shopee: 0, web: 0, butik: 0, foc: 0 }; d.allocationStatus = 'none'; });
+        
+        db.collection("inventory").doc(itemId).update({ details: item.details }).then(() => {
+            logActivity('Reset/Tolak Alokasi', `Mereset/Menolak data alokasi penjualan pada artikel: ${item.name}`);
+        });
+    }
+
+    // ================= EXPORT EXCEL =================
+    function exportExcel(type) {
+        let tableHtml = ""; let filename = "";
+        const thStyle = "background-color:#0f172a; color:#ffffff; font-weight:bold; padding:10px; border:1px solid #000; text-align:center; vertical-align:middle;";
+        const thStyleMitra = "background-color:#4338ca; color:#ffffff; font-weight:bold; padding:10px; border:1px solid #000; text-align:center; vertical-align:middle;";
+        const thStyleTotal = "background-color:#047857; color:#ffffff; font-weight:bold; padding:10px; border:1px solid #000; text-align:center; vertical-align:middle;";
+        
+        const tdText = "padding:8px; border:1px solid #000; vertical-align: middle; text-align:left;";
+        const tdNum = "padding:8px; border:1px solid #000; vertical-align: middle; text-align:center; mso-number-format:'0';";
+        const tdBold = "padding:8px; border:1px solid #000; vertical-align: middle; text-align:center; font-weight:bold; background-color:#f1f5f9; mso-number-format:'0';";
+
+        function getRawDates(item) { if(!item.history) return '-'; return [...new Set(item.history.map(h => h.date))].sort().map(d => formatDateDisplay(d)).join(', '); }
+
+        if(type === 'gudang_input') {
+            filename = "Laporan_Stok_Gudang";
+            tableHtml = `<tr><th style="${thStyle}">Semua Tanggal Masuk</th><th style="${thStyle}">Nama Artikel</th><th style="${thStyle}">Brand</th><th style="${thStyle}">Kondisi</th><th style="${thStyle}">Target Produksi</th><th style="${thStyle}">Total Masuk Gudang</th><th style="${thStyle}">Progress (%)</th><th style="${thStyle}">Rincian Size & Qty Masuk</th></tr>`;
+            _inventory.forEach(item => {
+                let total = item.details.reduce((sum, d) => sum + d.totalQty, 0);
+                let pct = item.qtyProduksi > 0 ? ((total/item.qtyProduksi)*100).toFixed(1) : 0;
+                let sizes = item.details.map(d => `${d.size}: ${d.totalQty}`).join(', ');
+                tableHtml += `<tr><td style="${tdText}">${getRawDates(item)}</td><td style="${tdText}">${item.name}</td><td style="${tdText}">${item.brand}</td><td style="${tdText}">${item.condition}</td><td style="${tdNum}">${item.qtyProduksi}</td><td style="${tdBold}">${total}</td><td style="${tdNum}">${pct}%</td><td style="${tdText}">${sizes}</td></tr>`;
+            });
+        } 
+        else if (type === 'alokasi' || type === 'sales_pending') {
+            let statusFilter = type === 'alokasi' ? 'approved' : 'pending';
+            filename = type === 'alokasi' ? "Laporan_Alokasi_Sales_Approved" : "Laporan_Ajuan_Pending_Sales";
+            let mitraHeaders = _mitras.map(m => `<th style="${thStyleMitra}">Mitra: ${m.name}<br>(${m.loc})</th>`).join('');
+            tableHtml = `<tr><th style="${thStyle}">Tanggal Masuk (List)</th><th style="${thStyle}">Nama Artikel</th><th style="${thStyle}">Brand</th><th style="${thStyle}">Size</th><th style="${thStyle}">Status</th><th style="${thStyle}">Stok Gudang</th><th style="${thStyle}">Tiktok</th><th style="${thStyle}">Shopee</th><th style="${thStyle}">Web</th><th style="${thStyle}">Butik</th><th style="${thStyle}">FOC</th>${mitraHeaders}<th style="${thStyleTotal}">Total Alokasi</th><th style="${thStyleTotal}">Sisa Stok (Gudang)</th></tr>`;
+            
+            _inventory.forEach(item => {
+                item.details.forEach(d => {
+                    if(d.allocationStatus !== statusFilter) return;
+                    let a = d.allocated; let mitraTotal = 0;
+                    let mitraCells = _mitras.map(m => {
+                        let v = (typeof a.mitra === 'object' && a.mitra[m.id]) ? a.mitra[m.id] : 0; mitraTotal += v; return `<td style="${tdNum}">${v || 0}</td>`;
+                    }).join('');
+                    
+                    let totalAlloc = a.tiktok + a.shopee + a.web + (a.butik||0) + (a.foc||0) + mitraTotal;
+                    if(totalAlloc > 0) {
+                        let sisa = d.totalQty - totalAlloc;
+                        tableHtml += `<tr><td style="${tdText}">${getRawDates(item)}</td><td style="${tdText}">${item.name}</td><td style="${tdText}">${item.brand}</td><td style="${tdText}">${d.size}</td><td style="${tdText}">${d.allocationStatus.toUpperCase()}</td><td style="${tdBold}">${d.totalQty}</td><td style="${tdNum}">${a.tiktok||0}</td><td style="${tdNum}">${a.shopee||0}</td><td style="${tdNum}">${a.web||0}</td><td style="${tdNum}">${a.butik||0}</td><td style="${tdNum}">${a.foc||0}</td>${mitraCells}<td style="${tdBold}">${totalAlloc}</td><td style="${tdBold}; color:${sisa < 0 ? 'red' : 'black'};">${sisa}</td></tr>`;
+                    }
+                });
+            });
+        }
+        else if (type === 'sales_belum') {
+            filename = "Laporan_Sisa_Stok_Gudang";
+            tableHtml = `<tr><th style="${thStyle}">Tanggal Masuk (List)</th><th style="${thStyle}">Nama Artikel</th><th style="${thStyle}">Brand</th><th style="${thStyle}">Size</th><th style="${thStyle}">Total Qty (Gudang)</th><th style="${thStyle}">Status Alokasi</th><th style="${thStyle}">Qty Telah Dialokasikan</th><th style="${thStyle}">Sisa Stok Belum Dialokasikan</th></tr>`;
+            _inventory.forEach(item => {
+                item.details.forEach(d => {
+                    let a = d.allocated; let mitraTotal = 0; if(typeof a.mitra === 'object') { Object.values(a.mitra).forEach(v => mitraTotal += (parseInt(v)||0)); }
+                    let totalAlloc = a.tiktok + a.shopee + a.web + (a.butik||0) + (a.foc||0) + mitraTotal;
+                    if(d.allocationStatus === 'none' || !d.allocationStatus) {
+                        let sisa = d.totalQty - totalAlloc;
+                        tableHtml += `<tr><td style="${tdText}">${getRawDates(item)}</td><td style="${tdText}">${item.name}</td><td style="${tdText}">${item.brand}</td><td style="${tdText}">${d.size}</td><td style="${tdBold}">${d.totalQty}</td><td style="${tdText}">BELUM</td><td style="${tdBold}">${totalAlloc}</td><td style="${tdBold}; color:red;">${sisa}</td></tr>`;
+                    }
+                });
+            });
+        }
+        else if (type === 'log') {
+            filename = "Laporan_Log_Aktivitas_Sistem";
+            tableHtml = `<tr><th style="${thStyle}">Waktu</th><th style="${thStyle}">User</th><th style="${thStyle}">Role</th><th style="${thStyle}">Aksi Sistem</th><th style="${thStyle}">Detail Keterangan</th></tr>`;
+            _logs.slice().reverse().forEach(l => { tableHtml += `<tr><td style="${tdText}">${l.time}</td><td style="${tdText}">${l.user}</td><td style="${tdText}">${l.role.replace('_',' ').toUpperCase()}</td><td style="${tdText}">${l.action}</td><td style="${tdText}">${l.details}</td></tr>`; });
+        }
+
+        let fullHtml = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="UTF-8"><style>table{border-collapse:collapse;font-family:sans-serif;}</style></head><body><table>${tableHtml}</table></body></html>`;
+        let blob = new Blob([fullHtml], { type: 'application/vnd.ms-excel' }); let url = URL.createObjectURL(blob); let a = document.createElement('a'); a.href = url; a.download = filename + '_' + new Date().getTime() + '.xls';
+        document.body.appendChild(a); a.click(); document.body.removeChild(a); logActivity('Download Laporan', `Mengunduh file Excel: ${filename}`);
+    }
+
+</script>
+</body>
+</html>
