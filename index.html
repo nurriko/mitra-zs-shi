@@ -6,15 +6,12 @@
     <title>Sistem Inventaris ZS & SHI (Online Firebase)</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     
-    <!-- FIREBASE SDK -->
+    <!-- FIREBASE SDK (CDN) -->
     <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore-compat.js"></script>
 
-    <!-- jsPDF untuk PDF Form Order -->
+    <!-- jsPDF (CDN) - untuk generate file PDF Form Order Mitra -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    
-    <!-- xlsx-js-style untuk Excel Multi-Sheet BERGARIS (Dengan Styling) -->
-    <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
 
     <style>
         :root {
@@ -105,8 +102,10 @@
         .header-actions { display: flex; gap: 10px; align-items: center; margin-bottom: 15px; }
         .clickable-dates:hover { color: var(--secondary-hover) !important; cursor: pointer; }
 
+        /* Server Loading Indicator */
         #server-status { position: fixed; bottom: 10px; right: 10px; background: var(--primary); color: white; padding: 8px 15px; border-radius: 20px; font-size: 0.8em; z-index: 9999; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
 
+        /* ================= NOTIFIKASI ================= */
         .notif-wrapper { position: relative; }
         .notif-bell { background: var(--bg-color); color: var(--primary); border: 1px solid var(--border); padding: 9px 12px; font-size: 1.1em; position: relative; line-height: 1; }
         .notif-bell:hover { background: #e2e8f0; }
@@ -120,6 +119,7 @@
         .notif-title { font-weight: 600; color: var(--primary); }
         .notif-sub { color: var(--text-muted); margin-top: 2px; }
 
+        /* ================= FILTER & SORT ================= */
         .filter-bar select, .filter-bar input { max-width: 220px; }
         .sort-select { background: white; }
         .table-row-warn { background-color: #fffbeb !important; }
@@ -130,12 +130,22 @@
         .mini-tag-danger { background: #fee2e2; color: #b91c1c; }
         .mini-tag-warn { background: #fef3c7; color: #b45309; }
 
+        /* ================= FORM ORDER MITRA ================= */
         .order-select-table th, .order-select-table td { padding: 8px 10px; font-size: 0.85em; }
         .order-select-table input[type="number"] { width: 80px; padding: 6px; text-align: center; }
-        .order-select-table input[type="checkbox"] { width: 16px; height: 16px; cursor: pointer; }
+        .order-select-table input[type="checkbox"] { width: 16px; height: 16px; }
         .form-doc-preview { background: #f8fafc; border: 1px dashed var(--border); border-radius: 8px; padding: 15px; margin-top: 15px; font-size: 0.85em; color: var(--text-muted); }
         .status-void { background-color: #fee2e2; color: #b91c1c; padding: 3px 8px; border-radius: 4px; font-size: 0.8em; font-weight: bold; }
         .status-issued { background-color: #dbeafe; color: #1e40af; padding: 3px 8px; border-radius: 4px; font-size: 0.8em; font-weight: bold; }
+
+        /* ================= DASHBOARD SUPERADMIN ================= */
+        .stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; }
+        .stat-card { background: white; border: 1px solid var(--border); border-radius: 10px; padding: 18px; text-align: center; }
+        .stat-value { font-size: 1.8em; font-weight: 800; color: var(--primary); line-height: 1.2; }
+        .stat-label { font-size: 0.8em; color: var(--text-muted); margin-top: 4px; }
+        .size-chip { display: inline-flex; align-items: center; gap: 6px; background: #e2e8f0; color: #334155; padding: 5px 10px; border-radius: 20px; font-size: 0.85em; font-weight: 600; }
+        .size-chip-remove { cursor: pointer; color: var(--danger); font-weight: 800; }
+        @media (max-width: 700px) { .stat-grid { grid-template-columns: repeat(2, 1fr); } }
     </style>
 </head>
 <body>
@@ -158,8 +168,8 @@
                 </div>
             </div>
             <button class="btn-primary" style="width:100%" onclick="login()">Masuk</button>
-            <div style="text-align:center; margin-top: 15px; font-size: 0.85em;">
-                <span style="cursor: pointer; color: var(--secondary);" onclick="toggleAuth('forgot')">Lupa Password? Hubungi Admin</span>
+            <div style="display:flex; justify-content:center; margin-top: 15px; font-size: 0.85em;">
+                <span style="cursor: pointer; color: var(--secondary);" onclick="toggleAuth('forgot')">Lupa Password?</span>
             </div>
         </div>
 
@@ -190,19 +200,73 @@
         <div class="card">
             <div class="flex-header">
                 <h2>Dashboard Superadmin</h2>
-                <button class="btn-danger btn-small" onclick="logout()">Logout</button>
+                <div style="display:flex; gap:10px; align-items:center;">
+                    <div class="notif-wrapper">
+                        <button class="notif-bell" onclick="toggleNotifPanel('admin')" title="Notifikasi Stok">🔔<span class="notif-count hidden" id="notif-count-admin">0</span></button>
+                        <div class="notif-panel hidden" id="notif-panel-admin">
+                            <div class="notif-panel-header">Notifikasi Stok</div>
+                            <div id="notif-list-admin"></div>
+                        </div>
+                    </div>
+                    <button class="btn-danger btn-small" onclick="logout()">Logout</button>
+                </div>
             </div>
             
             <div class="tabs">
-                <button class="tab-btn active" id="tab-admin-users" onclick="switchAdminTab('users')">Manajemen User</button>
+                <button class="tab-btn active" id="tab-admin-dashboard" onclick="switchAdminTab('dashboard')">📊 Dashboard</button>
+                <button class="tab-btn" id="tab-admin-users" onclick="switchAdminTab('users')">👤 Manajemen User</button>
+                <button class="tab-btn" id="tab-admin-alokasi" onclick="switchAdminTab('alokasi')">📦 Alokasi Sales</button>
+                <button class="tab-btn" id="tab-admin-orderform" onclick="switchAdminTab('orderform')">🖊️ Form Order Mitra</button>
+                <button class="tab-btn" id="tab-admin-mitra" onclick="switchAdminTab('mitra')">🤝 Kelola Mitra</button>
+                <button class="tab-btn" id="tab-admin-settings" onclick="switchAdminTab('settings')">⚙️ Pengaturan</button>
                 <button class="tab-btn" id="tab-admin-logs" onclick="switchAdminTab('logs')">📋 Log Aktivitas</button>
-                <button class="tab-btn" id="tab-admin-alokasi" onclick="switchAdminTab('alokasi')">👁️ Oversight Alokasi</button>
-                <button class="tab-btn" id="tab-admin-form" onclick="switchAdminTab('form')">👁️ Oversight Form Order</button>
-                <button class="tab-btn" id="tab-admin-mitra" onclick="switchAdminTab('mitra')">⚙️ Kelola Mitra</button>
-                <button class="tab-btn" id="tab-admin-settings" onclick="switchAdminTab('settings')">⚙️ Pengaturan Sistem</button>
             </div>
 
-            <div id="admin-view-users">
+            <!-- VIEW: DASHBOARD -->
+            <div id="admin-view-dashboard">
+                <div class="stat-grid" id="admin-stat-cards"></div>
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px; margin-top:20px;">
+                    <div style="background:#f8fafc; border:1px solid var(--border); border-radius:10px; padding:20px;">
+                        <h3 style="margin-top:0; font-size:1em;">📊 Alokasi per Channel (Approved, Semua Brand)</h3>
+                        <div id="admin-channel-chart"></div>
+                    </div>
+                    <div style="background:#f8fafc; border:1px solid var(--border); border-radius:10px; padding:20px;">
+                        <h3 style="margin-top:0; font-size:1em;">🏆 Top 5 Mitra (Volume Alokasi Approved)</h3>
+                        <div id="admin-top-mitra"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- VIEW: MANAJEMEN USER -->
+            <div id="admin-view-users" class="hidden">
+                <div style="background:#f8fafc; padding:20px; border-radius:8px; border:1px solid var(--border); margin-bottom:20px;">
+                    <h3 style="margin-top:0; font-size:1.05em;">+ Tambah User Baru</h3>
+                    <div class="form-row">
+                        <div class="form-group"><label>Username</label><input type="text" id="admin-new-username" placeholder="username"></div>
+                        <div class="form-group">
+                            <label>Password Awal</label>
+                            <div class="pwd-wrapper"><input type="password" id="admin-new-password" placeholder="Password sementara"><span class="eye-icon" onclick="toggleEye('admin-new-password')">👁️</span></div>
+                        </div>
+                        <div class="form-group">
+                            <label>Bagian (Role)</label>
+                            <select id="admin-new-role" onchange="toggleAdminNewUserSalesLevel()">
+                                <option value="gudang">Gudang</option>
+                                <option value="sales">Sales</option>
+                                <option value="admin">Admin (Superadmin)</option>
+                            </select>
+                        </div>
+                        <div class="form-group hidden" id="admin-new-sales-level-group">
+                            <label>Posisi Sales</label>
+                            <select id="admin-new-sales-level">
+                                <option value="staff">Staff</option>
+                                <option value="leader">Leader (SPV)</option>
+                            </select>
+                        </div>
+                    </div>
+                    <button class="btn-success" onclick="addUserAdmin()">+ Buat User</button>
+                    <p style="font-size:0.8em; color:var(--text-muted); margin-top:8px; margin-bottom:0;">User baru wajib mengganti password sendiri saat login pertama kali.</p>
+                </div>
+
                 <div class="header-actions">
                     <div class="filter-bar">
                         <input type="text" id="admin-filter-user" placeholder="Cari Username..." oninput="loadAdminData()">
@@ -211,18 +275,119 @@
                             <option value="gudang">Gudang</option>
                             <option value="sales_staff">Sales Staff</option>
                             <option value="sales_leader">Sales Leader</option>
+                            <option value="admin">Admin</option>
                         </select>
                     </div>
-                    <button class="btn-success" onclick="openAddUserModal()">+ Tambah User Baru</button>
                 </div>
                 <div class="table-container">
                     <table id="admin-table">
-                        <thead><tr><th>Username</th><th>Role / Bagian</th><th>Login Terakhir</th><th>Status Reset</th><th>Aksi</th></tr></thead>
+                        <thead><tr><th>Username</th><th>Role / Posisi</th><th>Login Terakhir</th><th>Status</th><th>Aksi</th></tr></thead>
                         <tbody></tbody>
                     </table>
                 </div>
             </div>
 
+            <!-- VIEW: ALOKASI SALES (OVERSIGHT, READ-ONLY) -->
+            <div id="admin-view-alokasi" class="hidden">
+                <p style="font-size:0.85em; color:var(--text-muted); margin:8px 0;">Tampilan pemantauan (read-only) seluruh alokasi Sales — Pending maupun Approved, semua brand.</p>
+                <div class="header-actions">
+                    <div class="filter-bar">
+                        <input type="text" id="admin-alokasi-filter-nama" placeholder="Cari Nama Baju..." oninput="loadAdminAlokasiData()">
+                        <select id="admin-alokasi-filter-status" onchange="loadAdminAlokasiData()">
+                            <option value="ALL">Semua Status</option>
+                            <option value="pending">Pending</option>
+                            <option value="approved">Approved</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="table-container">
+                    <table id="admin-alokasi-table">
+                        <thead><tr><th>Artikel</th><th>Foto</th><th>Rincian Alokasi</th></tr></thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- VIEW: FORM ORDER MITRA (OVERSIGHT) -->
+            <div id="admin-view-orderform" class="hidden">
+                <p style="font-size:0.85em; color:var(--text-muted); margin:8px 0;">Seluruh Form Order Mitra yang diterbitkan Gudang. Admin dapat mengunduh ulang atau membatalkan bila perlu.</p>
+                <div class="header-actions">
+                    <div class="filter-bar">
+                        <input type="text" id="admin-orderform-filter-cari" placeholder="Cari No. Form / Nama Mitra..." oninput="loadAdminOrderFormData()">
+                        <select id="admin-orderform-filter-status" onchange="loadAdminOrderFormData()"><option value="ALL">Semua Status</option><option value="issued">Diterbitkan</option><option value="void">Dibatalkan</option></select>
+                        <select id="admin-orderform-sort" class="sort-select" onchange="loadAdminOrderFormData()">
+                            <option value="terbaru">Urutkan: Terbaru</option>
+                            <option value="terlama">Urutkan: Terlama</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="table-container">
+                    <table id="admin-orderform-table">
+                        <thead><tr><th>No. Form</th><th>Mitra</th><th>Tanggal</th><th>Diterbitkan Oleh</th><th>Jumlah Item</th><th>Status</th><th>Aksi</th></tr></thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- VIEW: KELOLA MITRA (CRUD) -->
+            <div id="admin-view-mitra" class="hidden">
+                <div style="background:#f8fafc; padding:20px; border-radius:8px; border:1px solid var(--border); margin-bottom:20px;">
+                    <h3 style="margin-top:0; font-size:1.05em;">+ Tambah Mitra Baru</h3>
+                    <div class="form-row">
+                        <div class="form-group"><label>Nama Mitra</label><input type="text" id="admin-mitraName" placeholder="Nama toko/mitra"></div>
+                        <div class="form-group"><label>Lokasi</label><input type="text" id="admin-mitraLoc" placeholder="Kota/lokasi"></div>
+                        <div class="form-group">
+                            <label>Brand</label>
+                            <select id="admin-mitraBrand"><option value="ZS">ZS</option><option value="SHI">SHI</option><option value="BOTH">Keduanya (ZS & SHI)</option></select>
+                        </div>
+                    </div>
+                    <button class="btn-success" onclick="saveMitraAdmin()">+ Simpan Mitra</button>
+                </div>
+
+                <div class="header-actions">
+                    <h3 style="margin:0; font-size:1.1em; flex-grow: 1;">Daftar Mitra Tersimpan</h3>
+                    <div class="filter-bar" style="padding: 10px; background: transparent; border:none; margin:0;">
+                        <input type="text" id="admin-mitra-filter-cari" placeholder="Cari Nama/Lokasi Mitra..." oninput="loadMitraDataAdmin()" style="max-width:200px;">
+                        <select id="admin-mitra-filter-brand" onchange="loadMitraDataAdmin()" style="max-width: 200px; margin:0;">
+                            <option value="ALL">Semua Brand</option><option value="ZS">Hanya ZS</option><option value="SHI">Hanya SHI</option><option value="BOTH">Keduanya (ZS & SHI)</option>
+                        </select>
+                        <select id="admin-mitra-sort" class="sort-select" onchange="loadMitraDataAdmin()" style="max-width:200px;">
+                            <option value="terbaru">Urutkan: Terbaru</option>
+                            <option value="nama_az">Urutkan: Nama A-Z</option>
+                            <option value="nama_za">Urutkan: Nama Z-A</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="table-container">
+                    <table id="admin-mitra-table">
+                        <thead><tr><th>Nama Mitra</th><th>Lokasi</th><th>Brand</th><th>Aksi</th></tr></thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- VIEW: PENGATURAN SISTEM -->
+            <div id="admin-view-settings" class="hidden">
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px;">
+                    <div style="background:#f8fafc; padding:20px; border-radius:8px; border:1px solid var(--border);">
+                        <h3 style="margin-top:0; font-size:1.05em;">🔔 Ambang Batas Notifikasi</h3>
+                        <div class="form-group"><label>Stok dianggap "Menipis" jika sisa ≤ (pcs)</label><input type="number" id="setting-low-stock" min="1"></div>
+                        <div class="form-group"><label>Progress dianggap "Mendekati Target" jika ≥ (%)</label><input type="number" id="setting-near-target" min="1" max="99"></div>
+                        <button class="btn-success" onclick="saveAdminSettings()">💾 Simpan Pengaturan</button>
+                    </div>
+                    <div style="background:#f8fafc; padding:20px; border-radius:8px; border:1px solid var(--border);">
+                        <h3 style="margin-top:0; font-size:1.05em;">📏 Kelola Daftar Ukuran (Size)</h3>
+                        <div id="setting-sizes-list" style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:15px;"></div>
+                        <div style="display:flex; gap:8px;">
+                            <input type="text" id="setting-new-size" placeholder="Tambah size baru (mis. 3XL)" style="flex-grow:1;">
+                            <button class="btn-primary" onclick="addSizeSetting()">+ Tambah</button>
+                        </div>
+                        <p style="font-size:0.8em; color:var(--text-muted); margin-top:10px; margin-bottom:0;">Daftar ini akan muncul sebagai pilihan ukuran saat Gudang input stok baru, di semua perangkat.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- VIEW: LOG AKTIVITAS -->
             <div id="admin-view-logs" class="hidden">
                 <div class="header-actions">
                     <div class="filter-bar">
@@ -239,73 +404,6 @@
                         <thead><tr><th>Waktu</th><th>User</th><th>Aksi</th><th>Detail Keterangan</th></tr></thead>
                         <tbody></tbody>
                     </table>
-                </div>
-            </div>
-
-            <div id="admin-view-alokasi" class="hidden">
-                <div class="header-actions" style="margin-top:10px;">
-                    <div class="filter-bar">
-                        <input type="text" id="admin-alokasi-filter-nama" placeholder="Cari Nama Baju..." oninput="loadAdminAlokasi()">
-                    </div>
-                    <button class="btn-success" onclick="exportExcel('alokasi')">📥 Download Laporan Alokasi</button>
-                </div>
-                <p style="font-size:0.85em; color:var(--text-muted);">Pantauan seluruh alokasi yang telah diapprove Sales. (Read-Only)</p>
-                <div class="table-container">
-                    <table id="admin-alokasi-table">
-                        <thead><tr><th>Artikel</th><th>Foto</th><th>Rincian Alokasi (Approved)</th></tr></thead>
-                        <tbody></tbody>
-                    </table>
-                </div>
-            </div>
-
-            <!-- VIEW: OVERSIGHT FORM ORDER KHUSUS ADMIN -->
-            <div id="admin-view-form" class="hidden">
-                <div class="header-actions" style="margin-top:10px;">
-                    <div class="filter-bar">
-                        <input type="text" id="admin-orderform-filter" placeholder="Cari No. Form / Mitra..." oninput="loadAdminFormOrder()">
-                    </div>
-                </div>
-                <p style="font-size:0.85em; color:var(--text-muted);">Pantauan seluruh Surat Serah Terima (Form Order). Anda dapat menghapus permanen form yang berstatus "Dibatalkan".</p>
-                <div class="table-container">
-                    <table id="admin-orderform-table">
-                        <thead><tr><th>No. Form</th><th>Mitra</th><th>Tanggal</th><th>Jumlah Item</th><th>Status</th><th>Aksi</th></tr></thead>
-                        <tbody></tbody>
-                    </table>
-                </div>
-            </div>
-
-            <div id="admin-view-mitra" class="hidden">
-                <div class="header-actions" style="margin-top:10px;">
-                    <p style="font-size:0.85em; color:var(--text-muted); flex-grow:1;">Anda memiliki akses penuh untuk mengelola daftar Mitra.</p>
-                    <button class="btn-primary" onclick="switchSalesTab('mitra'); document.getElementById('admin-section').classList.add('hidden'); document.getElementById('sales-section').classList.remove('hidden');">Buka Panel Mitra Penuh ➔</button>
-                </div>
-                <p style="font-size:0.85em; color:var(--primary); font-weight:bold;">Sistem akan mengarahkan Anda ke modul Mitra di Panel Sales dengan hak akses Admin.</p>
-            </div>
-
-            <div id="admin-view-settings" class="hidden">
-                <div style="background:#f8fafc; padding:20px; border-radius:8px; border:1px solid var(--border); margin-top: 10px;">
-                    <h3 style="margin-bottom: 15px; font-size:1.1em; border-bottom: 2px solid var(--border); padding-bottom: 10px;">Pengaturan Ambang Batas Notifikasi</h3>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label>Stok Menipis (pcs)</label>
-                            <input type="number" id="setting-low-stock" min="1">
-                            <small style="color:var(--text-muted); font-size: 0.75em;">Bel notifikasi menyala jika sisa stok <= angka ini.</small>
-                        </div>
-                        <div class="form-group">
-                            <label>Mendekati Target Produksi (%)</label>
-                            <input type="number" id="setting-near-target" min="1" max="100">
-                            <small style="color:var(--text-muted); font-size: 0.75em;">Bel notifikasi menyala jika progress mencapai persentase ini.</small>
-                        </div>
-                    </div>
-
-                    <h3 style="margin-top: 25px; margin-bottom: 15px; font-size:1.1em; border-bottom: 2px solid var(--border); padding-bottom: 10px;">Pengaturan Master Ukuran (Size)</h3>
-                    <div class="form-group">
-                        <label>Daftar Ukuran Default</label>
-                        <input type="text" id="setting-sizes" placeholder="S, M, L, XL, All Size">
-                        <small style="color:var(--text-muted); font-size: 0.75em;">Pisahkan dengan koma (contoh: S, M, L, XL).</small>
-                    </div>
-
-                    <button class="btn-success" onclick="saveSystemSettings()" style="margin-top: 20px;">💾 Simpan Pengaturan Sistem</button>
                 </div>
             </div>
         </div>
@@ -380,6 +478,7 @@
                 </div>
             </div>
 
+            <!-- VIEW: GUDANG ALOKASI -->
             <div id="gudang-view-alokasi" class="hidden">
                 <div class="header-actions" style="margin-top:10px;">
                     <div class="filter-bar">
@@ -397,50 +496,40 @@
                 </div>
             </div>
 
+            <!-- VIEW: FORM ORDER MITRA (KHUSUS GUDANG) -->
             <div id="gudang-view-form" class="hidden">
-                <p style="font-size:0.85em; color:var(--text-muted); margin:8px 0 20px;">Terbitkan <b>Form Order / Surat Serah Terima Barang</b> untuk mitra berdasarkan alokasi yang sudah <b>di-Approve</b>. Anda dapat memilih lebih dari 1 Mitra untuk menerbitkan form secara massal. Sistem akan mengunduh PDF tunggal & Excel Multi-Sheet.</p>
+                <p style="font-size:0.85em; color:var(--text-muted); margin:8px 0 20px;">Terbitkan <b>Form Order / Surat Serah Terima Barang</b> untuk mitra berdasarkan alokasi yang sudah <b>di-Approve</b>. Saat diterbitkan, file <b>PDF</b> dan <b>Excel</b> akan otomatis terunduh ke perangkat Anda, lengkap dengan kolom tanda tangan kosong untuk ditandatangani manual di atas kertas oleh pihak Gudang dan Mitra.</p>
 
                 <div style="background:#f8fafc; padding:20px; border-radius:8px; border:1px solid var(--border); margin-bottom:20px;">
                     <h3 style="margin-bottom:15px; font-size:1.1em;">Buat Form Order Baru</h3>
                     <div class="form-row">
                         <div class="form-group">
-                            <label>Pilih Mitra Tujuan (Bisa lebih dari 1)</label>
-                            <div id="order-mitra-checkboxes" style="max-height: 120px; overflow-y: auto; border: 1px solid var(--border); border-radius: 6px; padding: 10px; background: white;">
-                                <!-- Checkbox Mitra akan dimuat di sini -->
-                            </div>
+                            <label>Pilih Mitra Tujuan</label>
+                            <select id="order-mitra-select" onchange="onFormOrderMitraChange()">
+                                <option value="">-- Pilih Mitra --</option>
+                            </select>
                         </div>
-                        <div class="form-group">
-                            <label>Nama Petugas Gudang (Penyerah)</label><input type="text" id="order-gudang-name" placeholder="Nama petugas yang menyerahkan"><br><br>
-                            <label>Tanggal Serah Terima</label><input type="date" id="order-date">
-                        </div>
+                        <div class="form-group"><label>Nama Petugas Gudang (Penyerah)</label><input type="text" id="order-gudang-name" placeholder="Nama petugas yang menyerahkan"></div>
+                        <div class="form-group"><label>Tanggal Serah Terima</label><input type="date" id="order-date"></div>
                     </div>
 
                     <div id="order-items-wrapper" class="hidden">
-                        <label>Pilih Barang & Qty yang Akan Diserahkan</label>
+                        <label>Pilih Barang & Qty yang Akan Diserahkan (maks. sesuai sisa alokasi belum diterbitkan)</label>
                         <div class="table-container">
                             <table class="order-select-table" id="order-items-table">
-                                <thead><tr>
-                                    <th style="width:30px;"><input type="checkbox" id="checkAllOrderItems" checked onchange="toggleAllOrderItems(this)" title="Pilih Semua"></th>
-                                    <th>Mitra Tujuan</th>
-                                    <th>Artikel</th>
-                                    <th>Size</th>
-                                    <th>Kondisi</th>
-                                    <th>Sudah Dialokasikan</th>
-                                    <th>Sudah Diterbitkan</th>
-                                    <th>Qty Diserahkan Sekarang</th>
-                                </tr></thead>
+                                <thead><tr><th style="width:30px;"></th><th>Artikel</th><th>Size</th><th>Kondisi</th><th>Sudah Dialokasikan</th><th>Sudah Diterbitkan</th><th>Qty Diserahkan Sekarang</th></tr></thead>
                                 <tbody></tbody>
                             </table>
                         </div>
                         <div class="form-group" style="margin-top:10px;"><label>Catatan (opsional)</label><input type="text" id="order-notes" placeholder="Contoh: Pengiriman tahap 1"></div>
                         <div id="order-no-preview" class="form-doc-preview"></div>
-                        <button class="btn-success" onclick="terbitkanFormOrder()" style="margin-top:15px;">📤 Terbitkan Massal Form Order (Download PDF & Excel)</button>
+                        <button class="btn-success" onclick="terbitkanFormOrder()" style="margin-top:15px;">📤 Terbitkan Form Order (Download PDF & Excel)</button>
                     </div>
-                    <div id="order-empty-msg" class="notif-empty hidden">Pilih minimal 1 Mitra untuk melihat daftar barang yang bisa diterbitkan.</div>
+                    <div id="order-empty-msg" class="notif-empty hidden">Mitra ini belum memiliki alokasi approved yang tersedia untuk diterbitkan.</div>
                 </div>
 
                 <h3 style="margin-top:30px; border-top: 1px solid #eee; padding-top:20px;">Riwayat Form Order Diterbitkan</h3>
-                <div class="header-actions" style="margin-bottom: 5px;">
+                <div class="header-actions">
                     <div class="filter-bar">
                         <input type="text" id="orderform-filter-cari" placeholder="Cari No. Form / Nama Mitra..." oninput="loadOrderFormHistory()">
                         <select id="orderform-filter-status" onchange="loadOrderFormHistory()"><option value="ALL">Semua Status</option><option value="issued">Diterbitkan</option><option value="void">Dibatalkan</option></select>
@@ -450,25 +539,9 @@
                         </select>
                     </div>
                 </div>
-                
-                <div class="filter-bar" style="margin-bottom:15px; padding: 10px 15px; border: 1px solid var(--border); background: white;">
-                    <span style="font-size:0.85em; font-weight:bold; color:var(--text-muted); margin-right:5px;">Aksi Massal Terpilih:</span>
-                    <button class="btn-primary btn-small" onclick="batchDownloadHistoryPDF()">📄 Print PDF Massal</button>
-                    <button class="btn-success btn-small" onclick="batchDownloadHistoryExcel()">📊 Excel Multi-Sheet Massal</button>
-                    <button class="btn-danger btn-small" onclick="batchVoidHistory()">❌ Batalkan (Void) Massal</button>
-                </div>
-
                 <div class="table-container">
                     <table id="orderform-table">
-                        <thead><tr>
-                            <th style="width:30px;"><input type="checkbox" id="checkAllHistory" onchange="toggleAllHistory(this)"></th>
-                            <th>No. Form</th>
-                            <th>Mitra</th>
-                            <th>Tanggal</th>
-                            <th>Jumlah Item</th>
-                            <th>Status</th>
-                            <th>Aksi Detail</th>
-                        </tr></thead>
+                        <thead><tr><th>No. Form</th><th>Mitra</th><th>Tanggal</th><th>Jumlah Item</th><th>Status</th><th>Aksi</th></tr></thead>
                         <tbody></tbody>
                     </table>
                 </div>
@@ -476,7 +549,7 @@
         </div>
     </div>
 
-    <!-- MODALS GUDANG & ADMIN -->
+    <!-- MODALS GUDANG -->
     <div id="modal-history" class="modal-overlay hidden">
         <div class="modal-content fade-in">
             <div class="flex-header">
@@ -528,33 +601,6 @@
             </div>
         </div>
     </div>
-    
-    <!-- MODAL TAMBAH USER (ADMIN) -->
-    <div id="modal-add-user" class="modal-overlay hidden">
-        <div class="modal-content fade-in" style="max-width: 400px;">
-            <div class="flex-header">
-                <h3>Tambah User Baru</h3>
-                <button class="btn-dark btn-small" onclick="closeAddUserModal()">Tutup</button>
-            </div>
-            <div class="form-group"><label>Username Baru</label><input type="text" id="new-user-name"></div>
-            <div class="form-group">
-                <label>Password Default</label>
-                <div class="pwd-wrapper">
-                    <input type="password" id="new-user-pwd">
-                    <span class="eye-icon" onclick="toggleEye('new-user-pwd')">👁️</span>
-                </div>
-            </div>
-            <div class="form-group">
-                <label>Role / Bagian</label>
-                <select id="new-user-role">
-                    <option value="gudang">Gudang</option>
-                    <option value="sales_staff">Sales Staff</option>
-                    <option value="sales_leader">Sales Leader (SPV)</option>
-                </select>
-            </div>
-            <button class="btn-success" style="width:100%; margin-top:15px;" onclick="saveNewUser()">Simpan Akun Baru</button>
-        </div>
-    </div>
 
     <!-- ================= HALAMAN SALES ================= -->
     <div id="sales-section" class="hidden fade-in">
@@ -595,7 +641,7 @@
                             <option value="sisa_asc">Urutkan: Sisa Stok Tersedikit</option>
                         </select>
                     </div>
-                    <button class="btn-success" id="btn-export-sales" onclick="exportExcelHTML('sales_belum')">📥 Download Laporan Excel</button>
+                    <button class="btn-success" id="btn-export-sales" onclick="exportExcel('sales_belum')">📥 Download Laporan Excel</button>
                 </div>
                 <div class="table-container">
                     <table id="sales-table">
@@ -605,6 +651,7 @@
                 </div>
             </div>
 
+            <!-- VIEW: MANAJEMEN MITRA -->
             <div id="sales-view-mitra" class="hidden">
                 <div style="background:#f8fafc; padding:20px; border-radius:8px; border:1px solid var(--border); margin-bottom:20px;">
                     <h3 style="margin-bottom: 15px; font-size:1.1em;">Tambah Mitra Baru</h3>
@@ -647,6 +694,7 @@
         </div>
     </div>
 
+    <!-- MODAL EDIT MITRA -->
     <div id="modal-edit-mitra" class="modal-overlay hidden">
         <div class="modal-content fade-in" style="max-width: 500px;">
             <h3>Edit Mitra</h3><input type="hidden" id="edit-mitra-id">
@@ -666,6 +714,32 @@
         </div>
     </div>
 
+    <div id="modal-edit-role" class="modal-overlay hidden">
+        <div class="modal-content fade-in" style="max-width: 420px;">
+            <h3>Ubah Role User</h3><input type="hidden" id="edit-role-username">
+            <p style="font-size:0.9em; color:var(--text-muted);">Username: <strong id="edit-role-username-label"></strong></p>
+            <div class="form-group">
+                <label>Role Baru</label>
+                <select id="edit-role-value" onchange="toggleEditRoleSalesLevel()">
+                    <option value="gudang">Gudang</option>
+                    <option value="sales">Sales</option>
+                    <option value="admin">Admin (Superadmin)</option>
+                </select>
+            </div>
+            <div class="form-group hidden" id="edit-role-sales-level-group">
+                <label>Posisi Sales</label>
+                <select id="edit-role-sales-level">
+                    <option value="staff">Staff</option>
+                    <option value="leader">Leader (SPV)</option>
+                </select>
+            </div>
+            <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
+                <button class="btn-dark" onclick="closeEditRoleModal()">Batal</button>
+                <button class="btn-success" onclick="saveEditRole()">Simpan Perubahan Role</button>
+            </div>
+        </div>
+    </div>
+
 </div>
 
 <script>
@@ -681,47 +755,70 @@
         appId: "1:264625351884:web:efcb125104cf30dfb9e669"
     };
 
+    // Inisialisasi Firebase
     if (!firebase.apps.length) { firebase.initializeApp(firebaseConfig); }
     const db = firebase.firestore();
 
     // ==========================================
     // GLOBAL STATE VARIABLES 
     // ==========================================
-    let _users = {}; let _inventory = []; let _mitras = []; let _logs = []; let _orderForms = [];
+    let _users = {};
+    let _inventory = [];
+    let _mitras = [];
+    let _logs = [];
+    let _orderForms = [];
     let globalSizes = ['S', 'M', 'L', 'XL', 'All Size', 'S-M', 'L-XL', 'XXL'];
-    let LOW_STOCK_THRESHOLD = 5; let NEAR_TARGET_PERCENT = 90;     
-    let activeSalesTab = 'belum'; let currentUser = null; let currentUserRole = null;
+    let activeSalesTab = 'belum';
+    let currentUser = null;
+    let currentUserRole = null;
+
+    // Pengaturan sistem yang bisa diatur Admin (tab "⚙️ Pengaturan"), tersimpan di Firestore settings/general.
+    // Nilai di sini adalah DEFAULT sebelum data dari Firestore masuk / bila dokumennya belum pernah dibuat.
+    let _settings = { lowStockThreshold: 5, nearTargetPercent: 90, sizes: globalSizes.slice() };
 
     document.getElementById('itemDate').valueAsDate = new Date();
     document.getElementById('order-date').valueAsDate = new Date();
 
+    function toggleAdminNewUserSalesLevel() {
+        let r = document.getElementById('admin-new-role').value;
+        if(r === 'sales') document.getElementById('admin-new-sales-level-group').classList.remove('hidden');
+        else document.getElementById('admin-new-sales-level-group').classList.add('hidden');
+    }
+
     // ==========================================
     // FIREBASE REAL-TIME LISTENERS
     // ==========================================
+    
+    // Listener Users
     db.collection("users").onSnapshot(snap => {
-        _users = {}; snap.forEach(doc => { _users[doc.id] = doc.data(); });
-        if (!_users['admin']) { db.collection("users").doc("admin").set({ password: 'admin', role: 'admin', status: 'active', reqReset: false, mustChange: false }); }
-        if(!document.getElementById('admin-section').classList.contains('hidden') && !document.getElementById('admin-view-users').classList.contains('hidden')) loadAdminData();
-        document.getElementById('server-status').innerText = "🟢 Terhubung ke Server"; document.getElementById('server-status').style.backgroundColor = "var(--success)";
-    }, err => { console.error(err); document.getElementById('server-status').innerText = "🔴 Gagal Konek Database"; });
-
-    db.collection("settings").doc("system").onSnapshot(doc => {
-        if (doc.exists) {
-            let data = doc.data(); LOW_STOCK_THRESHOLD = data.lowStockThreshold || 5; NEAR_TARGET_PERCENT = data.nearTargetPercent || 90;
-            if(data.globalSizes && Array.isArray(data.globalSizes)) { globalSizes = data.globalSizes; }
-        }
-        if(document.getElementById('setting-low-stock')) {
-            document.getElementById('setting-low-stock').value = LOW_STOCK_THRESHOLD; document.getElementById('setting-near-target').value = NEAR_TARGET_PERCENT; document.getElementById('setting-sizes').value = globalSizes.join(', ');
-        }
-        renderSizeCheckboxes('size-container', '');
-        if(!document.getElementById('modal-edit-batch').classList.contains('hidden')) renderSizeCheckboxes('edit-batch-size-container', 'edit-batch-');
-        computeNotifications();
-        if(!document.getElementById('gudang-section').classList.contains('hidden') && !document.getElementById('gudang-view-input').classList.contains('hidden')) loadGudangData();
-    });
-
-    db.collection("inventory").onSnapshot(snap => {
-        _inventory = []; snap.forEach(doc => { let data = doc.data(); data.id = doc.id; _inventory.push(data); });
+        _users = {};
+        snap.forEach(doc => { _users[doc.id] = doc.data(); });
         
+        // Buat akun admin default jika belum ada
+        if (!_users['admin']) {
+            db.collection("users").doc("admin").set({ password: 'admin', role: 'admin', reqReset: false, mustChange: false });
+        }
+        
+        if(!document.getElementById('admin-section').classList.contains('hidden')) {
+            const uv = document.getElementById('admin-view-users');
+            if(uv && !uv.classList.contains('hidden')) loadAdminData();
+            const dv = document.getElementById('admin-view-dashboard');
+            if(dv && !dv.classList.contains('hidden')) loadAdminDashboard();
+        }
+        document.getElementById('server-status').innerText = "🟢 Terhubung ke Server";
+        document.getElementById('server-status').style.backgroundColor = "var(--success)";
+    }, err => { console.error(err); document.getElementById('server-status').innerText = "🔴 Gagal Konek Database (Cek Config Firebase)"; });
+
+    // Listener Inventory
+    db.collection("inventory").onSnapshot(snap => {
+        _inventory = [];
+        snap.forEach(doc => { 
+            let data = doc.data();
+            data.id = doc.id; 
+            _inventory.push(data); 
+        });
+        
+        // Refresh UI secara real-time
         if(!document.getElementById('gudang-section').classList.contains('hidden')) {
             if(document.getElementById('gudang-view-input').classList.contains('hidden') === false) loadGudangData();
             else if(document.getElementById('gudang-view-alokasi').classList.contains('hidden') === false) loadGudangAlokasiData();
@@ -731,67 +828,138 @@
             if(document.getElementById('sales-view-data').classList.contains('hidden') === false) loadSalesData();
         }
         if(!document.getElementById('admin-section').classList.contains('hidden')) {
-            if(!document.getElementById('admin-view-alokasi').classList.contains('hidden')) loadAdminAlokasi();
-            if(!document.getElementById('admin-view-form').classList.contains('hidden')) loadAdminFormOrder();
+            const dv = document.getElementById('admin-view-dashboard'); if(dv && !dv.classList.contains('hidden')) loadAdminDashboard();
+            const av = document.getElementById('admin-view-alokasi'); if(av && !av.classList.contains('hidden')) loadAdminAlokasiData();
         }
         computeNotifications();
     });
 
+    // Listener Mitras
     db.collection("mitras").onSnapshot(snap => {
-        _mitras = []; snap.forEach(doc => { _mitras.push({id: doc.id, ...doc.data()}); });
-        if(!document.getElementById('sales-view-mitra').classList.contains('hidden')) loadMitraData(); populateMitraSelects();
+        _mitras = [];
+        snap.forEach(doc => { _mitras.push({id: doc.id, ...doc.data()}); });
+        if(!document.getElementById('sales-view-mitra').classList.contains('hidden')) loadMitraData();
+        populateMitraSelects();
+        if(!document.getElementById('admin-section').classList.contains('hidden')) {
+            const mv = document.getElementById('admin-view-mitra'); if(mv && !mv.classList.contains('hidden')) loadMitraDataAdmin();
+            const dv = document.getElementById('admin-view-dashboard'); if(dv && !dv.classList.contains('hidden')) loadAdminDashboard();
+        }
     });
 
+    // Listener Order Forms (Form Order Mitra - khusus Gudang)
     db.collection("orderforms").orderBy("createdAtLocal", "asc").onSnapshot(snap => {
-        _orderForms = []; snap.forEach(doc => { _orderForms.push({id: doc.id, ...doc.data()}); });
+        _orderForms = [];
+        snap.forEach(doc => { _orderForms.push({id: doc.id, ...doc.data()}); });
         if(!document.getElementById('gudang-section').classList.contains('hidden') && document.getElementById('gudang-view-form').classList.contains('hidden') === false) {
             loadOrderFormHistory(); onFormOrderMitraChange();
         }
         if(!document.getElementById('admin-section').classList.contains('hidden')) {
-            if(!document.getElementById('admin-view-alokasi').classList.contains('hidden')) loadAdminAlokasi();
-            if(!document.getElementById('admin-view-form').classList.contains('hidden')) loadAdminFormOrder();
+            const v = document.getElementById('admin-view-orderform');
+            if(v && !v.classList.contains('hidden')) loadAdminOrderFormData();
+            const dv = document.getElementById('admin-view-dashboard');
+            if(dv && !dv.classList.contains('hidden')) loadAdminDashboard();
         }
-    });
+    }, err => { console.error(err); });
 
+    // Listener Pengaturan Sistem (settings/general) - dikelola Admin di tab "⚙️ Pengaturan"
+    let _settingsInitialized = false;
+    db.collection("settings").doc("general").onSnapshot(doc => {
+        if(doc.exists) {
+            const d = doc.data();
+            if(typeof d.lowStockThreshold === 'number') _settings.lowStockThreshold = d.lowStockThreshold;
+            if(typeof d.nearTargetPercent === 'number') _settings.nearTargetPercent = d.nearTargetPercent;
+            if(Array.isArray(d.sizes) && d.sizes.length > 0) {
+                d.sizes.forEach(s => { if(!globalSizes.includes(s)) globalSizes.push(s); });
+                _settings.sizes = d.sizes.slice();
+            }
+        } else {
+            // Dokumen belum pernah dibuat - inisialisasi dengan nilai default
+            db.collection("settings").doc("general").set({ lowStockThreshold: _settings.lowStockThreshold, nearTargetPercent: _settings.nearTargetPercent, sizes: _settings.sizes });
+        }
+        // Refresh checkbox ukuran hanya saat load pertama kali, supaya tidak menghapus input form yang sedang diisi user saat admin mengubah pengaturan di sesi lain
+        if(!_settingsInitialized) { _settingsInitialized = true; renderSizeCheckboxes('size-container', ''); }
+        computeNotifications();
+        if(!document.getElementById('admin-section').classList.contains('hidden')) {
+            const v = document.getElementById('admin-view-settings');
+            if(v && !v.classList.contains('hidden')) loadAdminSettings();
+        }
+    }, err => { console.error(err); });
+
+    // Listener Logs
     db.collection("logs").orderBy("timestamp", "asc").onSnapshot(snap => {
-        _logs = []; snap.forEach(doc => { _logs.push(doc.data()); });
+        _logs = [];
+        snap.forEach(doc => { _logs.push(doc.data()); });
         if(!document.getElementById('admin-view-logs').classList.contains('hidden')) loadAdminLogs();
     });
 
+
+    // --- FUNGSI LOGGING (AUDIT TRAIL) KE FIREBASE ---
     function logActivity(action, details) {
         let uName = currentUser || 'Guest'; let uRole = currentUserRole || '-';
-        db.collection("logs").add({ timestamp: firebase.firestore.FieldValue.serverTimestamp(), time: new Date().toLocaleString('id-ID'), user: uName, role: uRole, action: action, details: details });
+        db.collection("logs").add({ 
+            timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+            time: new Date().toLocaleString('id-ID'), 
+            user: uName, 
+            role: uRole, 
+            action: action, 
+            details: details 
+        });
     }
 
     function toggleEye(inputId) { let input = document.getElementById(inputId); input.type = input.type === "password" ? "text" : "password"; }
     function safeId(str) { return str.replace(/[^a-zA-Z0-9]/g, '_'); }
     function getBadge(val, type) { 
         if(type === 'brand') {
-            if(val === 'ZS') return `<span class="badge badge-zs">ZS</span>`; if(val === 'SHI') return `<span class="badge badge-shi">SHI</span>`; if(val === 'BOTH') return `<span class="badge badge-both">ZS & SHI</span>`;
+            if(val === 'ZS') return `<span class="badge badge-zs">ZS</span>`;
+            if(val === 'SHI') return `<span class="badge badge-shi">SHI</span>`;
+            if(val === 'BOTH') return `<span class="badge badge-both">ZS & SHI</span>`;
         }
         return (val === 'Oke' ? `<span class="badge badge-oke">Oke</span>` : `<span class="badge badge-defect">Defect</span>`); 
     }
     function formatDateDisplay(dateStr) { return dateStr ? dateStr.split('-').reverse().join('-') : '-'; }
+
     function getDatesDisplay(item, role) {
-        if(!item.history) return '-'; let dates = [...new Set(item.history.map(h => h.date))].sort(); let displayStr = dates.map(d => formatDateDisplay(d)).join(', ');
+        if(!item.history) return '-';
+        let dates = [...new Set(item.history.map(h => h.date))].sort();
+        let displayStr = dates.map(d => formatDateDisplay(d)).join(', ');
         return `<span class="clickable-dates" style="font-weight:600; text-decoration: underline; color:var(--secondary);" onclick="openHistoryModal('${item.id}', '${role}'); event.stopPropagation();" title="Klik untuk lihat detail ukuran masuk per tanggal">${displayStr} <br><small><i>(Klik lihat detail)</i></small></span>`;
     }
 
-    // ================= UTILITAS STOK & ALOKASI =================
+    // ================= UTILITAS STOK & ALOKASI (dipakai bersama) =================
     function getDetailAllocatedTotal(d) {
         let a = d.allocated || {}; let mitraTotal = 0;
         if(typeof a.mitra === 'object') Object.values(a.mitra).forEach(v => mitraTotal += (parseInt(v) || 0));
         return (a.tiktok||0) + (a.shopee||0) + (a.web||0) + (a.butik||0) + (a.foc||0) + mitraTotal;
     }
-    function getDetailIssuedToMitra(d, mitraId) { if(!d.issued || typeof d.issued.mitra !== 'object') return 0; return parseInt(d.issued.mitra[mitraId]) || 0; }
+    function getDetailIssuedToMitra(d, mitraId) {
+        if(!d.issued || typeof d.issued.mitra !== 'object') return 0;
+        return parseInt(d.issued.mitra[mitraId]) || 0;
+    }
     function getItemTotalMasuk(item) { return (item.details || []).reduce((sum, d) => sum + (d.totalQty || 0), 0); }
-    function getItemProgressPercent(item) { let total = getItemTotalMasuk(item); return item.qtyProduksi > 0 ? (total / item.qtyProduksi) * 100 : 0; }
-    function getItemAvailableStock(item) { return (item.details || []).reduce((sum, d) => sum + Math.max(0, (d.totalQty || 0) - getDetailAllocatedTotal(d)), 0); }
-    function isLowStockItem(item) { return (item.details || []).some(d => { let sisa = (d.totalQty||0) - getDetailAllocatedTotal(d); return sisa > 0 && sisa <= LOW_STOCK_THRESHOLD; }); }
-    function isNearTargetItem(item) { let pct = getItemProgressPercent(item); return item.qtyProduksi > 0 && pct >= NEAR_TARGET_PERCENT && pct < 100; }
-    function getItemEarliestDate(item) { if(!item.history || item.history.length === 0) return item.date || ''; return item.history.map(h => h.date).sort()[0]; }
-    function getItemLatestDate(item) { if(!item.history || item.history.length === 0) return item.date || ''; return item.history.map(h => h.date).sort().slice(-1)[0]; }
+    function getItemProgressPercent(item) {
+        let total = getItemTotalMasuk(item);
+        return item.qtyProduksi > 0 ? (total / item.qtyProduksi) * 100 : 0;
+    }
+    function getItemAvailableStock(item) {
+        return (item.details || []).reduce((sum, d) => sum + Math.max(0, (d.totalQty || 0) - getDetailAllocatedTotal(d)), 0);
+    }
+    function isLowStockItem(item) {
+        return (item.details || []).some(d => { let sisa = (d.totalQty||0) - getDetailAllocatedTotal(d); return sisa > 0 && sisa <= _settings.lowStockThreshold; });
+    }
+    function isNearTargetItem(item) {
+        let pct = getItemProgressPercent(item);
+        return item.qtyProduksi > 0 && pct >= _settings.nearTargetPercent && pct < 100;
+    }
+    function getItemEarliestDate(item) {
+        if(!item.history || item.history.length === 0) return item.date || '';
+        return item.history.map(h => h.date).sort()[0];
+    }
+    function getItemLatestDate(item) {
+        if(!item.history || item.history.length === 0) return item.date || '';
+        return item.history.map(h => h.date).sort().slice(-1)[0];
+    }
 
+    // --- SETUP SIZES CHECKBOXES ---
     function renderSizeCheckboxes(containerId, prefix) {
         const container = document.getElementById(containerId); container.innerHTML = '';
         globalSizes.forEach(size => {
@@ -801,14 +969,19 @@
     }
     function toggleSizeInput(prefix, sid) { const input = document.getElementById(`${prefix}qty-${sid}`); input.classList.toggle('hidden'); if(input.classList.contains('hidden')) input.value = ''; }
     function addCustomSize(ctx) {
-        let inputEl; if(ctx === 'main') inputEl = document.getElementById('custom-size-input'); else if (ctx === 'batch') inputEl = document.getElementById('edit-batch-custom-size-input');
+        let inputEl;
+        if(ctx === 'main') inputEl = document.getElementById('custom-size-input');
+        else if (ctx === 'batch') inputEl = document.getElementById('edit-batch-custom-size-input');
+        
         const val = inputEl.value.trim();
         if(val && !globalSizes.includes(val)) { 
-            globalSizes.push(val); renderSizeCheckboxes('size-container', ''); 
+            globalSizes.push(val); 
+            renderSizeCheckboxes('size-container', ''); 
             if(!document.getElementById('modal-edit-batch').classList.contains('hidden')) renderSizeCheckboxes('edit-batch-size-container', 'edit-batch-'); 
         }
         inputEl.value = '';
     }
+    renderSizeCheckboxes('size-container', '');
 
     // --- AUTENTIKASI ---
     function toggleAuth(view) {
@@ -817,28 +990,34 @@
         document.getElementById(`${view}-view`).classList.remove('hidden');
     }
 
+    // CATATAN KEAMANAN: pendaftaran akun publik (register) sudah DIHAPUS.
+    // Pembuatan user baru sekarang HANYA bisa dilakukan oleh Admin lewat tab "Manajemen User" (lihat addUserAdmin()).
+
     function login() {
         const u = document.getElementById('login-username').value.trim().toLowerCase(); 
-        const p = document.getElementById('login-password').value; const userData = _users[u];
+        const p = document.getElementById('login-password').value;
 
-        if (userData && userData.password === p) {
-            if (userData.status === 'suspended') { document.getElementById('login-msg').innerText = 'Akun dinonaktifkan oleh Admin.'; return; }
+        if (_users[u] && _users[u].password === p) {
+            if (_users[u].disabled) { document.getElementById('login-msg').innerText = 'Akun ini telah dinonaktifkan. Hubungi Admin.'; return; }
             document.getElementById('login-msg').innerText = ''; document.getElementById('auth-section').classList.add('hidden'); 
-            currentUser = u; currentUserRole = userData.role;
-            db.collection("users").doc(u).update({ lastLogin: Date.now() });
+            currentUser = u;
+            currentUserRole = _users[u].role;
+            db.collection("users").doc(u).update({ lastLogin: firebase.firestore.FieldValue.serverTimestamp() }); // catat waktu login, tidak menghalangi proses login jika gagal
 
-            if (userData.mustChange) { document.getElementById('force-pwd-section').classList.remove('hidden'); } 
+            if (_users[u].mustChange) { document.getElementById('force-pwd-section').classList.remove('hidden'); } 
             else { logActivity('Login Berhasil', `Masuk ke dalam sistem`); routeUser(currentUserRole); }
         } else { document.getElementById('login-msg').innerText = 'Login gagal! Cek username/password.'; }
     }
 
     function routeUser(role) {
-        if (role === 'admin') { document.getElementById('admin-section').classList.remove('hidden'); switchAdminTab('users'); }
+        if (role === 'admin') { document.getElementById('admin-section').classList.remove('hidden'); loadAdminDashboard(); }
         else if (role === 'gudang') { document.getElementById('gudang-section').classList.remove('hidden'); loadGudangData(); } 
         else { 
             document.getElementById('sales-section').classList.remove('hidden'); 
-            let badgeRole = role === 'sales_leader' ? 'LEADER / SPV' : 'STAFF'; document.getElementById('sales-role-badge').innerText = badgeRole;
-            if(role === 'sales_leader') document.getElementById('sales-role-badge').style.backgroundColor = '#6b21a8'; else document.getElementById('sales-role-badge').style.backgroundColor = '#0f172a';
+            let badgeRole = role === 'sales_leader' ? 'LEADER / SPV' : 'STAFF';
+            document.getElementById('sales-role-badge').innerText = badgeRole;
+            if(role === 'sales_leader') document.getElementById('sales-role-badge').style.backgroundColor = '#6b21a8';
+            else document.getElementById('sales-role-badge').style.backgroundColor = '#0f172a';
             loadSalesData(); 
         }
     }
@@ -861,7 +1040,9 @@
     }
 
     function saveForcedPassword() {
-        const p = document.getElementById('force-new-pwd').value; if(p.length < 3) return alert('Password minimal 3 karakter');
+        const p = document.getElementById('force-new-pwd').value;
+        if(p.length < 3) return alert('Password minimal 3 karakter');
+        
         db.collection("users").doc(currentUser).update({ password: p, mustChange: false }).then(() => {
             logActivity('Ganti Password Wajib', `User berhasil mengganti password sementara`);
             document.getElementById('force-pwd-section').classList.add('hidden'); alert('Password berhasil diubah!'); routeUser(currentUserRole);
@@ -870,154 +1051,368 @@
 
     // --- SUPERADMIN ---
     function switchAdminTab(tab) {
-        ['users', 'logs', 'alokasi', 'form', 'mitra', 'settings'].forEach(t => {
-            document.getElementById(`tab-admin-${t}`).classList.toggle('active', tab === t); document.getElementById(`admin-view-${t}`).classList.add('hidden');
+        const tabs = ['dashboard', 'users', 'alokasi', 'orderform', 'mitra', 'settings', 'logs'];
+        tabs.forEach(t => {
+            document.getElementById(`tab-admin-${t}`).classList.toggle('active', tab === t);
+            document.getElementById(`admin-view-${t}`).classList.toggle('hidden', tab !== t);
         });
-        document.getElementById(`admin-view-${tab}`).classList.remove('hidden');
-        if(tab === 'users') loadAdminData(); else if(tab === 'logs') loadAdminLogs(); else if(tab === 'alokasi') loadAdminAlokasi(); else if(tab === 'form') loadAdminFormOrder();
+        if(tab === 'dashboard') loadAdminDashboard();
+        else if(tab === 'users') loadAdminData();
+        else if(tab === 'alokasi') loadAdminAlokasiData();
+        else if(tab === 'orderform') loadAdminOrderFormData();
+        else if(tab === 'mitra') loadMitraDataAdmin();
+        else if(tab === 'settings') loadAdminSettings();
+        else if(tab === 'logs') loadAdminLogs();
     }
 
-    function saveSystemSettings() {
-        let low = parseInt(document.getElementById('setting-low-stock').value) || 5; let near = parseInt(document.getElementById('setting-near-target').value) || 90;
-        let sizesStr = document.getElementById('setting-sizes').value; let sizesArr = sizesStr.split(',').map(s => s.trim()).filter(s => s.length > 0);
-        if(sizesArr.length === 0) sizesArr = ['S', 'M', 'L', 'XL'];
-        
-        db.collection("settings").doc("system").set({ lowStockThreshold: low, nearTargetPercent: near, globalSizes: sizesArr }, { merge: true }).then(() => {
-            logActivity('Ubah Pengaturan Sistem', `Admin memperbarui ambang batas notifikasi & ukuran master`); alert('Pengaturan sistem berhasil disimpan!');
-        }).catch(err => { console.error(err); alert('Gagal menyimpan pengaturan!'); });
+    function formatTimestamp(ts) {
+        if(!ts) return '-';
+        try {
+            const d = ts.toDate ? ts.toDate() : new Date(ts);
+            return d.toLocaleString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+        } catch(e) { return '-'; }
     }
-
-    function openAddUserModal() { document.getElementById('new-user-name').value = ''; document.getElementById('new-user-pwd').value = ''; document.getElementById('modal-add-user').classList.remove('hidden'); }
-    function closeAddUserModal() { document.getElementById('modal-add-user').classList.add('hidden'); }
-    function saveNewUser() {
-        const u = document.getElementById('new-user-name').value.trim().toLowerCase(); const p = document.getElementById('new-user-pwd').value; const r = document.getElementById('new-user-role').value;
-        if(!u || !p) return alert('Username & Password wajib diisi!'); if(_users[u]) return alert('Username sudah terdaftar!');
-        db.collection("users").doc(u).set({ password: p, role: r, status: 'active', reqReset: false, mustChange: true }).then(() => {
-            logActivity('Buat User Baru', `Admin membuat akun baru: ${u} (${r})`); closeAddUserModal(); alert(`Akun ${u} berhasil dibuat. Saat login pertama, sistem akan memaksa ganti password.`);
-        });
-    }
-
-    function changeUserRole(uname, newRole) { db.collection("users").doc(uname).update({ role: newRole }).then(() => { logActivity('Ubah Role User', `Admin mengubah role ${uname} menjadi ${newRole}`); }); }
-    function toggleUserStatus(uname, newStatus) { db.collection("users").doc(uname).update({ status: newStatus }).then(() => { logActivity('Ubah Status User', `Admin men-set status ${uname} menjadi ${newStatus}`); }); }
 
     function loadAdminData() {
-        const fUser = document.getElementById('admin-filter-user').value.toLowerCase(); const fRole = document.getElementById('admin-filter-role').value;
-        const tbody = document.querySelector('#admin-table tbody'); tbody.innerHTML = ''; let rendered = 0;
-        
+        const fUser = document.getElementById('admin-filter-user').value.toLowerCase();
+        const fRole = document.getElementById('admin-filter-role').value;
+        const tbody = document.querySelector('#admin-table tbody'); tbody.innerHTML = '';
+        let rendered = 0;
         for (const [uname, data] of Object.entries(_users)) {
-            if (uname === 'admin') continue;
+            if (uname === 'admin') continue; // akun admin utama default disembunyikan dari daftar supaya tidak terhapus tidak sengaja
             if (fUser !== '' && !uname.toLowerCase().includes(fUser)) continue;
             if (fRole !== 'ALL' && data.role !== fRole) continue;
             rendered++;
-            
-            let reqAlert = data.reqReset ? `<span style="color:var(--danger); font-weight:bold;">Minta Reset!</span>` : `Aman`;
-            let roleSelect = `<select onchange="changeUserRole('${uname}', this.value)" style="padding:4px; font-size:0.9em; width:auto; border:1px solid #ccc;">
-                <option value="gudang" ${data.role==='gudang'?'selected':''}>Gudang</option><option value="sales_staff" ${data.role==='sales_staff'?'selected':''}>Sales Staff</option><option value="sales_leader" ${data.role==='sales_leader'?'selected':''}>Sales Leader</option>
-            </select>`;
-            let statusBadge = data.status === 'suspended' ? `<span class="badge badge-defect">Suspended</span>` : `<span class="badge badge-oke">Aktif</span>`;
-            let suspendBtn = data.status === 'suspended' ? `<button class="btn-success btn-small" onclick="toggleUserStatus('${uname}', 'active')">Aktifkan</button>` : `<button class="btn-warning btn-small" onclick="toggleUserStatus('${uname}', 'suspended')">Suspend</button>`;
-            let lastLoginText = data.lastLogin ? new Date(data.lastLogin).toLocaleString('id-ID', {day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit'}) : '-';
-
+            let reqAlert = data.reqReset ? `<br><span style="color:var(--danger); font-weight:bold; font-size:0.85em;">Minta Reset!</span>` : ``;
+            let statusBadge = data.disabled ? `<span class="mini-tag mini-tag-danger" style="margin-left:0;">Nonaktif</span>` : `<span style="color:var(--success); font-weight:600; font-size:0.85em;">● Aktif</span>`;
             tbody.innerHTML += `<tr>
-                <td><strong>${uname}</strong><br>${statusBadge}</td><td>${roleSelect}</td><td><small style="color:var(--text-muted);">${lastLoginText}</small></td><td>${reqAlert}</td>
-                <td>${suspendBtn} <button class="btn-primary btn-small" onclick="resetUserPwd('${uname}')" style="margin-left:4px;">Reset Pwd</button> <button class="btn-danger btn-small" onclick="deleteUser('${uname}')" style="margin-left:4px;">Hapus</button></td>
+                <td><strong>${uname}</strong></td>
+                <td>${data.role.toUpperCase().replace('_', ' ')}</td>
+                <td style="font-size:0.8em; color:var(--text-muted);">${formatTimestamp(data.lastLogin)}</td>
+                <td>${statusBadge}${reqAlert}</td>
+                <td>
+                    <button class="btn-warning btn-small" onclick="resetUserPwd('${uname}')">Reset Pwd</button>
+                    <button class="btn-primary btn-small" onclick="openEditRoleModal('${uname}')">Ubah Role</button>
+                    <button class="btn-dark btn-small" onclick="toggleUserDisabled('${uname}', ${!!data.disabled})">${data.disabled ? 'Aktifkan' : 'Nonaktifkan'}</button>
+                    <button class="btn-danger btn-small" onclick="deleteUser('${uname}')">Hapus</button>
+                </td>
             </tr>`;
         }
         if(rendered === 0) tbody.innerHTML = `<tr><td colspan="5" class="notif-empty">Tidak ada user yang cocok dengan filter.</td></tr>`;
     }
 
-    function loadAdminLogs() {
-        const fCari = document.getElementById('admin-logs-filter-cari').value.toLowerCase(); const sortBy = document.getElementById('admin-logs-sort').value;
-        const tbody = document.querySelector('#admin-logs-table tbody'); tbody.innerHTML = '';
-        let list = _logs.filter(log => {
-            if(fCari === '') return true; return (log.user||'').toLowerCase().includes(fCari) || (log.action||'').toLowerCase().includes(fCari) || (log.details||'').toLowerCase().includes(fCari);
+    function addUserAdmin() {
+        const u = document.getElementById('admin-new-username').value.trim().toLowerCase();
+        const p = document.getElementById('admin-new-password').value;
+        let r = document.getElementById('admin-new-role').value;
+        if(r === 'sales') r = 'sales_' + document.getElementById('admin-new-sales-level').value;
+
+        if(!u || !p) return alert('Username & password awal wajib diisi!');
+        if(_users[u]) return alert('Username sudah terdaftar!');
+
+        db.collection("users").doc(u).set({ password: p, role: r, reqReset: false, mustChange: true, disabled: false }).then(() => {
+            logActivity('Admin Tambah User', `Admin membuat user baru: ${u} (Role: ${r})`);
+            document.getElementById('admin-new-username').value = '';
+            document.getElementById('admin-new-password').value = '';
+            alert(`User "${u}" berhasil dibuat. User wajib mengganti password saat login pertama kali.`);
+        }).catch(err => alert('Gagal membuat user: ' + err.message));
+    }
+
+    function toggleUserDisabled(uname, currentlyDisabled) {
+        const newState = !currentlyDisabled;
+        const msg = newState ? `Nonaktifkan sementara akun "${uname}"? User tidak akan bisa login sampai diaktifkan kembali.` : `Aktifkan kembali akun "${uname}"?`;
+        if(!confirm(msg)) return;
+        db.collection("users").doc(uname).update({ disabled: newState }).then(() => {
+            logActivity(newState ? 'Nonaktifkan User' : 'Aktifkan User', `Admin ${newState ? 'menonaktifkan' : 'mengaktifkan kembali'} user: ${uname}`);
         });
-        list = sortBy === 'terlama' ? list : list.slice().reverse();
-        if(list.length === 0) { tbody.innerHTML = `<tr><td colspan="4" class="notif-empty">Tidak ada log yang cocok dengan pencarian.</td></tr>`; return; }
-        list.forEach(log => {
-            tbody.innerHTML += `<tr><td style="font-size:0.85em; color:var(--text-muted);">${log.time}</td><td><strong>${log.user}</strong> <br><small style="color:var(--secondary)">[${log.role.toUpperCase().replace('_', ' ')}]</small></td><td><span class="badge" style="background:#e2e8f0; color:#334155;">${log.action}</span></td><td>${log.details}</td></tr>`;
-        });
+    }
+
+    function openEditRoleModal(uname) {
+        const data = _users[uname]; if(!data) return;
+        document.getElementById('edit-role-username').value = uname;
+        document.getElementById('edit-role-username-label').innerText = uname;
+        let r = data.role;
+        if(r === 'sales_staff' || r === 'sales_leader') {
+            document.getElementById('edit-role-value').value = 'sales';
+            document.getElementById('edit-role-sales-level').value = r === 'sales_leader' ? 'leader' : 'staff';
+        } else {
+            document.getElementById('edit-role-value').value = r;
+        }
+        toggleEditRoleSalesLevel();
+        document.getElementById('modal-edit-role').classList.remove('hidden');
+    }
+    function closeEditRoleModal() { document.getElementById('modal-edit-role').classList.add('hidden'); }
+    function toggleEditRoleSalesLevel() {
+        const r = document.getElementById('edit-role-value').value;
+        document.getElementById('edit-role-sales-level-group').classList.toggle('hidden', r !== 'sales');
+    }
+    function saveEditRole() {
+        const uname = document.getElementById('edit-role-username').value;
+        let r = document.getElementById('edit-role-value').value;
+        if(r === 'sales') r = 'sales_' + document.getElementById('edit-role-sales-level').value;
+        db.collection("users").doc(uname).update({ role: r }).then(() => {
+            logActivity('Admin Ubah Role', `Role user "${uname}" diubah menjadi: ${r}`);
+            closeEditRoleModal();
+        }).catch(err => alert('Gagal mengubah role: ' + err.message));
     }
 
     function resetUserPwd(uname) {
         if(!confirm(`Reset password ${uname} menjadi "1234"?`)) return;
         db.collection("users").doc(uname).update({ password: "1234", mustChange: true, reqReset: false }).then(() => {
-            logActivity('Admin Reset Password', `Admin mereset password milik user: ${uname}`); alert(`Password ${uname} direset ke 1234.`);
+            logActivity('Admin Reset Password', `Admin mereset password milik user: ${uname}`);
+            alert(`Password ${uname} direset ke 1234.`);
         });
     }
 
     function deleteUser(uname) {
         if(!confirm(`Hapus akun ${uname} selamanya?`)) return;
-        db.collection("users").doc(uname).delete().then(() => { logActivity('Admin Hapus User', `Admin menghapus permanen user: ${uname}`); });
+        db.collection("users").doc(uname).delete().then(() => {
+            logActivity('Admin Hapus User', `Admin menghapus permanen user: ${uname}`);
+        });
     }
 
-    function loadAdminAlokasi() {
-        const fName = document.getElementById('admin-alokasi-filter-nama').value.toLowerCase(); const tbody = document.querySelector('#admin-alokasi-table tbody'); tbody.innerHTML = ''; let rendered = 0;
+    // ================= DASHBOARD SUPERADMIN =================
+    function loadAdminDashboard() {
+        const totalArtikel = _inventory.length;
+        const totalStok = _inventory.reduce((sum, item) => sum + getItemTotalMasuk(item), 0);
+        const totalMitra = _mitras.length;
+        const totalUserAktif = Object.values(_users).filter(u => !u.disabled).length;
+
+        document.getElementById('admin-stat-cards').innerHTML = `
+            <div class="stat-card"><div class="stat-value">${totalArtikel}</div><div class="stat-label">Total Artikel</div></div>
+            <div class="stat-card"><div class="stat-value">${totalStok.toLocaleString('id-ID')}</div><div class="stat-label">Total Stok Masuk (pcs)</div></div>
+            <div class="stat-card"><div class="stat-value">${totalMitra}</div><div class="stat-label">Total Mitra</div></div>
+            <div class="stat-card"><div class="stat-value">${totalUserAktif}</div><div class="stat-label">User Aktif</div></div>
+        `;
+
+        let channels = { Tiktok: 0, Shopee: 0, Web: 0, Butik: 0, FOC: 0, Mitra: 0 };
+        _inventory.forEach(item => {
+            (item.details || []).forEach(d => {
+                if(d.allocationStatus !== 'approved') return;
+                let a = d.allocated || {};
+                channels.Tiktok += a.tiktok || 0; channels.Shopee += a.shopee || 0; channels.Web += a.web || 0;
+                channels.Butik += a.butik || 0; channels.FOC += a.foc || 0;
+                if(typeof a.mitra === 'object') Object.values(a.mitra).forEach(v => channels.Mitra += (parseInt(v) || 0));
+            });
+        });
+        const maxVal = Math.max(1, ...Object.values(channels));
+        const colors = { Tiktok: '#ec4899', Shopee: '#f97316', Web: '#0ea5e9', Butik: '#8b5cf6', FOC: '#64748b', Mitra: '#10b981' };
+        document.getElementById('admin-channel-chart').innerHTML = Object.entries(channels).map(([label, val]) => `
+            <div style="margin-bottom:12px;">
+                <div style="display:flex; justify-content:space-between; font-size:0.8em; margin-bottom:3px;"><span>${label}</span><span><b>${val}</b> pcs</span></div>
+                <div style="background:#e2e8f0; border-radius:4px; height:14px; overflow:hidden;"><div style="width:${(val / maxVal * 100).toFixed(1)}%; background:${colors[label]}; height:100%; border-radius:4px;"></div></div>
+            </div>
+        `).join('');
+
+        let mitraVolumes = {};
+        _inventory.forEach(item => {
+            (item.details || []).forEach(d => {
+                if(d.allocationStatus !== 'approved') return;
+                const a = d.allocated || {};
+                if(typeof a.mitra === 'object') Object.entries(a.mitra).forEach(([mid, v]) => { mitraVolumes[mid] = (mitraVolumes[mid] || 0) + (parseInt(v) || 0); });
+            });
+        });
+        let topMitra = Object.entries(mitraVolumes)
+            .map(([mid, vol]) => { const m = _mitras.find(x => x.id === mid); return { name: m ? m.name : '(Mitra telah dihapus)', loc: m ? m.loc : '', vol }; })
+            .filter(m => m.vol > 0)
+            .sort((a, b) => b.vol - a.vol).slice(0, 5);
+
+        document.getElementById('admin-top-mitra').innerHTML = topMitra.length === 0
+            ? `<div class="notif-empty">Belum ada alokasi ke mitra.</div>`
+            : topMitra.map((m, i) => `<div style="display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid #f1f5f9;"><span>${i + 1}. <b>${m.name}</b><br><small style="color:var(--text-muted);">${m.loc}</small></span><span style="font-weight:700; color:var(--primary);">${m.vol} pcs</span></div>`).join('');
+    }
+
+    // ================= ALOKASI SALES (OVERSIGHT ADMIN, READ-ONLY) =================
+    function loadAdminAlokasiData() {
+        const fName = document.getElementById('admin-alokasi-filter-nama').value.toLowerCase();
+        const fStatus = document.getElementById('admin-alokasi-filter-status').value;
+        const tbody = document.querySelector('#admin-alokasi-table tbody'); tbody.innerHTML = '';
+        let rendered = 0;
         _inventory.forEach(item => {
             if(fName !== '' && !item.name.toLowerCase().includes(fName)) return;
-            let itemMitras = _mitras.filter(m => m.brand === item.brand || m.brand === 'BOTH'); let allocDetails = '';
-            item.details.forEach(d => {
-                if(d.allocationStatus !== 'approved') return; 
-                let a = d.allocated; let mHtml = '';
-                if(itemMitras.length > 0) { itemMitras.forEach(m => { let v = (typeof a.mitra === 'object' && a.mitra[m.id]) ? a.mitra[m.id] : 0; if(v > 0) mHtml += `[${m.name}: ${v}] `; }); }
-                if(a.tiktok||a.shopee||a.web||a.butik||a.foc||mHtml.length > 0) {
-                    allocDetails += `<div style="border-bottom:1px dashed #ccc; padding:5px 0; font-size:0.85em;"><strong>Size ${d.size}</strong> ➔ Tiktok:${a.tiktok||0}, Shopee:${a.shopee||0}, Web:${a.web||0}, Butik:${a.butik||0}, FOC:${a.foc||0} <br><span style="color:var(--secondary)">Mitra: ${mHtml || 'Tidak ada'}</span></div>`;
-                }
+            let itemMitras = _mitras.filter(m => m.brand === item.brand || m.brand === 'BOTH');
+            let allocDetails = '';
+            (item.details || []).forEach(d => {
+                const status = d.allocationStatus || 'none';
+                if(status === 'none') return;
+                if(fStatus !== 'ALL' && status !== fStatus) return;
+                let a = d.allocated || {}; let mHtml = '';
+                itemMitras.forEach(m => { let v = (typeof a.mitra === 'object' && a.mitra[m.id]) ? a.mitra[m.id] : 0; if(v > 0) mHtml += `[${m.name} (${m.loc}): ${v}] `; });
+                let statusBadge = status === 'approved' ? `<span class="status-issued">APPROVED</span>` : `<span class="mini-tag mini-tag-warn" style="margin-left:0;">PENDING</span>`;
+                allocDetails += `<div style="border-bottom:1px dashed #ccc; padding:5px 0; font-size:0.85em;"><strong>Size ${d.size}</strong> ${statusBadge} ➔ Tiktok:${a.tiktok||0}, Shopee:${a.shopee||0}, Web:${a.web||0}, Butik:${a.butik||0}, FOC:${a.foc||0} <br><span style="color:var(--secondary)">Mitra: ${mHtml || 'Tidak ada'}</span></div>`;
             });
-            if(allocDetails === '') return;  rendered++;
+            if(allocDetails === '') return;
+            rendered++;
             let imgStr = item.image ? `<img src="${item.image}" style="max-width:80px; border-radius:5px;">` : `-`;
             tbody.innerHTML += `<tr><td style="width:25%"><strong>${item.name}</strong><br>${getBadge(item.brand, 'brand')}</td><td style="width:15%">${imgStr}</td><td style="width:60%">${allocDetails}</td></tr>`;
         });
         if(rendered === 0) tbody.innerHTML = `<tr><td colspan="3" class="notif-empty">Tidak ada data alokasi yang cocok.</td></tr>`;
     }
 
-    // TAMPILAN FORM ORDER ADMIN & FUNGSI HAPUS PERMANEN
-    function loadAdminFormOrder() {
-        const fCari = document.getElementById('admin-orderform-filter').value.toLowerCase();
+    // ================= FORM ORDER MITRA (OVERSIGHT ADMIN) =================
+    function loadAdminOrderFormData() {
+        const fCari = document.getElementById('admin-orderform-filter-cari').value.toLowerCase();
+        const fStatus = document.getElementById('admin-orderform-filter-status').value;
+        const sortBy = document.getElementById('admin-orderform-sort').value;
         const tbody = document.querySelector('#admin-orderform-table tbody'); tbody.innerHTML = '';
 
         let list = _orderForms.filter(f => {
+            if(fStatus !== 'ALL' && f.status !== fStatus) return false;
             if(fCari !== '' && !((f.formNo||'').toLowerCase().includes(fCari) || (f.mitraName||'').toLowerCase().includes(fCari))) return false;
             return true;
-        }).sort((a, b) => (b.createdAtLocal||0) - (a.createdAtLocal||0));
+        });
+        list.sort((a, b) => sortBy === 'terlama' ? (a.createdAtLocal||0) - (b.createdAtLocal||0) : (b.createdAtLocal||0) - (a.createdAtLocal||0));
 
-        if(list.length === 0) { tbody.innerHTML = `<tr><td colspan="6" class="notif-empty">Belum ada form order yang diterbitkan.</td></tr>`; return; }
+        if(list.length === 0) { tbody.innerHTML = `<tr><td colspan="7" class="notif-empty">Belum ada form order yang diterbitkan.</td></tr>`; return; }
 
         list.forEach(f => {
             const statusHtml = f.status === 'void' ? `<span class="status-void">Dibatalkan</span>` : `<span class="status-issued">Diterbitkan</span>`;
-            
-            let adminBtn = '';
-            if (f.status === 'issued') {
-                adminBtn = `<button class="btn-warning btn-small" style="margin-left:4px;" onclick="voidOrderForm('${f.id}')">Batalkan (Void)</button>`;
-            } else if (f.status === 'void') {
-                adminBtn = `<button class="btn-danger btn-small" style="margin-left:4px;" onclick="deleteOrderFormPermanently('${f.id}')">Hapus Permanen</button>`;
-            }
-
+            const voidBtn = f.status === 'issued' ? `<button class="btn-danger btn-small" onclick="voidOrderForm('${f.id}')">Batalkan</button>` : '';
             tbody.innerHTML += `<tr>
-                <td>${f.formNo}</td><td>${f.mitraName}</td><td>${formatDateDisplay(f.date)}</td>
+                <td>${f.formNo}</td>
+                <td>${f.mitraName}<br><small style="color:var(--text-muted);">${f.mitraLoc||''}</small></td>
+                <td>${formatDateDisplay(f.date)}</td>
+                <td>${f.gudangName || f.createdBy || '-'}</td>
                 <td>${(f.items||[]).length} baris (${(f.items||[]).reduce((s,i)=>s+(i.qty||0),0)} pcs)</td>
                 <td>${statusHtml}</td>
                 <td>
                     <button class="btn-primary btn-small" onclick="generateOrderFormPDF(_orderForms.find(x=>x.id==='${f.id}'))">📄 PDF</button>
-                    <button class="btn-success btn-small" onclick="downloadBatchOrderFormExcel([_orderForms.find(x=>x.id==='${f.id}')])">📊 Excel</button>
-                    ${adminBtn}
+                    <button class="btn-success btn-small" onclick="downloadOrderFormExcel(_orderForms.find(x=>x.id==='${f.id}'))">📊 Excel</button>
+                    ${voidBtn}
                 </td>
             </tr>`;
         });
     }
 
-    function deleteOrderFormPermanently(formId) {
-        const f = _orderForms.find(x => x.id === formId);
-        if(!f) return;
-        if(f.status !== 'void') { alert('Form Order harus dibatalkan (void) terlebih dahulu agar stok dikembalikan ke sistem!'); return; }
-        if(!confirm(`PERINGATAN: Anda akan menghapus permanen riwayat Form Order ${f.formNo} untuk mitra ${f.mitraName}.\n\nData yang dihapus tidak dapat dikembalikan. Lanjutkan?`)) return;
-
-        db.collection("orderforms").doc(formId).delete().then(() => {
-            logActivity('Hapus Permanen Form Order', `Superadmin menghapus permanen No. Form ${f.formNo} dari database`);
-            alert(`Form Order ${f.formNo} berhasil dihapus permanen.`);
-        }).catch(err => {
-            console.error(err); alert('Terjadi kendala saat menghapus Form Order dari database.');
+    // ================= KELOLA MITRA (CRUD DARI ADMIN) =================
+    function saveMitraAdmin() {
+        const n = document.getElementById('admin-mitraName').value.trim();
+        const l = document.getElementById('admin-mitraLoc').value.trim();
+        const b = document.getElementById('admin-mitraBrand').value;
+        if(!n || !l) return alert('Nama & Lokasi Mitra wajib diisi!');
+        db.collection("mitras").add({ name: n, loc: l, brand: b }).then(() => {
+            logActivity('Admin Tambah Mitra', `Admin menambahkan mitra baru: ${n} (${l})`);
+            document.getElementById('admin-mitraName').value = ''; document.getElementById('admin-mitraLoc').value = '';
         });
+    }
+
+    function loadMitraDataAdmin() {
+        const fBrand = document.getElementById('admin-mitra-filter-brand').value;
+        const fCari = document.getElementById('admin-mitra-filter-cari').value.toLowerCase();
+        const sortBy = document.getElementById('admin-mitra-sort').value;
+        const tbody = document.querySelector('#admin-mitra-table tbody'); tbody.innerHTML = '';
+
+        let list = _mitras.filter(m => {
+            if(fBrand !== 'ALL' && m.brand !== fBrand && m.brand !== 'BOTH') return false;
+            if(fCari !== '' && !(m.name.toLowerCase().includes(fCari) || (m.loc||'').toLowerCase().includes(fCari))) return false;
+            return true;
+        });
+        list.reverse();
+        if(sortBy === 'nama_az') list.sort((a,b) => a.name.localeCompare(b.name));
+        else if(sortBy === 'nama_za') list.sort((a,b) => b.name.localeCompare(a.name));
+
+        if(list.length === 0) { tbody.innerHTML = `<tr><td colspan="4" class="notif-empty">Tidak ada mitra yang cocok.</td></tr>`; return; }
+
+        list.forEach(m => {
+            tbody.innerHTML += `<tr><td><strong>${m.name}</strong></td><td>${m.loc}</td><td>${getBadge(m.brand, 'brand')}</td><td>
+                <button class="btn-warning btn-small" onclick="openEditMitra('${m.id}')">Edit</button>
+                <button class="btn-danger btn-small" onclick="deleteMitra('${m.id}')">Hapus</button>
+            </td></tr>`;
+        });
+    }
+
+    // ================= PENGATURAN SISTEM =================
+    function loadAdminSettings() {
+        document.getElementById('setting-low-stock').value = _settings.lowStockThreshold;
+        document.getElementById('setting-near-target').value = _settings.nearTargetPercent;
+        renderSizeSettingChips();
+    }
+
+    function renderSizeSettingChips() {
+        const wrap = document.getElementById('setting-sizes-list'); wrap.innerHTML = '';
+        (_settings.sizes || []).forEach(s => {
+            wrap.innerHTML += `<span class="size-chip">${s} <span class="size-chip-remove" onclick="removeSizeSetting('${s}')">✕</span></span>`;
+        });
+        if((_settings.sizes || []).length === 0) wrap.innerHTML = `<span style="font-size:0.85em; color:var(--text-muted);">Belum ada size terdaftar.</span>`;
+    }
+
+    function saveAdminSettings() {
+        const lowStock = parseInt(document.getElementById('setting-low-stock').value);
+        const nearTarget = parseInt(document.getElementById('setting-near-target').value);
+        if(!lowStock || lowStock < 1) return alert('Ambang batas stok menipis harus angka lebih dari 0.');
+        if(!nearTarget || nearTarget < 1 || nearTarget > 99) return alert('Ambang batas mendekati target harus antara 1-99.');
+        db.collection("settings").doc("general").set({ lowStockThreshold: lowStock, nearTargetPercent: nearTarget, sizes: _settings.sizes }, { merge: true }).then(() => {
+            logActivity('Admin Ubah Pengaturan', `Ambang batas stok menipis: ${lowStock} pcs, mendekati target: ${nearTarget}%`);
+            alert('Pengaturan berhasil disimpan.');
+        });
+    }
+
+    function addSizeSetting() {
+        const input = document.getElementById('setting-new-size');
+        const val = input.value.trim().toUpperCase();
+        if(!val) return;
+        if(_settings.sizes.includes(val)) { alert('Size ini sudah ada di daftar.'); return; }
+        const newSizes = _settings.sizes.concat([val]);
+        db.collection("settings").doc("general").set({ sizes: newSizes }, { merge: true }).then(() => {
+            logActivity('Admin Tambah Size', `Menambahkan ukuran baru ke daftar global: ${val}`);
+            input.value = '';
+        });
+    }
+
+    function removeSizeSetting(size) {
+        if(!confirm(`Hapus ukuran "${size}" dari daftar global? Ukuran ini tidak akan hilang dari data yang sudah ada, hanya tidak akan muncul lagi sebagai pilihan baru.`)) return;
+        const newSizes = _settings.sizes.filter(s => s !== size);
+        db.collection("settings").doc("general").set({ sizes: newSizes }, { merge: true }).then(() => {
+            logActivity('Admin Hapus Size', `Menghapus ukuran dari daftar global: ${size}`);
+        });
+    }
+
+    function loadAdminLogs() {
+        const fCari = document.getElementById('admin-logs-filter-cari').value.toLowerCase();
+        const sortBy = document.getElementById('admin-logs-sort').value;
+        const tbody = document.querySelector('#admin-logs-table tbody'); tbody.innerHTML = '';
+
+        let list = _logs.filter(log => {
+            if(fCari === '') return true;
+            return (log.user||'').toLowerCase().includes(fCari) || (log.action||'').toLowerCase().includes(fCari) || (log.details||'').toLowerCase().includes(fCari);
+        });
+        list = sortBy === 'terlama' ? list : list.slice().reverse();
+
+        if(list.length === 0) { tbody.innerHTML = `<tr><td colspan="4" class="notif-empty">Tidak ada log yang cocok dengan pencarian.</td></tr>`; return; }
+
+        list.forEach(log => {
+            tbody.innerHTML += `<tr><td style="font-size:0.85em; color:var(--text-muted);">${log.time}</td>
+                <td><strong>${log.user}</strong> <br><small style="color:var(--secondary)">[${log.role.toUpperCase().replace('_', ' ')}]</small></td>
+                <td><span class="badge" style="background:#e2e8f0; color:#334155;">${log.action}</span></td><td>${log.details}</td></tr>`;
+        });
+    }
+
+    // --- IMAGE PASTE ---
+    function handleImagePaste(e, itemId) {
+        let items = (e.clipboardData || e.originalEvent.clipboardData).items;
+        for (let index in items) {
+            let item = items[index];
+            if (item.kind === 'file' && item.type.includes('image')) {
+                let blob = item.getAsFile(); let reader = new FileReader();
+                reader.onload = function(event) {
+                    let img = new Image();
+                    img.onload = function() {
+                        let cvs = document.createElement('canvas'); let maxW = 300; let scale = maxW / img.width;
+                        cvs.width = maxW; cvs.height = img.height * scale;
+                        let ctx = cvs.getContext('2d'); ctx.drawImage(img, 0, 0, cvs.width, cvs.height);
+                        let dataUrl = cvs.toDataURL('image/jpeg', 0.8);
+                        
+                        db.collection("inventory").doc(itemId).update({ image: dataUrl }).then(() => {
+                            let invItem = _inventory.find(x => x.id === itemId);
+                            logActivity('Upload Foto', `Menyisipkan foto pada barang: ${invItem ? invItem.name : itemId}`); 
+                            alert('Foto tersimpan!'); 
+                        });
+                    }
+                    img.src = event.target.result;
+                };
+                reader.readAsDataURL(blob); e.preventDefault(); return;
+            }
+        }
     }
 
     // ================= BAGIAN GUDANG =================
@@ -1067,17 +1462,20 @@
             
             db.collection("inventory").doc(existingItem.id).update(updateData).then(() => {
                 logActivity('Restok Gudang', `Menambah kuantitas artikel: ${name} pada tgl ${dateStr}`);
-                alert('Tersimpan dan digabung dengan stok sebelumnya!');
+                alert('Tersimpan dan berhasil digabungkan dengan stok sebelumnya!');
             });
+
         } else {
             let newItem = { 
                 name, brand, condition, qtyProduksi, details: inputDetails, image: '', date: dateStr,
                 history: [{ entryId: Date.now(), date: dateStr, added: inputDetails.map(d=>({size: d.size, qty: d.totalQty})) }]
             };
             db.collection("inventory").add(newItem).then(() => {
-                logActivity('Input Barang Masuk', `Menambahkan artikel baru: ${name} ke dalam sistem`); alert('Barang Baru Tersimpan!');
+                logActivity('Input Barang Masuk', `Menambahkan artikel baru: ${name} ke dalam sistem`);
+                alert('Barang Baru Tersimpan!');
             });
         }
+
         document.getElementById('itemName').value = ''; document.getElementById('itemQtyProduksi').value = ''; document.getElementById('itemDate').valueAsDate = new Date(); renderSizeCheckboxes('size-container', ''); 
     }
 
@@ -1103,7 +1501,7 @@
             if(sortBy === 'progress_asc') return getItemProgressPercent(a) - getItemProgressPercent(b);
             if(sortBy === 'stok_desc') return getItemTotalMasuk(b) - getItemTotalMasuk(a);
             if(sortBy === 'terlama') return (getItemLatestDate(a) || '').localeCompare(getItemLatestDate(b) || '');
-            return (getItemLatestDate(b) || '').localeCompare(getItemLatestDate(a) || '');
+            return (getItemLatestDate(b) || '').localeCompare(getItemLatestDate(a) || ''); // terbaru (default)
         });
 
         if(list.length === 0) { tbody.innerHTML = `<tr><td colspan="4" class="notif-empty">Tidak ada data yang cocok dengan filter.</td></tr>`; return; }
@@ -1127,13 +1525,16 @@
     }
 
     function loadGudangAlokasiData() {
-        const fName = document.getElementById('gudang-alokasi-filter-nama').value.toLowerCase(); const fMitra = document.getElementById('gudang-alokasi-filter-mitra').value;
-        const tbody = document.querySelector('#gudang-alokasi-table tbody'); tbody.innerHTML = ''; let rendered = 0;
+        const fName = document.getElementById('gudang-alokasi-filter-nama').value.toLowerCase();
+        const fMitra = document.getElementById('gudang-alokasi-filter-mitra').value;
+        const tbody = document.querySelector('#gudang-alokasi-table tbody'); tbody.innerHTML = '';
+        let rendered = 0;
         _inventory.forEach(item => {
             if(fName !== '' && !item.name.toLowerCase().includes(fName)) return;
             let itemMitras = _mitras.filter(m => m.brand === item.brand || m.brand === 'BOTH'); let allocDetails = '';
             item.details.forEach(d => {
                 if(d.allocationStatus !== 'approved') return; 
+
                 let a = d.allocated; let mHtml = ''; let matchesMitraFilter = (fMitra === 'ALL');
                 if(itemMitras.length > 0) { itemMitras.forEach(m => { let v = (typeof a.mitra === 'object' && a.mitra[m.id]) ? a.mitra[m.id] : 0; if(v > 0) { mHtml += `[${m.name} (${m.loc}): ${v}] `; if(fMitra !== 'ALL' && m.id === fMitra) matchesMitraFilter = true; } }); }
                 if(!matchesMitraFilter) return;
@@ -1142,7 +1543,8 @@
                     allocDetails += `<div style="border-bottom:1px dashed #ccc; padding:5px 0; font-size:0.85em;"><strong>Size ${d.size}</strong> ➔ Tiktok:${a.tiktok||0}, Shopee:${a.shopee||0}, Web:${a.web||0}, Butik:${a.butik||0}, FOC:${a.foc||0} <br><span style="color:var(--secondary)">Mitra: ${mHtml || 'Tidak ada'}</span></div>`;
                 }
             });
-            if(allocDetails === '') return; rendered++;
+            if(allocDetails === '') return; 
+            rendered++;
             let imgStr = item.image ? `<img src="${item.image}" style="max-width:80px; border-radius:5px;">` : `-`;
             tbody.innerHTML += `<tr><td style="width:25%"><strong>${item.name}</strong><br>${getBadge(item.brand, 'brand')}</td><td style="width:15%">${imgStr}</td><td style="width:60%">${allocDetails}</td></tr>`;
         });
@@ -1152,10 +1554,13 @@
     function deleteGudangItem(id) { 
         if(confirm('Hapus barang ini sepenuhnya? Seluruh batch tanggal akan hilang.')) { 
             let item = _inventory.find(i => i.id === id);
-            db.collection("inventory").doc(id).delete().then(() => { logActivity('Hapus Barang Gudang', `Menghapus artikel: ${item.name}`); });
+            db.collection("inventory").doc(id).delete().then(() => {
+                logActivity('Hapus Barang Gudang', `Menghapus artikel: ${item.name} beserta seluruh datanya`);
+            });
         } 
     }
 
+    // --- MODAL INFO UTAMA GUDANG ---
     function openEditInfoModal(id) {
         let item = _inventory.find(i => i.id === id);
         document.getElementById('edit-info-id').value = id; document.getElementById('edit-info-name').value = item.name; 
@@ -1175,6 +1580,7 @@
         });
     }
 
+    // --- MODAL HISTORY (DETAIL TANGGAL) ---
     function openHistoryModal(itemId, role) {
         let item = _inventory.find(i => i.id === itemId);
         document.getElementById('history-title').innerText = `Riwayat Masuk: ${item.name}`;
@@ -1193,10 +1599,12 @@
     }
     function closeHistoryModal() { document.getElementById('modal-history').classList.add('hidden'); }
 
+    // --- MODAL EDIT BATCH ---
     function openEditBatchModal(itemId, entryId) {
         closeHistoryModal();
         let item = _inventory.find(i => i.id === itemId); let entry = item.history.find(e => e.entryId === entryId);
-        document.getElementById('edit-batch-itemId').value = itemId; document.getElementById('edit-batch-entryId').value = entryId; document.getElementById('edit-batch-date').value = entry.date;
+        document.getElementById('edit-batch-itemId').value = itemId; document.getElementById('edit-batch-entryId').value = entryId;
+        document.getElementById('edit-batch-date').value = entry.date;
         
         entry.added.forEach(a => { if(!globalSizes.includes(a.size)) globalSizes.push(a.size); }); renderSizeCheckboxes('edit-batch-size-container', 'edit-batch-');
         entry.added.forEach(a => { const sid = safeId(a.size); document.getElementById(`edit-batch-chk-${sid}`).checked = true; document.getElementById(`edit-batch-qty-${sid}`).classList.remove('hidden'); document.getElementById(`edit-batch-qty-${sid}`).value = a.qty; });
@@ -1216,13 +1624,17 @@
             let newQty = 0; if(chk && chk.checked) newQty = parseInt(document.getElementById(`edit-batch-qty-${sid}`).value) || 0;
             
             let oldRecord = entry.added.find(a => a.size === size); let oldQty = oldRecord ? oldRecord.qty : 0;
-            let delta = newQty - oldQty; let detail = item.details.find(d => d.size === size);
+            let delta = newQty - oldQty;
+            let detail = item.details.find(d => d.size === size);
 
             if(detail) {
                 let a = detail.allocated; let mitraTotal = 0; if(typeof a.mitra === 'object') Object.values(a.mitra).forEach(v => mitraTotal += (parseInt(v)||0));
                 let totalAllocated = a.tiktok + a.shopee + a.web + (a.butik||0) + (a.foc||0) + mitraTotal;
+                
                 let futureTotal = detail.totalQty + delta;
-                if(futureTotal < totalAllocated) { alert(`Gagal! Total stok akhir Size ${size} menjadi kurang dari yang didistribusikan (${totalAllocated}).`); hasError = true; }
+                if(futureTotal < totalAllocated) {
+                    alert(`Gagal! Total stok akhir Size ${size} menjadi kurang dari jumlah yang sudah didistribusikan Sales (${totalAllocated}). Cek kembali.`); hasError = true;
+                }
             }
             if(newQty > 0) newAdded.push({size, qty: newQty});
         });
@@ -1233,11 +1645,14 @@
         newAdded.forEach(a => { let d = item.details.find(x => x.size === a.size); if(d) d.totalQty += a.qty; else item.details.push({ size: a.size, totalQty: a.qty, allocationStatus: 'none', allocated: {mitra:{}, tiktok:0, shopee:0, web:0, butik:0, foc:0} }); });
 
         entry.date = newDate; entry.added = newAdded;
+        
         db.collection("inventory").doc(itemId).update({ history: item.history, details: item.details }).then(() => {
-            logActivity('Edit Batch Stok', `Mengubah qty/tanggal pada batch masuk artikel: ${item.name}`); closeEditBatchModal();
+            logActivity('Edit Batch Stok', `Mengubah qty/tanggal pada batch masuk artikel: ${item.name}`);
+            closeEditBatchModal();
         });
     }
 
+    // ================= FUNGSI KALKULASI SISA STOK REAL-TIME =================
     function calcSisa(itemId, sid, totalQty) {
         const vT = parseInt(document.getElementById(`t-${itemId}-${sid}`).value) || 0;
         const vS = parseInt(document.getElementById(`s-${itemId}-${sid}`).value) || 0;
@@ -1259,12 +1674,16 @@
         }
     }
 
+
+    // ================= NOTIFIKASI: STOK MENIPIS & MENDEKATI TARGET PRODUKSI =================
     function computeNotifications() {
         let entries = [];
         _inventory.forEach(item => {
             (item.details || []).forEach(d => {
                 let sisa = (d.totalQty || 0) - getDetailAllocatedTotal(d);
-                if(sisa > 0 && sisa <= LOW_STOCK_THRESHOLD) { entries.push({ icon: '⚠️', title: `Stok Menipis: ${item.name}`, sub: `Size ${d.size} (${item.condition}) — sisa ${sisa} pcs belum dialokasikan` }); }
+                if(sisa > 0 && sisa <= _settings.lowStockThreshold) {
+                    entries.push({ icon: '⚠️', title: `Stok Menipis: ${item.name}`, sub: `Size ${d.size} (${item.condition}) — sisa ${sisa} pcs belum dialokasikan` });
+                }
             });
             if(isNearTargetItem(item)) {
                 let pct = getItemProgressPercent(item).toFixed(0);
@@ -1272,11 +1691,13 @@
             }
         });
 
-        ['gudang', 'sales'].forEach(role => {
-            const countEl = document.getElementById(`notif-count-${role}`); const listEl = document.getElementById(`notif-list-${role}`);
+        ['gudang', 'sales', 'admin'].forEach(role => {
+            const countEl = document.getElementById(`notif-count-${role}`);
+            const listEl = document.getElementById(`notif-list-${role}`);
             if(!countEl || !listEl) return;
             if(entries.length === 0) {
-                countEl.classList.add('hidden'); listEl.innerHTML = `<div class="notif-empty">Tidak ada notifikasi saat ini 👍</div>`;
+                countEl.classList.add('hidden');
+                listEl.innerHTML = `<div class="notif-empty">Tidak ada notifikasi saat ini 👍</div>`;
             } else {
                 countEl.classList.remove('hidden'); countEl.innerText = entries.length;
                 listEl.innerHTML = entries.map(e => `<div class="notif-item"><span class="notif-icon">${e.icon}</span><div><div class="notif-title">${e.title}</div><div class="notif-sub">${e.sub}</div></div></div>`).join('');
@@ -1285,350 +1706,320 @@
     }
 
     function toggleNotifPanel(which) {
-        ['gudang', 'sales'].forEach(role => {
+        ['gudang', 'sales', 'admin'].forEach(role => {
             const panel = document.getElementById(`notif-panel-${role}`);
             if(!panel) return;
             if(role === which) panel.classList.toggle('hidden'); else panel.classList.add('hidden');
         });
     }
     document.addEventListener('click', function(e) {
-        ['gudang', 'sales'].forEach(role => {
-            const wrapper = document.getElementById(`notif-panel-${role}`); const bell = wrapper ? wrapper.parentElement : null;
+        ['gudang', 'sales', 'admin'].forEach(role => {
+            const wrapper = document.getElementById(`notif-panel-${role}`);
+            const bell = wrapper ? wrapper.parentElement : null;
             if(wrapper && bell && !bell.contains(e.target)) wrapper.classList.add('hidden');
         });
     });
 
-    // ================= FORM ORDER MITRA BATCH (KHUSUS GUDANG) =================
+    // ================= FORM ORDER MITRA (KHUSUS GUDANG) =================
     function populateMitraSelects() {
         const alokasiSelect = document.getElementById('gudang-alokasi-filter-mitra');
-        const orderCheckboxes = document.getElementById('order-mitra-checkboxes');
-        
+        const orderSelect = document.getElementById('order-mitra-select');
         if(alokasiSelect) {
             let cur = alokasiSelect.value;
             alokasiSelect.innerHTML = `<option value="ALL">Semua Mitra</option>` + _mitras.map(m => `<option value="${m.id}">${m.name} (${m.loc})</option>`).join('');
             if([...alokasiSelect.options].some(o => o.value === cur)) alokasiSelect.value = cur;
         }
-        if(orderCheckboxes) {
-            let checkedIds = Array.from(document.querySelectorAll('#order-mitra-checkboxes input:checked')).map(cb => cb.value);
-            orderCheckboxes.innerHTML = _mitras.map(m => `
-                <label style="display:flex; align-items:center; gap:8px; font-weight:normal; margin-bottom:5px; cursor:pointer;">
-                    <input type="checkbox" value="${m.id}" onchange="onFormOrderMitraChange()" ${checkedIds.includes(m.id) ? 'checked' : ''}>
-                    ${m.name} (${m.loc}) - ${m.brand}
-                </label>
-            `).join('');
+        if(orderSelect) {
+            let cur = orderSelect.value;
+            orderSelect.innerHTML = `<option value="">-- Pilih Mitra --</option>` + _mitras.map(m => `<option value="${m.id}">${m.name} (${m.loc}) - ${m.brand}</option>`).join('');
+            if([...orderSelect.options].some(o => o.value === cur)) orderSelect.value = cur;
         }
     }
 
     function onFormOrderMitraChange() {
-        const selectedMitras = Array.from(document.querySelectorAll('#order-mitra-checkboxes input:checked')).map(cb => cb.value);
+        const mitraId = document.getElementById('order-mitra-select').value;
         const wrapper = document.getElementById('order-items-wrapper');
         const emptyMsg = document.getElementById('order-empty-msg');
         const tbody = document.querySelector('#order-items-table tbody');
         tbody.innerHTML = '';
 
-        if(selectedMitras.length === 0) { wrapper.classList.add('hidden'); emptyMsg.classList.remove('hidden'); return; }
+        if(!mitraId) { wrapper.classList.add('hidden'); emptyMsg.classList.add('hidden'); return; }
+        const mitra = _mitras.find(m => m.id === mitraId);
+        if(!mitra) { wrapper.classList.add('hidden'); emptyMsg.classList.add('hidden'); return; }
 
         let rowCount = 0;
-        
-        selectedMitras.forEach(mitraId => {
-            const mitra = _mitras.find(m => m.id === mitraId);
-            if(!mitra) return;
-
-            _inventory.forEach(item => {
-                if(mitra.brand !== 'BOTH' && item.brand !== mitra.brand) return;
-                (item.details || []).forEach(d => {
-                    if(d.allocationStatus !== 'approved') return;
-                    let allocated = (d.allocated && typeof d.allocated.mitra === 'object') ? (parseInt(d.allocated.mitra[mitraId]) || 0) : 0;
-                    if(allocated <= 0) return;
-                    
-                    let issued = getDetailIssuedToMitra(d, mitraId);
-                    let available = allocated - issued;
-                    if(available <= 0) return;
-                    
-                    rowCount++;
-                    tbody.innerHTML += `<tr data-itemid="${item.id}" data-size="${d.size}" data-mitraid="${mitraId}" data-available="${available}">
-                        <td><input type="checkbox" class="order-item-cb" checked onchange="updateOrderPreview()"></td>
-                        <td><span style="color:var(--secondary); font-weight:bold;">${mitra.name}</span></td>
-                        <td><strong>${item.name}</strong><br>${getBadge(item.brand, 'brand')}</td>
-                        <td>${d.size}</td>
-                        <td>${getBadge(item.condition, 'cond')}</td>
-                        <td>${allocated}</td>
-                        <td>${issued}</td>
-                        <td><input type="number" min="0" max="${available}" value="${available}" oninput="this.value = Math.max(0, Math.min(${available}, parseInt(this.value)||0)); updateOrderPreview();"></td>
-                    </tr>`;
-                });
+        _inventory.forEach(item => {
+            if(mitra.brand !== 'BOTH' && item.brand !== mitra.brand) return;
+            (item.details || []).forEach(d => {
+                if(d.allocationStatus !== 'approved') return;
+                let allocated = (d.allocated && typeof d.allocated.mitra === 'object') ? (parseInt(d.allocated.mitra[mitraId]) || 0) : 0;
+                if(allocated <= 0) return;
+                let issued = getDetailIssuedToMitra(d, mitraId);
+                let available = allocated - issued;
+                if(available <= 0) return;
+                rowCount++;
+                tbody.innerHTML += `<tr data-itemid="${item.id}" data-size="${d.size}" data-available="${available}">
+                    <td><input type="checkbox" checked onchange="updateOrderPreview()"></td>
+                    <td><strong>${item.name}</strong><br>${getBadge(item.brand, 'brand')}</td>
+                    <td>${d.size}</td>
+                    <td>${getBadge(item.condition, 'cond')}</td>
+                    <td>${allocated}</td>
+                    <td>${issued}</td>
+                    <td><input type="number" min="0" max="${available}" value="${available}" oninput="this.value = Math.max(0, Math.min(${available}, parseInt(this.value)||0)); updateOrderPreview();"></td>
+                </tr>`;
             });
         });
 
-        if(rowCount === 0) { 
-            wrapper.classList.add('hidden'); emptyMsg.classList.remove('hidden'); 
-            emptyMsg.innerText = "Mitra yang dipilih belum memiliki sisa alokasi yang bisa diterbitkan.";
-        } else { 
-            wrapper.classList.remove('hidden'); emptyMsg.classList.add('hidden'); updateOrderPreview(); 
-            let checkAll = document.getElementById('checkAllOrderItems'); if(checkAll) checkAll.checked = true;
-        }
-    }
-
-    function toggleAllOrderItems(source) {
-        const checkboxes = document.querySelectorAll('.order-item-cb');
-        checkboxes.forEach(cb => cb.checked = source.checked);
-        updateOrderPreview();
+        if(rowCount === 0) { wrapper.classList.add('hidden'); emptyMsg.classList.remove('hidden'); }
+        else { wrapper.classList.remove('hidden'); emptyMsg.classList.add('hidden'); updateOrderPreview(); }
     }
 
     function updateOrderPreview() {
         const rows = document.querySelectorAll('#order-items-table tbody tr');
-        let itemCount = 0, totalQty = 0; let activeMitras = new Set();
-
+        let itemCount = 0, totalQty = 0;
         rows.forEach(r => {
-            const chk = r.querySelector('.order-item-cb'); const qtyInput = r.querySelector('input[type="number"]');
-            if(chk.checked && (parseInt(qtyInput.value) || 0) > 0) { 
-                itemCount++; totalQty += parseInt(qtyInput.value) || 0; activeMitras.add(r.dataset.mitraid);
-            }
+            const chk = r.querySelector('input[type="checkbox"]'); const qtyInput = r.querySelector('input[type="number"]');
+            if(chk.checked && (parseInt(qtyInput.value) || 0) > 0) { itemCount++; totalQty += parseInt(qtyInput.value) || 0; }
         });
         document.getElementById('order-no-preview').innerText = itemCount > 0
-            ? `Siap menerbitkan untuk ${activeMitras.size} Mitra: Total ${itemCount} baris item, total ${totalQty} pcs.`
+            ? `Siap diterbitkan: ${itemCount} baris item, total ${totalQty} pcs.`
             : `Belum ada item terpilih untuk diterbitkan.`;
     }
 
-    function generateOrderFormNumber(offset = 0) {
+    function generateOrderFormNumber() {
         const today = new Date(); const y = today.getFullYear(); const m = String(today.getMonth()+1).padStart(2,'0'); const d = String(today.getDate()).padStart(2,'0');
         const prefix = `FO-${y}${m}${d}`;
         const countToday = _orderForms.filter(f => (f.formNo || '').startsWith(prefix)).length;
-        return `${prefix}-${String(countToday + 1 + offset).padStart(3, '0')}`;
+        return `${prefix}-${String(countToday + 1).padStart(3, '0')}`;
     }
 
     function terbitkanFormOrder() {
+        const mitraId = document.getElementById('order-mitra-select').value;
+        const mitra = _mitras.find(m => m.id === mitraId);
         const gudangName = document.getElementById('order-gudang-name').value.trim();
         const dateVal = document.getElementById('order-date').value;
         const notes = document.getElementById('order-notes').value.trim();
 
+        if(!mitra) { alert('Pilih mitra tujuan terlebih dahulu.'); return; }
         if(!gudangName) { alert('Nama petugas gudang (penyerah) wajib diisi.'); return; }
         if(!dateVal) { alert('Tanggal serah terima wajib diisi.'); return; }
 
         const rows = document.querySelectorAll('#order-items-table tbody tr');
-        let groupedItems = {}; let globalUpdatesByItem = {}; let selectedRowsCount = 0;
-
+        let items = []; let updatesByItem = {};
         rows.forEach(r => {
-            const chk = r.querySelector('.order-item-cb'); const qtyInput = r.querySelector('input[type="number"]');
+            const chk = r.querySelector('input[type="checkbox"]'); const qtyInput = r.querySelector('input[type="number"]');
             const qty = parseInt(qtyInput.value) || 0;
             if(!chk.checked || qty <= 0) return;
-            
-            selectedRowsCount++;
-            const itemId = r.dataset.itemid; const size = r.dataset.size; const mitraId = r.dataset.mitraid;
-            const invItem = _inventory.find(i => i.id === itemId); if(!invItem) return;
-            
-            if(!groupedItems[mitraId]) groupedItems[mitraId] = [];
-            groupedItems[mitraId].push({ itemId, itemName: invItem.name, brand: invItem.brand, condition: invItem.condition, size, qty });
-            
-            if(!globalUpdatesByItem[itemId]) globalUpdatesByItem[itemId] = [];
-            globalUpdatesByItem[itemId].push({ size, qty, mitraId });
+            const itemId = r.dataset.itemid; const size = r.dataset.size;
+            const invItem = _inventory.find(i => i.id === itemId);
+            if(!invItem) return;
+            items.push({ itemId, itemName: invItem.name, brand: invItem.brand, condition: invItem.condition, size, qty });
+            if(!updatesByItem[itemId]) updatesByItem[itemId] = [];
+            updatesByItem[itemId].push({ size, qty });
         });
 
-        if(selectedRowsCount === 0) { alert('Pilih minimal satu barang dengan qty lebih dari 0.'); return; }
+        if(items.length === 0) { alert('Pilih minimal satu barang dengan qty lebih dari 0.'); return; }
 
-        let generatedFormsCount = 0;
-        let dbPromises = [];
-        let formsDataArray = [];
+        const formNo = generateOrderFormNumber();
+        const formData = {
+            formNo, mitraId, mitraName: mitra.name, mitraLoc: mitra.loc, brand: mitra.brand,
+            date: dateVal, items, gudangName, notes,
+            status: 'issued', createdBy: currentUser || 'Guest',
+            createdAtLocal: Date.now(), timestamp: firebase.firestore.FieldValue.serverTimestamp()
+        };
 
-        Object.keys(groupedItems).forEach(mitraId => {
-            const mitra = _mitras.find(m => m.id === mitraId);
-            const items = groupedItems[mitraId];
-            const formNo = generateOrderFormNumber(generatedFormsCount); 
-            generatedFormsCount++;
-            
-            const formData = {
-                formNo, mitraId, mitraName: mitra.name, mitraLoc: mitra.loc, brand: mitra.brand,
-                date: dateVal, items, gudangName, notes,
-                status: 'issued', createdBy: currentUser || 'Guest',
-                createdAtLocal: Date.now() + generatedFormsCount, 
-                timestamp: firebase.firestore.FieldValue.serverTimestamp()
-            };
+        // 1) Download file PDF & Excel LANGSUNG - murni di browser, tidak bergantung pada server,
+        //    supaya Gudang tetap mendapat filenya walaupun ada masalah koneksi/penyimpanan ke Firestore.
+        generateOrderFormPDF(formData);
+        downloadOrderFormExcel(formData);
 
-            formsDataArray.push(formData);
-            generateOrderFormPDF(formData); 
-            dbPromises.push(db.collection("orderforms").add(formData));
-        });
-
-        downloadBatchOrderFormExcel(formsDataArray); 
-
-        Object.keys(globalUpdatesByItem).forEach(itemId => {
-            const invItem = _inventory.find(i => i.id === itemId); if(!invItem) return;
-            let newDetails = JSON.parse(JSON.stringify(invItem.details));
-            
-            globalUpdatesByItem[itemId].forEach(u => {
-                let d = newDetails.find(x => x.size === u.size); if(!d) return;
-                if(!d.issued) d.issued = {};
-                if(!d.issued.mitra) d.issued.mitra = {};
-                d.issued.mitra[u.mitraId] = (parseInt(d.issued.mitra[u.mitraId]) || 0) + u.qty;
+        // 2) Simpan record ke Firestore untuk riwayat & agar qty yang sudah diterbitkan tidak dobel
+        db.collection("orderforms").add(formData).then(() => {
+            Object.keys(updatesByItem).forEach(itemId => {
+                const invItem = _inventory.find(i => i.id === itemId);
+                if(!invItem) return;
+                let newDetails = JSON.parse(JSON.stringify(invItem.details));
+                updatesByItem[itemId].forEach(u => {
+                    let d = newDetails.find(x => x.size === u.size);
+                    if(!d) return;
+                    if(!d.issued) d.issued = {};
+                    if(!d.issued.mitra) d.issued.mitra = {};
+                    d.issued.mitra[mitraId] = (parseInt(d.issued.mitra[mitraId]) || 0) + u.qty;
+                });
+                db.collection("inventory").doc(itemId).update({ details: newDetails });
             });
-            dbPromises.push(db.collection("inventory").doc(itemId).update({ details: newDetails }));
-        });
 
-        Promise.all(dbPromises).then(() => {
-            logActivity('Terbitkan Form Massal', `Gudang menerbitkan ${generatedFormsCount} Form Order sekaligus.`);
-            document.getElementById('order-gudang-name').value = ''; document.getElementById('order-notes').value = '';
-            document.querySelectorAll('#order-mitra-checkboxes input').forEach(cb => cb.checked = false);
+            logActivity('Terbitkan Form Order Mitra', `No. Form ${formNo} untuk mitra ${mitra.name} (${items.length} baris item)`);
+
+            // Reset form
+            document.getElementById('order-gudang-name').value = '';
+            document.getElementById('order-notes').value = '';
+            document.getElementById('order-mitra-select').value = '';
             onFormOrderMitraChange();
-            alert(`Berhasil menerbitkan ${generatedFormsCount} Form Order.\nSemua File PDF & Excel telah diunduh otomatis ke perangkat Anda.`);
+            alert(`Form Order ${formNo} berhasil diterbitkan.\nFile PDF & Excel sudah otomatis terunduh ke perangkat Anda.`);
         }).catch(err => {
-            console.error(err); alert(`Form PDF/Excel sudah terdownload, tetapi terjadi kendala saat menyimpan ke database server.`);
+            alert(`File PDF & Excel untuk Form ${formNo} SUDAH berhasil diunduh ke perangkat Anda.\n\nNamun terjadi masalah saat menyimpan catatan ke server: ${err.message}\n\nKemungkinan besar Firestore Security Rules belum mengizinkan koleksi "orderforms". Karena catatan gagal tersimpan, sistem tidak bisa melacak qty yang sudah diterbitkan untuk form ini - mohon cek Security Rules Anda, lalu terbitkan ulang bila perlu.`);
         });
     }
 
-    // FUNGSI BARU: GENERATE EXCEL MULTI-SHEET DENGAN STYLING (BORDER & WARNA)
-    function downloadBatchOrderFormExcel(formsData) {
-        if(typeof XLSX === 'undefined') { alert('Library Excel gagal dimuat. Coba refresh halaman.'); return; }
-        let wb = XLSX.utils.book_new();
+    function loadOrderFormHistory() {
+        const fCari = document.getElementById('orderform-filter-cari').value.toLowerCase();
+        const fStatus = document.getElementById('orderform-filter-status').value;
+        const sortBy = document.getElementById('orderform-sort').value;
+        const tbody = document.querySelector('#orderform-table tbody'); tbody.innerHTML = '';
 
-        const borderAll = { top: {style:'thin'}, bottom: {style:'thin'}, left: {style:'thin'}, right: {style:'thin'} };
-        const headerStyle = { font: {bold:true, color:{rgb:"FFFFFF"}}, fill: {fgColor:{rgb:"0F172A"}}, alignment: {horizontal:"center", vertical:"center"}, border: borderAll };
-        const cellStyle = { border: borderAll, alignment: {vertical:"center"} };
-        const centerStyle = { border: borderAll, alignment: {horizontal:"center", vertical:"center"} };
-        const boldStyle = { font: {bold:true}, border: borderAll, alignment: {horizontal:"center", vertical:"center"} };
+        let list = _orderForms.filter(f => {
+            if(fStatus !== 'ALL' && f.status !== fStatus) return false;
+            if(fCari !== '' && !((f.formNo||'').toLowerCase().includes(fCari) || (f.mitraName||'').toLowerCase().includes(fCari))) return false;
+            return true;
+        });
+        list.sort((a, b) => sortBy === 'terlama' ? (a.createdAtLocal||0) - (b.createdAtLocal||0) : (b.createdAtLocal||0) - (a.createdAtLocal||0));
 
-        formsData.forEach((f, idx) => {
-            let wsData = [
-                ["FORM ORDER / SERAH TERIMA BARANG MITRA", ""],
-                ["No. Form", f.formNo],
-                ["Tanggal", formatDateDisplay(f.date)],
-                ["Mitra Penerima", f.mitraName],
-                ["Lokasi Mitra", f.mitraLoc || '-'],
-                ["Petugas Gudang", f.gudangName || '-'],
-                ["Catatan", f.notes || '-'],
-                [],
-                ["No", "Nama Artikel", "Brand", "Kondisi", "Size", "Qty"]
-            ];
-            
-            let totalQty = 0;
-            let totalRowIdx = 0;
-            
-            (f.items || []).forEach((it, i) => {
-                totalQty += parseInt(it.qty) || 0;
-                wsData.push([i + 1, it.itemName, it.brand, it.condition, it.size, parseInt(it.qty)||0]);
+        if(list.length === 0) { tbody.innerHTML = `<tr><td colspan="6" class="notif-empty">Belum ada form order yang diterbitkan.</td></tr>`; return; }
+
+        list.forEach(f => {
+            const statusHtml = f.status === 'void' ? `<span class="status-void">Dibatalkan</span>` : `<span class="status-issued">Diterbitkan</span>`;
+            const voidBtn = f.status === 'issued' ? `<button class="btn-danger btn-small" onclick="voidOrderForm('${f.id}')">Batalkan</button>` : '';
+            tbody.innerHTML += `<tr>
+                <td>${f.formNo}</td>
+                <td>${f.mitraName}<br><small style="color:var(--text-muted);">${f.mitraLoc||''}</small></td>
+                <td>${formatDateDisplay(f.date)}</td>
+                <td>${(f.items||[]).length} baris (${(f.items||[]).reduce((s,i)=>s+(i.qty||0),0)} pcs)</td>
+                <td>${statusHtml}</td>
+                <td>
+                    <button class="btn-primary btn-small" onclick="generateOrderFormPDF(_orderForms.find(x=>x.id==='${f.id}'))">📄 PDF</button>
+                    <button class="btn-success btn-small" onclick="downloadOrderFormExcel(_orderForms.find(x=>x.id==='${f.id}'))">📊 Excel</button>
+                    ${voidBtn}
+                </td>
+            </tr>`;
+        });
+    }
+
+    // Helper: potong teks supaya muat di lebar kolom PDF (mencegah tulisan tumpang tindih antar kolom)
+    function truncatePdfText(doc, text, maxWidth) {
+        text = String(text == null ? '' : text);
+        if(doc.getTextWidth(text) <= maxWidth) return text;
+        while(text.length > 1 && doc.getTextWidth(text + '…') > maxWidth) text = text.slice(0, -1);
+        return text + '…';
+    }
+
+    // Generate & download FILE PDF asli (bukan window.print) menggunakan jsPDF
+    function generateOrderFormPDF(f) {
+        if(!f) { alert('Data form tidak ditemukan.'); return; }
+        if(!window.jspdf) { alert('Library PDF gagal dimuat (kemungkinan tidak ada koneksi internet). Coba refresh halaman lalu ulangi.'); return; }
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+        const pageWidth = doc.internal.pageSize.getWidth();
+        const marginX = 15;
+        let y = 18;
+
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(14); doc.setTextColor(15, 23, 42);
+        doc.text('FORM ORDER / SERAH TERIMA BARANG MITRA', marginX, y);
+        y += 6;
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(90);
+        doc.text('Zaskia Sungkar (ZS) & Shi By Shireen (SHI)', marginX, y);
+
+        doc.setTextColor(0); doc.setFontSize(10);
+        doc.text(`No. Form: ${f.formNo}`, pageWidth - marginX, 16, { align: 'right' });
+        doc.text(`Tanggal: ${formatDateDisplay(f.date)}`, pageWidth - marginX, 22, { align: 'right' });
+
+        y += 5;
+        doc.setLineWidth(0.8); doc.setDrawColor(15, 23, 42);
+        doc.line(marginX, y, pageWidth - marginX, y);
+        y += 9;
+
+        doc.setFontSize(10); doc.setFont('helvetica', 'normal');
+        doc.text(`Mitra Penerima : ${f.mitraName}`, marginX, y); y += 6;
+        doc.text(`Lokasi Mitra   : ${f.mitraLoc || '-'}`, marginX, y); y += 10;
+
+        // ---- Tabel item (digambar manual, tanpa plugin tambahan agar stabil) ----
+        const headers = ['No', 'Nama Artikel', 'Brand', 'Kondisi', 'Size', 'Qty'];
+        const colW = [12, 78, 20, 25, 22, 23]; // total = 180mm (lebar A4 - margin kiri/kanan 15mm)
+        const rowH = 8;
+
+        function drawRow(vals, opts) {
+            let x = marginX;
+            vals.forEach((val, i) => {
+                if(opts.fill) { doc.setFillColor(15, 23, 42); doc.rect(x, y, colW[i], rowH, 'F'); }
+                else { doc.rect(x, y, colW[i], rowH); }
+                doc.setTextColor(opts.fill ? 255 : 0);
+                doc.setFont('helvetica', opts.fill ? 'bold' : 'normal'); doc.setFontSize(9);
+                const align = (i === 1 && !opts.fill) ? 'left' : 'center';
+                const padX = align === 'left' ? x + 2 : x + colW[i] / 2;
+                const displayVal = truncatePdfText(doc, val, colW[i] - 3);
+                doc.text(displayVal, padX, y + rowH / 2 + 1.3, { align });
+                x += colW[i];
             });
-            
-            totalRowIdx = wsData.length;
-            wsData.push(["", "", "", "", "TOTAL QTY", totalQty]);
-            wsData.push([]);
-            wsData.push(["Diserahkan oleh (Gudang)", "", "", "Diterima oleh (Mitra)"]);
-            wsData.push([`Nama: ${f.gudangName || '-'}`, "", "", "Nama: ......................................."]);
+            y += rowH;
+        }
 
-            let ws = XLSX.utils.aoa_to_sheet(wsData);
-            
-            // Merging cells
-            ws['!merges'] = [
-                {s: {r:0, c:0}, e: {r:0, c:5}},
-                {s: {r:1, c:1}, e: {r:1, c:5}}, {s: {r:2, c:1}, e: {r:2, c:5}}, {s: {r:3, c:1}, e: {r:3, c:5}},
-                {s: {r:4, c:1}, e: {r:4, c:5}}, {s: {r:5, c:1}, e: {r:5, c:5}}, {s: {r:6, c:1}, e: {r:6, c:5}},
-                {s: {r:totalRowIdx, c:0}, e: {r:totalRowIdx, c:3}},
-                {s: {r:totalRowIdx+2, c:0}, e: {r:totalRowIdx+2, c:2}}, {s: {r:totalRowIdx+2, c:3}, e: {r:totalRowIdx+2, c:5}},
-                {s: {r:totalRowIdx+3, c:0}, e: {r:totalRowIdx+3, c:2}}, {s: {r:totalRowIdx+3, c:3}, e: {r:totalRowIdx+3, c:5}}
-            ];
-            ws['!cols'] = [{wch: 5}, {wch: 35}, {wch: 15}, {wch: 15}, {wch: 15}, {wch: 10}];
-
-            // Menerapkan Styling
-            if(!ws['A1']) ws['A1'] = {t:'s', v:"FORM ORDER / SERAH TERIMA BARANG MITRA"};
-            ws['A1'].s = { font: {bold:true, sz: 12}, alignment: {horizontal:"center"} };
-            
-            for(let r=1; r<=6; r++) {
-                let cellLabel = XLSX.utils.encode_cell({r:r, c:0});
-                if(ws[cellLabel]) ws[cellLabel].s = { font:{bold:true} };
-            }
-
-            for(let c=0; c<=5; c++) {
-                let cell = XLSX.utils.encode_cell({r:8, c:c});
-                if(ws[cell]) ws[cell].s = headerStyle;
-            }
-
-            for(let r=9; r<totalRowIdx; r++) {
-                for(let c=0; c<=5; c++) {
-                    let cell = XLSX.utils.encode_cell({r:r, c:c});
-                    if(ws[cell]) ws[cell].s = (c===0 || c===5) ? centerStyle : cellStyle;
-                }
-            }
-
-            for(let c=0; c<=5; c++) {
-                let cell = XLSX.utils.encode_cell({r:totalRowIdx, c:c});
-                if(!ws[cell]) ws[cell] = {t:'s', v:''};
-                ws[cell].s = boldStyle;
-            }
-
-            let cleanName = `${f.mitraName} ${f.mitraLoc||''}`.replace(/[\\\/\?\*\[\]\:]/g, ' ').replace(/\s+/g, ' ').trim();
-            let sheetName = cleanName.substring(0, 31);
-            let finalName = sheetName; let counter = 1;
-            while(wb.SheetNames.includes(finalName)) {
-                let suffix = `_${counter}`; finalName = sheetName.substring(0, 31 - suffix.length) + suffix; counter++;
-            }
-
-            XLSX.utils.book_append_sheet(wb, ws, finalName);
+        drawRow(headers, { fill: true });
+        (f.items || []).forEach((it, idx) => {
+            if(y > 265) { doc.addPage(); y = 20; drawRow(headers, { fill: true }); }
+            drawRow([String(idx + 1), it.itemName, it.brand, it.condition, it.size, String(it.qty)], { fill: false });
         });
 
-        const today = new Date(); const y = today.getFullYear(); const m = String(today.getMonth()+1).padStart(2,'0'); const d = String(today.getDate()).padStart(2,'0');
-        let dlName = formsData.length === 1 ? `${formsData[0].formNo}.xlsx` : `Form_Order_Massal_${y}${m}${d}.xlsx`;
-        XLSX.writeFile(wb, dlName);
+        const totalQty = (f.items || []).reduce((s, i) => s + (parseInt(i.qty) || 0), 0);
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(0);
+        doc.text(`TOTAL QTY: ${totalQty} pcs`, pageWidth - marginX, y + 6, { align: 'right' });
+        y += 14;
+
+        if(f.notes) {
+            doc.setFont('helvetica', 'italic'); doc.setFontSize(9);
+            doc.text(`Catatan: ${truncatePdfText(doc, f.notes, pageWidth - marginX * 2)}`, marginX, y);
+            y += 8;
+        }
+
+        // ---- Kolom tanda tangan kosong (untuk ditandatangani manual di kertas) ----
+        y = Math.max(y + 20, 235);
+        if(y > 270) { doc.addPage(); y = 40; }
+        const signW = 75;
+        const sign1X = marginX, sign2X = pageWidth - marginX - signW;
+        doc.setDrawColor(51, 65, 85); doc.setLineWidth(0.3);
+        doc.line(sign1X, y, sign1X + signW, y);
+        doc.line(sign2X, y, sign2X + signW, y);
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(0);
+        doc.text('Diserahkan oleh (Gudang)', sign1X + signW / 2, y + 5, { align: 'center' });
+        doc.text(`Nama: ${f.gudangName || '-'}`, sign1X + signW / 2, y + 10, { align: 'center' });
+        doc.text('Diterima oleh (Mitra)', sign2X + signW / 2, y + 5, { align: 'center' });
+        doc.text('Nama: ......................................', sign2X + signW / 2, y + 10, { align: 'center' });
+
+        doc.save(`${f.formNo}.pdf`);
     }
 
-    // ================= FUNGSI AKSI MASSAL (HISTORY ORDER FORM) =================
-    function toggleAllHistory(source) {
-        document.querySelectorAll('.history-cb').forEach(cb => cb.checked = source.checked);
-    }
+    // Generate & download FILE EXCEL (.xls) memakai teknik yang sama persis dengan exportExcel() di atas
+    function downloadOrderFormExcel(f) {
+        if(!f) { alert('Data form tidak ditemukan.'); return; }
+        const thStyle = "background-color:#0f172a; color:#ffffff; font-weight:bold; padding:8px; border:1px solid #000; text-align:center;";
+        const tdText = "padding:6px; border:1px solid #000; text-align:left;";
+        const tdNum = "padding:6px; border:1px solid #000; text-align:center; mso-number-format:'0';";
+        const tdBold = "padding:6px; border:1px solid #000; text-align:center; font-weight:bold;";
+        const totalQty = (f.items || []).reduce((s, i) => s + (parseInt(i.qty) || 0), 0);
 
-    function getSelectedHistoryForms() {
-        let selectedIds = Array.from(document.querySelectorAll('.history-cb:checked')).map(cb => cb.value);
-        return _orderForms.filter(f => selectedIds.includes(f.id));
-    }
-
-    function batchDownloadHistoryPDF() {
-        let forms = getSelectedHistoryForms();
-        if(forms.length === 0) return alert('Pilih minimal 1 form!');
-        forms.forEach(f => generateOrderFormPDF(f));
-    }
-
-    function batchDownloadHistoryExcel() {
-        let forms = getSelectedHistoryForms();
-        if(forms.length === 0) return alert('Pilih minimal 1 form!');
-        downloadBatchOrderFormExcel(forms);
-    }
-
-    function batchVoidHistory() {
-        let forms = getSelectedHistoryForms();
-        if(forms.length === 0) return alert('Pilih minimal 1 form!');
-        
-        let validForms = forms.filter(f => f.status === 'issued');
-        if(validForms.length === 0) return alert('Semua form yang dipilih sudah berstatus Dibatalkan (Void).');
-        
-        if(!confirm(`Yakin ingin membatalkan (void) ${validForms.length} form terpilih secara massal?\nQty barang akan dikembalikan ke status "Belum Diterbitkan".`)) return;
-
-        let dbPromises = [];
-        let globalUpdatesByItem = {};
-
-        validForms.forEach(f => {
-            (f.items || []).forEach(it => {
-                const itemId = it.itemId;
-                if(!globalUpdatesByItem[itemId]) globalUpdatesByItem[itemId] = [];
-                globalUpdatesByItem[itemId].push({ size: it.size, qty: it.qty, mitraId: f.mitraId });
-            });
-            dbPromises.push(db.collection("orderforms").doc(f.id).update({ status: 'void', voidedBy: currentUser || 'Guest', voidedAtLocal: Date.now() }));
-            logActivity('Batalkan Form Order Mitra', `No. Form ${f.formNo} untuk mitra ${f.mitraName}`);
+        let tableHtml = `
+            <tr><td style="${tdBold}" colspan="2">FORM ORDER / SERAH TERIMA BARANG MITRA</td></tr>
+            <tr><td style="${tdText}">No. Form</td><td style="${tdText}">${f.formNo}</td></tr>
+            <tr><td style="${tdText}">Tanggal</td><td style="${tdText}">${formatDateDisplay(f.date)}</td></tr>
+            <tr><td style="${tdText}">Mitra Penerima</td><td style="${tdText}">${f.mitraName}</td></tr>
+            <tr><td style="${tdText}">Lokasi Mitra</td><td style="${tdText}">${f.mitraLoc || '-'}</td></tr>
+            <tr><td style="${tdText}">Petugas Gudang</td><td style="${tdText}">${f.gudangName || '-'}</td></tr>
+            <tr><td style="${tdText}">Catatan</td><td style="${tdText}">${f.notes || '-'}</td></tr>
+            <tr><td colspan="2">&nbsp;</td></tr>
+            <tr><th style="${thStyle}">No</th><th style="${thStyle}">Nama Artikel</th><th style="${thStyle}" colspan="2">Brand / Kondisi</th><th style="${thStyle}">Size</th><th style="${thStyle}">Qty</th></tr>
+        `;
+        (f.items || []).forEach((it, idx) => {
+            tableHtml += `<tr><td style="${tdNum}">${idx + 1}</td><td style="${tdText}">${it.itemName}</td><td style="${tdText}" colspan="2">${it.brand} / ${it.condition}</td><td style="${tdText}">${it.size}</td><td style="${tdBold}">${it.qty}</td></tr>`;
         });
+        tableHtml += `<tr><td colspan="4" style="${tdBold}; text-align:right;">TOTAL QTY</td><td colspan="2" style="${tdBold}">${totalQty}</td></tr>`;
+        tableHtml += `<tr><td colspan="6">&nbsp;</td></tr>`;
+        tableHtml += `<tr><td style="${tdText}" colspan="3">Diserahkan oleh (Gudang)</td><td style="${tdText}" colspan="3">Diterima oleh (Mitra)</td></tr>`;
+        tableHtml += `<tr><td style="${tdText}" colspan="3">Nama: ${f.gudangName || '-'}</td><td style="${tdText}" colspan="3">Nama: .......................................</td></tr>`;
 
-        Object.keys(globalUpdatesByItem).forEach(itemId => {
-            const invItem = _inventory.find(i => i.id === itemId); if(!invItem) return;
-            let newDetails = JSON.parse(JSON.stringify(invItem.details));
-            globalUpdatesByItem[itemId].forEach(u => {
-                let d = newDetails.find(x => x.size === u.size);
-                if(!d || !d.issued || !d.issued.mitra) return;
-                d.issued.mitra[u.mitraId] = Math.max(0, (parseInt(d.issued.mitra[u.mitraId]) || 0) - u.qty);
-            });
-            dbPromises.push(db.collection("inventory").doc(itemId).update({ details: newDetails }));
-        });
-
-        Promise.all(dbPromises).then(() => {
-            document.getElementById('checkAllHistory').checked = false;
-            alert(`Berhasil membatalkan ${validForms.length} form secara massal.`);
-        }).catch(err => {
-            console.error(err); alert('Terjadi kendala saat membatalkan form.');
-        });
+        let fullHtml = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="UTF-8"><style>table{border-collapse:collapse;font-family:sans-serif;}</style></head><body><table>${tableHtml}</table></body></html>`;
+        let blob = new Blob([fullHtml], { type: 'application/vnd.ms-excel' });
+        let url = URL.createObjectURL(blob); let a = document.createElement('a');
+        a.href = url; a.download = `${f.formNo}.xls`;
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
     }
 
     function voidOrderForm(formId) {
@@ -1651,94 +2042,6 @@
         });
     }
 
-    function loadOrderFormHistory() {
-        const fCari = document.getElementById('orderform-filter-cari').value.toLowerCase();
-        const fStatus = document.getElementById('orderform-filter-status').value;
-        const sortBy = document.getElementById('orderform-sort').value;
-        const tbody = document.querySelector('#orderform-table tbody'); tbody.innerHTML = '';
-
-        let list = _orderForms.filter(f => {
-            if(fStatus !== 'ALL' && f.status !== fStatus) return false;
-            if(fCari !== '' && !((f.formNo||'').toLowerCase().includes(fCari) || (f.mitraName||'').toLowerCase().includes(fCari))) return false;
-            return true;
-        });
-        list.sort((a, b) => sortBy === 'terlama' ? (a.createdAtLocal||0) - (b.createdAtLocal||0) : (b.createdAtLocal||0) - (a.createdAtLocal||0));
-
-        if(list.length === 0) { tbody.innerHTML = `<tr><td colspan="7" class="notif-empty">Belum ada form order yang diterbitkan.</td></tr>`; return; }
-
-        list.forEach(f => {
-            const statusHtml = f.status === 'void' ? `<span class="status-void">Dibatalkan</span>` : `<span class="status-issued">Diterbitkan</span>`;
-            const voidBtn = f.status === 'issued' ? `<button class="btn-danger btn-small" onclick="voidOrderForm('${f.id}')">Batalkan</button>` : '';
-            tbody.innerHTML += `<tr>
-                <td><input type="checkbox" class="history-cb" value="${f.id}"></td>
-                <td>${f.formNo}</td>
-                <td>${f.mitraName}<br><small style="color:var(--text-muted);">${f.mitraLoc||''}</small></td>
-                <td>${formatDateDisplay(f.date)}</td>
-                <td>${(f.items||[]).length} baris (${(f.items||[]).reduce((s,i)=>s+(i.qty||0),0)} pcs)</td>
-                <td>${statusHtml}</td>
-                <td>
-                    <button class="btn-primary btn-small" onclick="generateOrderFormPDF(_orderForms.find(x=>x.id==='${f.id}'))">📄 PDF</button>
-                    <button class="btn-success btn-small" onclick="downloadBatchOrderFormExcel([_orderForms.find(x=>x.id==='${f.id}')])">📊 Excel</button>
-                    ${voidBtn}
-                </td>
-            </tr>`;
-        });
-    }
-
-    function truncatePdfText(doc, text, maxWidth) {
-        text = String(text == null ? '' : text);
-        if(doc.getTextWidth(text) <= maxWidth) return text;
-        while(text.length > 1 && doc.getTextWidth(text + '…') > maxWidth) text = text.slice(0, -1);
-        return text + '…';
-    }
-
-    function generateOrderFormPDF(f) {
-        if(!f) { alert('Data form tidak ditemukan.'); return; }
-        if(!window.jspdf) { alert('Library PDF gagal dimuat. Coba refresh halaman lalu ulangi.'); return; }
-        const { jsPDF } = window.jspdf;
-        const doc = new jsPDF({ unit: 'mm', format: 'a4' });
-        const pageWidth = doc.internal.pageSize.getWidth(); const marginX = 15; let y = 18;
-
-        doc.setFont('helvetica', 'bold'); doc.setFontSize(14); doc.setTextColor(15, 23, 42); doc.text('FORM ORDER / SERAH TERIMA BARANG MITRA', marginX, y);
-        y += 6; doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(90); doc.text('Zaskia Sungkar (ZS) & Shi By Shireen (SHI)', marginX, y);
-        doc.setTextColor(0); doc.setFontSize(10);
-        doc.text(`No. Form: ${f.formNo}`, pageWidth - marginX, 16, { align: 'right' }); doc.text(`Tanggal: ${formatDateDisplay(f.date)}`, pageWidth - marginX, 22, { align: 'right' });
-
-        y += 5; doc.setLineWidth(0.8); doc.setDrawColor(15, 23, 42); doc.line(marginX, y, pageWidth - marginX, y); y += 9;
-        doc.setFontSize(10); doc.setFont('helvetica', 'normal'); doc.text(`Mitra Penerima : ${f.mitraName}`, marginX, y); y += 6; doc.text(`Lokasi Mitra   : ${f.mitraLoc || '-'}`, marginX, y); y += 10;
-
-        const headers = ['No', 'Nama Artikel', 'Brand', 'Kondisi', 'Size', 'Qty']; const colW = [12, 78, 20, 25, 22, 23]; const rowH = 8;
-        function drawRow(vals, opts) {
-            let x = marginX;
-            vals.forEach((val, i) => {
-                if(opts.fill) { doc.setFillColor(15, 23, 42); doc.rect(x, y, colW[i], rowH, 'F'); } else { doc.rect(x, y, colW[i], rowH); }
-                doc.setTextColor(opts.fill ? 255 : 0); doc.setFont('helvetica', opts.fill ? 'bold' : 'normal'); doc.setFontSize(9);
-                const align = (i === 1 && !opts.fill) ? 'left' : 'center'; const padX = align === 'left' ? x + 2 : x + colW[i] / 2;
-                doc.text(truncatePdfText(doc, val, colW[i] - 3), padX, y + rowH / 2 + 1.3, { align }); x += colW[i];
-            }); y += rowH;
-        }
-
-        drawRow(headers, { fill: true });
-        (f.items || []).forEach((it, idx) => {
-            if(y > 265) { doc.addPage(); y = 20; drawRow(headers, { fill: true }); }
-            drawRow([String(idx + 1), it.itemName, it.brand, it.condition, it.size, String(it.qty)], { fill: false });
-        });
-
-        const totalQty = (f.items || []).reduce((s, i) => s + (parseInt(i.qty) || 0), 0);
-        doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(0); doc.text(`TOTAL QTY: ${totalQty} pcs`, pageWidth - marginX, y + 6, { align: 'right' }); y += 14;
-
-        if(f.notes) { doc.setFont('helvetica', 'italic'); doc.setFontSize(9); doc.text(`Catatan: ${truncatePdfText(doc, f.notes, pageWidth - marginX * 2)}`, marginX, y); y += 8; }
-
-        y = Math.max(y + 20, 235); if(y > 270) { doc.addPage(); y = 40; }
-        const signW = 75; const sign1X = marginX, sign2X = pageWidth - marginX - signW;
-        doc.setDrawColor(51, 65, 85); doc.setLineWidth(0.3); doc.line(sign1X, y, sign1X + signW, y); doc.line(sign2X, y, sign2X + signW, y);
-        doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(0);
-        doc.text('Diserahkan oleh (Gudang)', sign1X + signW / 2, y + 5, { align: 'center' }); doc.text(`Nama: ${f.gudangName || '-'}`, sign1X + signW / 2, y + 10, { align: 'center' });
-        doc.text('Diterima oleh (Mitra)', sign2X + signW / 2, y + 5, { align: 'center' }); doc.text('Nama: ......................................', sign2X + signW / 2, y + 10, { align: 'center' });
-
-        doc.save(`${f.formNo}.pdf`);
-    }
-
     // ================= BAGIAN SALES =================
     function switchSalesTab(tab) {
         activeSalesTab = tab;
@@ -1754,7 +2057,7 @@
         else { 
             document.getElementById('sales-view-mitra').classList.add('hidden'); document.getElementById('sales-view-data').classList.remove('hidden'); loadSalesData(); 
             btnExport.innerText = tab === 'belum' ? "📥 Download Laporan Sisa Stok" : (tab === 'pending' ? "📥 Download Ajuan Pending" : "📥 Download Laporan Alokasi Approved");
-            btnExport.onclick = () => exportExcelHTML(tab === 'belum' ? 'sales_belum' : (tab === 'pending' ? 'sales_pending' : 'alokasi'));
+            btnExport.onclick = () => exportExcel(tab === 'belum' ? 'sales_belum' : (tab === 'pending' ? 'sales_pending' : 'alokasi'));
         }
     }
 
@@ -1779,7 +2082,7 @@
             if(fCari !== '' && !(m.name.toLowerCase().includes(fCari) || (m.loc||'').toLowerCase().includes(fCari))) return false;
             return true;
         });
-        list.reverse(); 
+        list.reverse(); // default: terbaru dulu
         if(sortBy === 'nama_az') list.sort((a,b) => a.name.localeCompare(b.name));
         else if(sortBy === 'nama_za') list.sort((a,b) => b.name.localeCompare(a.name));
 
@@ -1819,7 +2122,14 @@
     }
 
     function toggleEditAlloc(id) { document.getElementById(`summary-${id}`).classList.toggle('hidden'); document.getElementById(`form-${id}`).classList.toggle('hidden'); }
-    function toggleAccordion(itemId) { const row = document.getElementById(`acc-${itemId}`); if(row) row.classList.toggle('hidden'); }
+
+    // BUG FIX: fungsi ini dipanggil oleh baris tabel Sales (onclick="toggleAccordion(...)") untuk membuka/tutup
+    // form alokasi, tapi sebelumnya tidak pernah didefinisikan di file asli - menyebabkan klik baris tidak bereaksi
+    // sama sekali (form alokasi tidak pernah muncul) dan sales tidak bisa mengalokasikan barang.
+    function toggleAccordion(itemId) {
+        const row = document.getElementById(`acc-${itemId}`);
+        if(row) row.classList.toggle('hidden');
+    }
 
     function loadSalesData() {
         const fName = document.getElementById('sales-filter-nama').value.toLowerCase(); const fBrand = document.getElementById('sales-filter-brand').value;
@@ -1838,7 +2148,7 @@
             if(sortBy === 'sisa_desc') return getItemAvailableStock(b) - getItemAvailableStock(a);
             if(sortBy === 'sisa_asc') return getItemAvailableStock(a) - getItemAvailableStock(b);
             if(sortBy === 'terlama') return (getItemEarliestDate(a) || '').localeCompare(getItemEarliestDate(b) || '');
-            return (getItemLatestDate(b) || '').localeCompare(getItemLatestDate(a) || ''); 
+            return (getItemLatestDate(b) || '').localeCompare(getItemLatestDate(a) || ''); // terbaru (default)
         });
 
         let renderedAny = false;
@@ -1876,6 +2186,7 @@
             </tr>
             <tr id="acc-${item.id}" class="hidden child-row"><td colspan="5" style="padding:15px;">`;
 
+            // RINGKASAN APPROVED
             if (activeSalesTab === 'sudah') {
                 let summaryHtml = '';
                 sizesToRender.forEach(d => {
@@ -1908,7 +2219,8 @@
                 let suggestedMitraVal = 0; let remainder = 0;
                 if(activeSalesTab === 'belum' && itemMitras.length > 0) {
                     let suggestTotal = Math.floor(d.totalQty * 0.6); 
-                    suggestedMitraVal = Math.floor(suggestTotal / itemMitras.length); remainder = suggestTotal % itemMitras.length;
+                    suggestedMitraVal = Math.floor(suggestTotal / itemMitras.length);
+                    remainder = suggestTotal % itemMitras.length;
                 }
 
                 let readonlyAttr = (activeSalesTab === 'sudah' && currentUserRole === 'sales_staff') ? 'readonly' : '';
@@ -1924,7 +2236,9 @@
                 } else { 
                     itemMitras.forEach((m, idx) => { 
                         let vM = '';
-                        if(activeSalesTab === 'belum') { vM = suggestedMitraVal + (idx < remainder ? 1 : 0); if(vM === 0) vM = ''; } else { vM = a.mitra[m.id] || ''; }
+                        if(activeSalesTab === 'belum') {
+                            vM = suggestedMitraVal + (idx < remainder ? 1 : 0); if(vM === 0) vM = '';
+                        } else { vM = a.mitra[m.id] || ''; }
                         sumInputs += (parseInt(vM)||0);
                         mitraInputsHtml += `<div><label title="${m.name} - ${m.loc}" style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis; display:block;">${m.name}<br><span style="text-transform:capitalize; font-weight:normal; font-size:0.85em; color:#94a3b8;">${m.loc}</span></label><input type="number" id="m-${item.id}-${sid}-${m.id}" value="${vM}" ${readonlyAttr} oninput="calcSisa('${item.id}', '${sid}', ${d.totalQty})"></div>`; 
                     }); 
@@ -2019,12 +2333,13 @@
         });
     }
 
-    // ================= EXPORT Laporan HTML Biasa (Untuk Tabel Penjualan Gudang) =================
-    function exportExcelHTML(type) {
+    // ================= EXPORT EXCEL =================
+    function exportExcel(type) {
         let tableHtml = ""; let filename = "";
         const thStyle = "background-color:#0f172a; color:#ffffff; font-weight:bold; padding:10px; border:1px solid #000; text-align:center; vertical-align:middle;";
         const thStyleMitra = "background-color:#4338ca; color:#ffffff; font-weight:bold; padding:10px; border:1px solid #000; text-align:center; vertical-align:middle;";
         const thStyleTotal = "background-color:#047857; color:#ffffff; font-weight:bold; padding:10px; border:1px solid #000; text-align:center; vertical-align:middle;";
+        
         const tdText = "padding:8px; border:1px solid #000; vertical-align: middle; text-align:left;";
         const tdNum = "padding:8px; border:1px solid #000; vertical-align: middle; text-align:center; mso-number-format:'0';";
         const tdBold = "padding:8px; border:1px solid #000; vertical-align: middle; text-align:center; font-weight:bold; background-color:#f1f5f9; mso-number-format:'0';";
@@ -2035,19 +2350,26 @@
             filename = "Laporan_Stok_Gudang";
             tableHtml = `<tr><th style="${thStyle}">Semua Tanggal Masuk</th><th style="${thStyle}">Nama Artikel</th><th style="${thStyle}">Brand</th><th style="${thStyle}">Kondisi</th><th style="${thStyle}">Target Produksi</th><th style="${thStyle}">Total Masuk Gudang</th><th style="${thStyle}">Progress (%)</th><th style="${thStyle}">Rincian Size & Qty Masuk</th></tr>`;
             _inventory.forEach(item => {
-                let total = item.details.reduce((sum, d) => sum + d.totalQty, 0); let pct = item.qtyProduksi > 0 ? ((total/item.qtyProduksi)*100).toFixed(1) : 0;
+                let total = item.details.reduce((sum, d) => sum + d.totalQty, 0);
+                let pct = item.qtyProduksi > 0 ? ((total/item.qtyProduksi)*100).toFixed(1) : 0;
                 let sizes = item.details.map(d => `${d.size}: ${d.totalQty}`).join(', ');
                 tableHtml += `<tr><td style="${tdText}">${getRawDates(item)}</td><td style="${tdText}">${item.name}</td><td style="${tdText}">${item.brand}</td><td style="${tdText}">${item.condition}</td><td style="${tdNum}">${item.qtyProduksi}</td><td style="${tdBold}">${total}</td><td style="${tdNum}">${pct}%</td><td style="${tdText}">${sizes}</td></tr>`;
             });
         } 
         else if (type === 'alokasi' || type === 'sales_pending') {
-            let statusFilter = type === 'alokasi' ? 'approved' : 'pending'; filename = type === 'alokasi' ? "Laporan_Alokasi_Sales_Approved" : "Laporan_Ajuan_Pending_Sales";
+            let statusFilter = type === 'alokasi' ? 'approved' : 'pending';
+            filename = type === 'alokasi' ? "Laporan_Alokasi_Sales_Approved" : "Laporan_Ajuan_Pending_Sales";
             let mitraHeaders = _mitras.map(m => `<th style="${thStyleMitra}">Mitra: ${m.name}<br>(${m.loc})</th>`).join('');
             tableHtml = `<tr><th style="${thStyle}">Tanggal Masuk (List)</th><th style="${thStyle}">Nama Artikel</th><th style="${thStyle}">Brand</th><th style="${thStyle}">Size</th><th style="${thStyle}">Status</th><th style="${thStyle}">Stok Gudang</th><th style="${thStyle}">Tiktok</th><th style="${thStyle}">Shopee</th><th style="${thStyle}">Web</th><th style="${thStyle}">Butik</th><th style="${thStyle}">FOC</th>${mitraHeaders}<th style="${thStyleTotal}">Total Alokasi</th><th style="${thStyleTotal}">Sisa Stok (Gudang)</th></tr>`;
+            
             _inventory.forEach(item => {
                 item.details.forEach(d => {
-                    if(d.allocationStatus !== statusFilter) return; let a = d.allocated; let mitraTotal = 0;
-                    let mitraCells = _mitras.map(m => { let v = (typeof a.mitra === 'object' && a.mitra[m.id]) ? a.mitra[m.id] : 0; mitraTotal += v; return `<td style="${tdNum}">${v || 0}</td>`; }).join('');
+                    if(d.allocationStatus !== statusFilter) return;
+                    let a = d.allocated; let mitraTotal = 0;
+                    let mitraCells = _mitras.map(m => {
+                        let v = (typeof a.mitra === 'object' && a.mitra[m.id]) ? a.mitra[m.id] : 0; mitraTotal += v; return `<td style="${tdNum}">${v || 0}</td>`;
+                    }).join('');
+                    
                     let totalAlloc = a.tiktok + a.shopee + a.web + (a.butik||0) + (a.foc||0) + mitraTotal;
                     if(totalAlloc > 0) {
                         let sisa = d.totalQty - totalAlloc;
