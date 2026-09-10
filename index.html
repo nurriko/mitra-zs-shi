@@ -6,15 +6,15 @@
     <title>Sistem Inventaris ZS & SHI (Online Firebase)</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     
-    <!-- FIREBASE SDK (CDN) -->
+    <!-- FIREBASE SDK -->
     <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore-compat.js"></script>
 
-    <!-- jsPDF (CDN) - untuk generate file PDF Form Order Mitra -->
+    <!-- jsPDF untuk PDF Form Order -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     
-    <!-- SheetJS (CDN) - untuk Excel Multi-Sheet -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <!-- xlsx-js-style untuk Excel Multi-Sheet BERGARIS (Dengan Styling) -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
 
     <style>
         :root {
@@ -105,10 +105,8 @@
         .header-actions { display: flex; gap: 10px; align-items: center; margin-bottom: 15px; }
         .clickable-dates:hover { color: var(--secondary-hover) !important; cursor: pointer; }
 
-        /* Server Loading Indicator */
         #server-status { position: fixed; bottom: 10px; right: 10px; background: var(--primary); color: white; padding: 8px 15px; border-radius: 20px; font-size: 0.8em; z-index: 9999; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
 
-        /* ================= NOTIFIKASI ================= */
         .notif-wrapper { position: relative; }
         .notif-bell { background: var(--bg-color); color: var(--primary); border: 1px solid var(--border); padding: 9px 12px; font-size: 1.1em; position: relative; line-height: 1; }
         .notif-bell:hover { background: #e2e8f0; }
@@ -122,7 +120,6 @@
         .notif-title { font-weight: 600; color: var(--primary); }
         .notif-sub { color: var(--text-muted); margin-top: 2px; }
 
-        /* ================= FILTER & SORT ================= */
         .filter-bar select, .filter-bar input { max-width: 220px; }
         .sort-select { background: white; }
         .table-row-warn { background-color: #fffbeb !important; }
@@ -133,10 +130,9 @@
         .mini-tag-danger { background: #fee2e2; color: #b91c1c; }
         .mini-tag-warn { background: #fef3c7; color: #b45309; }
 
-        /* ================= FORM ORDER MITRA ================= */
         .order-select-table th, .order-select-table td { padding: 8px 10px; font-size: 0.85em; }
         .order-select-table input[type="number"] { width: 80px; padding: 6px; text-align: center; }
-        .order-select-table input[type="checkbox"] { width: 16px; height: 16px; }
+        .order-select-table input[type="checkbox"] { width: 16px; height: 16px; cursor: pointer; }
         .form-doc-preview { background: #f8fafc; border: 1px dashed var(--border); border-radius: 8px; padding: 15px; margin-top: 15px; font-size: 0.85em; color: var(--text-muted); }
         .status-void { background-color: #fee2e2; color: #b91c1c; padding: 3px 8px; border-radius: 4px; font-size: 0.8em; font-weight: bold; }
         .status-issued { background-color: #dbeafe; color: #1e40af; padding: 3px 8px; border-radius: 4px; font-size: 0.8em; font-weight: bold; }
@@ -206,7 +202,6 @@
                 <button class="tab-btn" id="tab-admin-settings" onclick="switchAdminTab('settings')">⚙️ Pengaturan Sistem</button>
             </div>
 
-            <!-- VIEW: USER -->
             <div id="admin-view-users">
                 <div class="header-actions">
                     <div class="filter-bar">
@@ -228,7 +223,6 @@
                 </div>
             </div>
 
-            <!-- VIEW: LOGS -->
             <div id="admin-view-logs" class="hidden">
                 <div class="header-actions">
                     <div class="filter-bar">
@@ -248,7 +242,6 @@
                 </div>
             </div>
 
-            <!-- VIEW: OVERSIGHT ALOKASI -->
             <div id="admin-view-alokasi" class="hidden">
                 <div class="header-actions" style="margin-top:10px;">
                     <div class="filter-bar">
@@ -265,7 +258,6 @@
                 </div>
             </div>
 
-            <!-- VIEW: OVERSIGHT FORM ORDER -->
             <div id="admin-view-form" class="hidden">
                 <div class="header-actions" style="margin-top:10px;">
                     <div class="filter-bar">
@@ -281,7 +273,6 @@
                 </div>
             </div>
 
-            <!-- VIEW: KELOLA MITRA (ADMIN) -->
             <div id="admin-view-mitra" class="hidden">
                 <div class="header-actions" style="margin-top:10px;">
                     <p style="font-size:0.85em; color:var(--text-muted); flex-grow:1;">Anda memiliki akses penuh untuk mengelola daftar Mitra.</p>
@@ -290,7 +281,6 @@
                 <p style="font-size:0.85em; color:var(--primary); font-weight:bold;">Sistem akan mengarahkan Anda ke modul Mitra di Panel Sales dengan hak akses Admin.</p>
             </div>
 
-            <!-- VIEW: PENGATURAN SISTEM (PRIORITAS 2) -->
             <div id="admin-view-settings" class="hidden">
                 <div style="background:#f8fafc; padding:20px; border-radius:8px; border:1px solid var(--border); margin-top: 10px;">
                     <h3 style="margin-bottom: 15px; font-size:1.1em; border-bottom: 2px solid var(--border); padding-bottom: 10px;">Pengaturan Ambang Batas Notifikasi</h3>
@@ -298,12 +288,12 @@
                         <div class="form-group">
                             <label>Stok Menipis (pcs)</label>
                             <input type="number" id="setting-low-stock" min="1">
-                            <small style="color:var(--text-muted); font-size: 0.75em;">Bel notifikasi Gudang/Sales menyala jika sisa stok belum dialokasikan <= angka ini.</small>
+                            <small style="color:var(--text-muted); font-size: 0.75em;">Bel notifikasi menyala jika sisa stok <= angka ini.</small>
                         </div>
                         <div class="form-group">
                             <label>Mendekati Target Produksi (%)</label>
                             <input type="number" id="setting-near-target" min="1" max="100">
-                            <small style="color:var(--text-muted); font-size: 0.75em;">Bel notifikasi menyala jika progress masuk mencapai persentase ini.</small>
+                            <small style="color:var(--text-muted); font-size: 0.75em;">Bel notifikasi menyala jika progress mencapai persentase ini.</small>
                         </div>
                     </div>
 
@@ -311,7 +301,7 @@
                     <div class="form-group">
                         <label>Daftar Ukuran Default</label>
                         <input type="text" id="setting-sizes" placeholder="S, M, L, XL, All Size">
-                        <small style="color:var(--text-muted); font-size: 0.75em;">Pisahkan dengan koma (contoh: S, M, L, XL). Daftar ini akan muncul otomatis saat Gudang input barang baru.</small>
+                        <small style="color:var(--text-muted); font-size: 0.75em;">Pisahkan dengan koma (contoh: S, M, L, XL).</small>
                     </div>
 
                     <button class="btn-success" onclick="saveSystemSettings()" style="margin-top: 20px;">💾 Simpan Pengaturan Sistem</button>
@@ -389,7 +379,6 @@
                 </div>
             </div>
 
-            <!-- VIEW: GUDANG ALOKASI -->
             <div id="gudang-view-alokasi" class="hidden">
                 <div class="header-actions" style="margin-top:10px;">
                     <div class="filter-bar">
@@ -407,7 +396,6 @@
                 </div>
             </div>
 
-            <!-- VIEW: FORM ORDER MITRA (KHUSUS GUDANG) -->
             <div id="gudang-view-form" class="hidden">
                 <p style="font-size:0.85em; color:var(--text-muted); margin:8px 0 20px;">Terbitkan <b>Form Order / Surat Serah Terima Barang</b> untuk mitra berdasarkan alokasi yang sudah <b>di-Approve</b>. Anda dapat memilih lebih dari 1 Mitra untuk menerbitkan form secara massal. Sistem akan mengunduh PDF tunggal & Excel Multi-Sheet.</p>
 
@@ -451,7 +439,7 @@
                 </div>
 
                 <h3 style="margin-top:30px; border-top: 1px solid #eee; padding-top:20px;">Riwayat Form Order Diterbitkan</h3>
-                <div class="header-actions">
+                <div class="header-actions" style="margin-bottom: 5px;">
                     <div class="filter-bar">
                         <input type="text" id="orderform-filter-cari" placeholder="Cari No. Form / Nama Mitra..." oninput="loadOrderFormHistory()">
                         <select id="orderform-filter-status" onchange="loadOrderFormHistory()"><option value="ALL">Semua Status</option><option value="issued">Diterbitkan</option><option value="void">Dibatalkan</option></select>
@@ -461,9 +449,26 @@
                         </select>
                     </div>
                 </div>
+                
+                <!-- FITUR BARU: Aksi Massal History -->
+                <div class="filter-bar" style="margin-bottom:15px; padding: 10px 15px; border: 1px solid var(--border); background: white;">
+                    <span style="font-size:0.85em; font-weight:bold; color:var(--text-muted); margin-right:5px;">Aksi Massal Terpilih:</span>
+                    <button class="btn-primary btn-small" onclick="batchDownloadHistoryPDF()">📄 Print PDF Massal</button>
+                    <button class="btn-success btn-small" onclick="batchDownloadHistoryExcel()">📊 Excel Multi-Sheet Massal</button>
+                    <button class="btn-danger btn-small" onclick="batchVoidHistory()">❌ Batalkan (Void) Massal</button>
+                </div>
+
                 <div class="table-container">
                     <table id="orderform-table">
-                        <thead><tr><th>No. Form</th><th>Mitra</th><th>Tanggal</th><th>Jumlah Item</th><th>Status</th><th>Aksi</th></tr></thead>
+                        <thead><tr>
+                            <th style="width:30px;"><input type="checkbox" id="checkAllHistory" onchange="toggleAllHistory(this)"></th>
+                            <th>No. Form</th>
+                            <th>Mitra</th>
+                            <th>Tanggal</th>
+                            <th>Jumlah Item</th>
+                            <th>Status</th>
+                            <th>Aksi Detail</th>
+                        </tr></thead>
                         <tbody></tbody>
                     </table>
                 </div>
@@ -590,7 +595,7 @@
                             <option value="sisa_asc">Urutkan: Sisa Stok Tersedikit</option>
                         </select>
                     </div>
-                    <button class="btn-success" id="btn-export-sales" onclick="exportExcel('sales_belum')">📥 Download Laporan Excel</button>
+                    <button class="btn-success" id="btn-export-sales" onclick="exportExcelHTML('sales_belum')">📥 Download Laporan Excel</button>
                 </div>
                 <div class="table-container">
                     <table id="sales-table">
@@ -709,11 +714,9 @@
     db.collection("users").onSnapshot(snap => {
         _users = {};
         snap.forEach(doc => { _users[doc.id] = doc.data(); });
-        
         if (!_users['admin']) {
             db.collection("users").doc("admin").set({ password: 'admin', role: 'admin', status: 'active', reqReset: false, mustChange: false });
         }
-        
         if(!document.getElementById('admin-section').classList.contains('hidden') && !document.getElementById('admin-view-users').classList.contains('hidden')) loadAdminData();
         document.getElementById('server-status').innerText = "🟢 Terhubung ke Server";
         document.getElementById('server-status').style.backgroundColor = "var(--success)";
@@ -1097,7 +1100,7 @@
                 <td>${statusHtml}</td>
                 <td>
                     <button class="btn-primary btn-small" onclick="generateOrderFormPDF(_orderForms.find(x=>x.id==='${f.id}'))">📄 PDF</button>
-                    <button class="btn-success btn-small" onclick="downloadOrderFormExcel(_orderForms.find(x=>x.id==='${f.id}'))">📊 Excel</button>
+                    <button class="btn-success btn-small" onclick="downloadBatchOrderFormExcel([_orderForms.find(x=>x.id==='${f.id}')])">📊 Excel</button>
                 </td>
             </tr>`;
         });
@@ -1542,7 +1545,7 @@
 
         let generatedFormsCount = 0;
         let dbPromises = [];
-        let formsDataArray = []; // Menyimpan data untuk sheet massal
+        let formsDataArray = [];
 
         Object.keys(groupedItems).forEach(mitraId => {
             const mitra = _mitras.find(m => m.id === mitraId);
@@ -1559,18 +1562,11 @@
             };
 
             formsDataArray.push(formData);
-            generateOrderFormPDF(formData); // Download PDF selalu satu per satu
+            generateOrderFormPDF(formData); 
             dbPromises.push(db.collection("orderforms").add(formData));
         });
 
-        // DOWNLOAD EXCEL
-        if(formsDataArray.length === 1) {
-            // Jika hanya 1 Mitra, pakai fungsi lama ber-styling HTML
-            downloadOrderFormExcel(formsDataArray[0]);
-        } else if(formsDataArray.length > 1) {
-            // Jika lebih dari 1 Mitra, pakai fungsi multi-sheet baru
-            downloadBatchOrderFormExcel(formsDataArray);
-        }
+        downloadBatchOrderFormExcel(formsDataArray); // Gunakan fungsi excel terbaru dengan styling
 
         Object.keys(globalUpdatesByItem).forEach(itemId => {
             const invItem = _inventory.find(i => i.id === itemId); if(!invItem) return;
@@ -1596,14 +1592,20 @@
         });
     }
 
-    // FUNGSI BARU: GENERATE EXCEL MULTI-SHEET MENGGUNAKAN SHEETJS
+    // FUNGSI BARU: GENERATE EXCEL MULTI-SHEET DENGAN STYLING (BORDER & WARNA)
     function downloadBatchOrderFormExcel(formsData) {
-        if(!window.XLSX) { alert('Library Excel gagal dimuat. Coba refresh halaman.'); return; }
+        if(typeof XLSX === 'undefined') { alert('Library Excel gagal dimuat. Coba refresh halaman.'); return; }
         let wb = XLSX.utils.book_new();
+
+        const borderAll = { top: {style:'thin'}, bottom: {style:'thin'}, left: {style:'thin'}, right: {style:'thin'} };
+        const headerStyle = { font: {bold:true, color:{rgb:"FFFFFF"}}, fill: {fgColor:{rgb:"0F172A"}}, alignment: {horizontal:"center", vertical:"center"}, border: borderAll };
+        const cellStyle = { border: borderAll, alignment: {vertical:"center"} };
+        const centerStyle = { border: borderAll, alignment: {horizontal:"center", vertical:"center"} };
+        const boldStyle = { font: {bold:true}, border: borderAll, alignment: {horizontal:"center", vertical:"center"} };
 
         formsData.forEach((f, idx) => {
             let wsData = [
-                ["FORM ORDER / SERAH TERIMA BARANG MITRA"],
+                ["FORM ORDER / SERAH TERIMA BARANG MITRA", ""],
                 ["No. Form", f.formNo],
                 ["Tanggal", formatDateDisplay(f.date)],
                 ["Mitra Penerima", f.mitraName],
@@ -1615,11 +1617,14 @@
             ];
             
             let totalQty = 0;
+            let totalRowIdx = 0;
+            
             (f.items || []).forEach((it, i) => {
                 totalQty += parseInt(it.qty) || 0;
                 wsData.push([i + 1, it.itemName, it.brand, it.condition, it.size, parseInt(it.qty)||0]);
             });
             
+            totalRowIdx = wsData.length;
             wsData.push(["", "", "", "", "TOTAL QTY", totalQty]);
             wsData.push([]);
             wsData.push(["Diserahkan oleh (Gudang)", "", "", "Diterima oleh (Mitra)"]);
@@ -1627,27 +1632,120 @@
 
             let ws = XLSX.utils.aoa_to_sheet(wsData);
             
-            // Atur lebar kolom agar rapi
-            ws['!cols'] = [{wch: 5}, {wch: 35}, {wch: 10}, {wch: 10}, {wch: 10}, {wch: 8}];
+            // Merging cells
+            ws['!merges'] = [
+                {s: {r:0, c:0}, e: {r:0, c:5}},
+                {s: {r:1, c:1}, e: {r:1, c:5}}, {s: {r:2, c:1}, e: {r:2, c:5}}, {s: {r:3, c:1}, e: {r:3, c:5}},
+                {s: {r:4, c:1}, e: {r:4, c:5}}, {s: {r:5, c:1}, e: {r:5, c:5}}, {s: {r:6, c:1}, e: {r:6, c:5}},
+                {s: {r:totalRowIdx, c:0}, e: {r:totalRowIdx, c:3}},
+                {s: {r:totalRowIdx+2, c:0}, e: {r:totalRowIdx+2, c:2}}, {s: {r:totalRowIdx+2, c:3}, e: {r:totalRowIdx+2, c:5}},
+                {s: {r:totalRowIdx+3, c:0}, e: {r:totalRowIdx+3, c:2}}, {s: {r:totalRowIdx+3, c:3}, e: {r:totalRowIdx+3, c:5}}
+            ];
+            ws['!cols'] = [{wch: 5}, {wch: 35}, {wch: 15}, {wch: 15}, {wch: 15}, {wch: 10}];
 
-            // Bersihkan dan batasi nama sheet maksimal 31 karakter sesuai aturan Excel
+            // Menerapkan Styling
+            if(!ws['A1']) ws['A1'] = {t:'s', v:"FORM ORDER / SERAH TERIMA BARANG MITRA"};
+            ws['A1'].s = { font: {bold:true, sz: 12}, alignment: {horizontal:"center"} };
+            
+            for(let r=1; r<=6; r++) {
+                let cellLabel = XLSX.utils.encode_cell({r:r, c:0});
+                if(ws[cellLabel]) ws[cellLabel].s = { font:{bold:true} };
+            }
+
+            for(let c=0; c<=5; c++) {
+                let cell = XLSX.utils.encode_cell({r:8, c:c});
+                if(ws[cell]) ws[cell].s = headerStyle;
+            }
+
+            for(let r=9; r<totalRowIdx; r++) {
+                for(let c=0; c<=5; c++) {
+                    let cell = XLSX.utils.encode_cell({r:r, c:c});
+                    if(ws[cell]) ws[cell].s = (c===0 || c===5) ? centerStyle : cellStyle;
+                }
+            }
+
+            for(let c=0; c<=5; c++) {
+                let cell = XLSX.utils.encode_cell({r:totalRowIdx, c:c});
+                if(!ws[cell]) ws[cell] = {t:'s', v:''};
+                ws[cell].s = boldStyle;
+            }
+
             let cleanName = `${f.mitraName} ${f.mitraLoc||''}`.replace(/[\\\/\?\*\[\]\:]/g, ' ').replace(/\s+/g, ' ').trim();
             let sheetName = cleanName.substring(0, 31);
-            
-            // Cegah error jika ada duplikat nama sheet
-            let finalName = sheetName;
-            let counter = 1;
+            let finalName = sheetName; let counter = 1;
             while(wb.SheetNames.includes(finalName)) {
-                let suffix = `_${counter}`;
-                finalName = sheetName.substring(0, 31 - suffix.length) + suffix;
-                counter++;
+                let suffix = `_${counter}`; finalName = sheetName.substring(0, 31 - suffix.length) + suffix; counter++;
             }
 
             XLSX.utils.book_append_sheet(wb, ws, finalName);
         });
 
         const today = new Date(); const y = today.getFullYear(); const m = String(today.getMonth()+1).padStart(2,'0'); const d = String(today.getDate()).padStart(2,'0');
-        XLSX.writeFile(wb, `Form_Order_Massal_${y}${m}${d}.xlsx`);
+        let dlName = formsData.length === 1 ? `${formsData[0].formNo}.xlsx` : `Form_Order_Massal_${y}${m}${d}.xlsx`;
+        XLSX.writeFile(wb, dlName);
+    }
+
+    // ================= FUNGSI AKSI MASSAL (HISTORY ORDER FORM) =================
+    function toggleAllHistory(source) {
+        document.querySelectorAll('.history-cb').forEach(cb => cb.checked = source.checked);
+    }
+
+    function getSelectedHistoryForms() {
+        let selectedIds = Array.from(document.querySelectorAll('.history-cb:checked')).map(cb => cb.value);
+        return _orderForms.filter(f => selectedIds.includes(f.id));
+    }
+
+    function batchDownloadHistoryPDF() {
+        let forms = getSelectedHistoryForms();
+        if(forms.length === 0) return alert('Pilih minimal 1 form!');
+        forms.forEach(f => generateOrderFormPDF(f));
+    }
+
+    function batchDownloadHistoryExcel() {
+        let forms = getSelectedHistoryForms();
+        if(forms.length === 0) return alert('Pilih minimal 1 form!');
+        downloadBatchOrderFormExcel(forms);
+    }
+
+    function batchVoidHistory() {
+        let forms = getSelectedHistoryForms();
+        if(forms.length === 0) return alert('Pilih minimal 1 form!');
+        
+        let validForms = forms.filter(f => f.status === 'issued');
+        if(validForms.length === 0) return alert('Semua form yang dipilih sudah berstatus Dibatalkan (Void).');
+        
+        if(!confirm(`Yakin ingin membatalkan (void) ${validForms.length} form terpilih secara massal?\nQty barang akan dikembalikan ke status "Belum Diterbitkan".`)) return;
+
+        let dbPromises = [];
+        let globalUpdatesByItem = {};
+
+        validForms.forEach(f => {
+            (f.items || []).forEach(it => {
+                const itemId = it.itemId;
+                if(!globalUpdatesByItem[itemId]) globalUpdatesByItem[itemId] = [];
+                globalUpdatesByItem[itemId].push({ size: it.size, qty: it.qty, mitraId: f.mitraId });
+            });
+            dbPromises.push(db.collection("orderforms").doc(f.id).update({ status: 'void', voidedBy: currentUser || 'Guest', voidedAtLocal: Date.now() }));
+            logActivity('Batalkan Form Order Mitra', `No. Form ${f.formNo} untuk mitra ${f.mitraName}`);
+        });
+
+        Object.keys(globalUpdatesByItem).forEach(itemId => {
+            const invItem = _inventory.find(i => i.id === itemId); if(!invItem) return;
+            let newDetails = JSON.parse(JSON.stringify(invItem.details));
+            globalUpdatesByItem[itemId].forEach(u => {
+                let d = newDetails.find(x => x.size === u.size);
+                if(!d || !d.issued || !d.issued.mitra) return;
+                d.issued.mitra[u.mitraId] = Math.max(0, (parseInt(d.issued.mitra[u.mitraId]) || 0) - u.qty);
+            });
+            dbPromises.push(db.collection("inventory").doc(itemId).update({ details: newDetails }));
+        });
+
+        Promise.all(dbPromises).then(() => {
+            document.getElementById('checkAllHistory').checked = false;
+            alert(`Berhasil membatalkan ${validForms.length} form secara massal.`);
+        }).catch(err => {
+            console.error(err); alert('Terjadi kendala saat membatalkan form.');
+        });
     }
 
     function loadOrderFormHistory() {
@@ -1663,12 +1761,12 @@
         });
         list.sort((a, b) => sortBy === 'terlama' ? (a.createdAtLocal||0) - (b.createdAtLocal||0) : (b.createdAtLocal||0) - (a.createdAtLocal||0));
 
-        if(list.length === 0) { tbody.innerHTML = `<tr><td colspan="6" class="notif-empty">Belum ada form order yang diterbitkan.</td></tr>`; return; }
+        if(list.length === 0) { tbody.innerHTML = `<tr><td colspan="7" class="notif-empty">Belum ada form order yang diterbitkan.</td></tr>`; return; }
 
         list.forEach(f => {
             const statusHtml = f.status === 'void' ? `<span class="status-void">Dibatalkan</span>` : `<span class="status-issued">Diterbitkan</span>`;
-            const voidBtn = f.status === 'issued' ? `<button class="btn-danger btn-small" onclick="voidOrderForm('${f.id}')">Batalkan</button>` : '';
             tbody.innerHTML += `<tr>
+                <td><input type="checkbox" class="history-cb" value="${f.id}"></td>
                 <td>${f.formNo}</td>
                 <td>${f.mitraName}<br><small style="color:var(--text-muted);">${f.mitraLoc||''}</small></td>
                 <td>${formatDateDisplay(f.date)}</td>
@@ -1676,8 +1774,7 @@
                 <td>${statusHtml}</td>
                 <td>
                     <button class="btn-primary btn-small" onclick="generateOrderFormPDF(_orderForms.find(x=>x.id==='${f.id}'))">📄 PDF</button>
-                    <button class="btn-success btn-small" onclick="downloadOrderFormExcel(_orderForms.find(x=>x.id==='${f.id}'))">📊 Excel</button>
-                    ${voidBtn}
+                    <button class="btn-success btn-small" onclick="downloadBatchOrderFormExcel([_orderForms.find(x=>x.id==='${f.id}')])">📊 Excel</button>
                 </td>
             </tr>`;
         });
@@ -1737,60 +1834,6 @@
         doc.save(`${f.formNo}.pdf`);
     }
 
-    function downloadOrderFormExcel(f) {
-        if(!f) return;
-        const thStyle = "background-color:#0f172a; color:#ffffff; font-weight:bold; padding:8px; border:1px solid #000; text-align:center;";
-        const tdText = "padding:6px; border:1px solid #000; text-align:left;";
-        const tdNum = "padding:6px; border:1px solid #000; text-align:center; mso-number-format:'0';";
-        const tdBold = "padding:6px; border:1px solid #000; text-align:center; font-weight:bold;";
-        const totalQty = (f.items || []).reduce((s, i) => s + (parseInt(i.qty) || 0), 0);
-
-        let tableHtml = `
-            <tr><td style="${tdBold}" colspan="2">FORM ORDER / SERAH TERIMA BARANG MITRA</td></tr>
-            <tr><td style="${tdText}">No. Form</td><td style="${tdText}">${f.formNo}</td></tr>
-            <tr><td style="${tdText}">Tanggal</td><td style="${tdText}">${formatDateDisplay(f.date)}</td></tr>
-            <tr><td style="${tdText}">Mitra Penerima</td><td style="${tdText}">${f.mitraName}</td></tr>
-            <tr><td style="${tdText}">Lokasi Mitra</td><td style="${tdText}">${f.mitraLoc || '-'}</td></tr>
-            <tr><td style="${tdText}">Petugas Gudang</td><td style="${tdText}">${f.gudangName || '-'}</td></tr>
-            <tr><td style="${tdText}">Catatan</td><td style="${tdText}">${f.notes || '-'}</td></tr>
-            <tr><td colspan="2">&nbsp;</td></tr>
-            <tr><th style="${thStyle}">No</th><th style="${thStyle}">Nama Artikel</th><th style="${thStyle}" colspan="2">Brand / Kondisi</th><th style="${thStyle}">Size</th><th style="${thStyle}">Qty</th></tr>
-        `;
-        (f.items || []).forEach((it, idx) => {
-            tableHtml += `<tr><td style="${tdNum}">${idx + 1}</td><td style="${tdText}">${it.itemName}</td><td style="${tdText}" colspan="2">${it.brand} / ${it.condition}</td><td style="${tdText}">${it.size}</td><td style="${tdBold}">${it.qty}</td></tr>`;
-        });
-        tableHtml += `<tr><td colspan="4" style="${tdBold}; text-align:right;">TOTAL QTY</td><td colspan="2" style="${tdBold}">${totalQty}</td></tr>`;
-        tableHtml += `<tr><td colspan="6">&nbsp;</td></tr>`;
-        tableHtml += `<tr><td style="${tdText}" colspan="3">Diserahkan oleh (Gudang)</td><td style="${tdText}" colspan="3">Diterima oleh (Mitra)</td></tr>`;
-        tableHtml += `<tr><td style="${tdText}" colspan="3">Nama: ${f.gudangName || '-'}</td><td style="${tdText}" colspan="3">Nama: .......................................</td></tr>`;
-
-        let fullHtml = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="UTF-8"><style>table{border-collapse:collapse;font-family:sans-serif;}</style></head><body><table>${tableHtml}</table></body></html>`;
-        let blob = new Blob([fullHtml], { type: 'application/vnd.ms-excel' });
-        let url = URL.createObjectURL(blob); let a = document.createElement('a');
-        a.href = url; a.download = `${f.formNo}.xls`;
-        document.body.appendChild(a); a.click(); document.body.removeChild(a);
-    }
-
-    function voidOrderForm(formId) {
-        const f = _orderForms.find(x => x.id === formId);
-        if(!f || f.status !== 'issued') return;
-        if(!confirm(`Batalkan Form Order ${f.formNo} untuk mitra ${f.mitraName}? Qty yang sudah diterbitkan akan dikembalikan sebagai belum diterbitkan.`)) return;
-
-        (f.items || []).forEach(it => {
-            const invItem = _inventory.find(i => i.id === it.itemId);
-            if(!invItem) return;
-            let newDetails = JSON.parse(JSON.stringify(invItem.details));
-            let d = newDetails.find(x => x.size === it.size);
-            if(!d || !d.issued || !d.issued.mitra) return;
-            d.issued.mitra[f.mitraId] = Math.max(0, (parseInt(d.issued.mitra[f.mitraId]) || 0) - it.qty);
-            db.collection("inventory").doc(it.itemId).update({ details: newDetails });
-        });
-
-        db.collection("orderforms").doc(formId).update({ status: 'void', voidedBy: currentUser || 'Guest', voidedAtLocal: Date.now() }).then(() => {
-            logActivity('Batalkan Form Order Mitra', `No. Form ${f.formNo} untuk mitra ${f.mitraName}`);
-        });
-    }
-
     // ================= BAGIAN SALES =================
     function switchSalesTab(tab) {
         activeSalesTab = tab;
@@ -1806,7 +1849,7 @@
         else { 
             document.getElementById('sales-view-mitra').classList.add('hidden'); document.getElementById('sales-view-data').classList.remove('hidden'); loadSalesData(); 
             btnExport.innerText = tab === 'belum' ? "📥 Download Laporan Sisa Stok" : (tab === 'pending' ? "📥 Download Ajuan Pending" : "📥 Download Laporan Alokasi Approved");
-            btnExport.onclick = () => exportExcel(tab === 'belum' ? 'sales_belum' : (tab === 'pending' ? 'sales_pending' : 'alokasi'));
+            btnExport.onclick = () => exportExcelHTML(tab === 'belum' ? 'sales_belum' : (tab === 'pending' ? 'sales_pending' : 'alokasi'));
         }
     }
 
@@ -1831,7 +1874,7 @@
             if(fCari !== '' && !(m.name.toLowerCase().includes(fCari) || (m.loc||'').toLowerCase().includes(fCari))) return false;
             return true;
         });
-        list.reverse(); // default: terbaru dulu
+        list.reverse(); 
         if(sortBy === 'nama_az') list.sort((a,b) => a.name.localeCompare(b.name));
         else if(sortBy === 'nama_za') list.sort((a,b) => b.name.localeCompare(a.name));
 
@@ -2071,13 +2114,12 @@
         });
     }
 
-    // ================= EXPORT EXCEL UTAMA =================
-    function exportExcel(type) {
+    // ================= EXPORT Laporan HTML Biasa (Untuk Tabel Penjualan Gudang) =================
+    function exportExcelHTML(type) {
         let tableHtml = ""; let filename = "";
         const thStyle = "background-color:#0f172a; color:#ffffff; font-weight:bold; padding:10px; border:1px solid #000; text-align:center; vertical-align:middle;";
         const thStyleMitra = "background-color:#4338ca; color:#ffffff; font-weight:bold; padding:10px; border:1px solid #000; text-align:center; vertical-align:middle;";
         const thStyleTotal = "background-color:#047857; color:#ffffff; font-weight:bold; padding:10px; border:1px solid #000; text-align:center; vertical-align:middle;";
-        
         const tdText = "padding:8px; border:1px solid #000; vertical-align: middle; text-align:left;";
         const tdNum = "padding:8px; border:1px solid #000; vertical-align: middle; text-align:center; mso-number-format:'0';";
         const tdBold = "padding:8px; border:1px solid #000; vertical-align: middle; text-align:center; font-weight:bold; background-color:#f1f5f9; mso-number-format:'0';";
@@ -2088,26 +2130,19 @@
             filename = "Laporan_Stok_Gudang";
             tableHtml = `<tr><th style="${thStyle}">Semua Tanggal Masuk</th><th style="${thStyle}">Nama Artikel</th><th style="${thStyle}">Brand</th><th style="${thStyle}">Kondisi</th><th style="${thStyle}">Target Produksi</th><th style="${thStyle}">Total Masuk Gudang</th><th style="${thStyle}">Progress (%)</th><th style="${thStyle}">Rincian Size & Qty Masuk</th></tr>`;
             _inventory.forEach(item => {
-                let total = item.details.reduce((sum, d) => sum + d.totalQty, 0);
-                let pct = item.qtyProduksi > 0 ? ((total/item.qtyProduksi)*100).toFixed(1) : 0;
+                let total = item.details.reduce((sum, d) => sum + d.totalQty, 0); let pct = item.qtyProduksi > 0 ? ((total/item.qtyProduksi)*100).toFixed(1) : 0;
                 let sizes = item.details.map(d => `${d.size}: ${d.totalQty}`).join(', ');
                 tableHtml += `<tr><td style="${tdText}">${getRawDates(item)}</td><td style="${tdText}">${item.name}</td><td style="${tdText}">${item.brand}</td><td style="${tdText}">${item.condition}</td><td style="${tdNum}">${item.qtyProduksi}</td><td style="${tdBold}">${total}</td><td style="${tdNum}">${pct}%</td><td style="${tdText}">${sizes}</td></tr>`;
             });
         } 
         else if (type === 'alokasi' || type === 'sales_pending') {
-            let statusFilter = type === 'alokasi' ? 'approved' : 'pending';
-            filename = type === 'alokasi' ? "Laporan_Alokasi_Sales_Approved" : "Laporan_Ajuan_Pending_Sales";
+            let statusFilter = type === 'alokasi' ? 'approved' : 'pending'; filename = type === 'alokasi' ? "Laporan_Alokasi_Sales_Approved" : "Laporan_Ajuan_Pending_Sales";
             let mitraHeaders = _mitras.map(m => `<th style="${thStyleMitra}">Mitra: ${m.name}<br>(${m.loc})</th>`).join('');
             tableHtml = `<tr><th style="${thStyle}">Tanggal Masuk (List)</th><th style="${thStyle}">Nama Artikel</th><th style="${thStyle}">Brand</th><th style="${thStyle}">Size</th><th style="${thStyle}">Status</th><th style="${thStyle}">Stok Gudang</th><th style="${thStyle}">Tiktok</th><th style="${thStyle}">Shopee</th><th style="${thStyle}">Web</th><th style="${thStyle}">Butik</th><th style="${thStyle}">FOC</th>${mitraHeaders}<th style="${thStyleTotal}">Total Alokasi</th><th style="${thStyleTotal}">Sisa Stok (Gudang)</th></tr>`;
-            
             _inventory.forEach(item => {
                 item.details.forEach(d => {
-                    if(d.allocationStatus !== statusFilter) return;
-                    let a = d.allocated; let mitraTotal = 0;
-                    let mitraCells = _mitras.map(m => {
-                        let v = (typeof a.mitra === 'object' && a.mitra[m.id]) ? a.mitra[m.id] : 0; mitraTotal += v; return `<td style="${tdNum}">${v || 0}</td>`;
-                    }).join('');
-                    
+                    if(d.allocationStatus !== statusFilter) return; let a = d.allocated; let mitraTotal = 0;
+                    let mitraCells = _mitras.map(m => { let v = (typeof a.mitra === 'object' && a.mitra[m.id]) ? a.mitra[m.id] : 0; mitraTotal += v; return `<td style="${tdNum}">${v || 0}</td>`; }).join('');
                     let totalAlloc = a.tiktok + a.shopee + a.web + (a.butik||0) + (a.foc||0) + mitraTotal;
                     if(totalAlloc > 0) {
                         let sisa = d.totalQty - totalAlloc;
