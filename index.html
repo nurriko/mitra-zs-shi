@@ -12,6 +12,9 @@
 
     <!-- jsPDF (CDN) - untuk generate file PDF Form Order Mitra -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    
+    <!-- SheetJS (CDN) - untuk Excel Multi-Sheet -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
     <style>
         :root {
@@ -406,7 +409,7 @@
 
             <!-- VIEW: FORM ORDER MITRA (KHUSUS GUDANG) -->
             <div id="gudang-view-form" class="hidden">
-                <p style="font-size:0.85em; color:var(--text-muted); margin:8px 0 20px;">Terbitkan <b>Form Order / Surat Serah Terima Barang</b> untuk mitra berdasarkan alokasi yang sudah <b>di-Approve</b>. Anda dapat memilih lebih dari 1 Mitra untuk menerbitkan form secara massal. Sistem akan mengunduh PDF & Excel untuk masing-masing Mitra.</p>
+                <p style="font-size:0.85em; color:var(--text-muted); margin:8px 0 20px;">Terbitkan <b>Form Order / Surat Serah Terima Barang</b> untuk mitra berdasarkan alokasi yang sudah <b>di-Approve</b>. Anda dapat memilih lebih dari 1 Mitra untuk menerbitkan form secara massal. Sistem akan mengunduh PDF tunggal & Excel Multi-Sheet.</p>
 
                 <div style="background:#f8fafc; padding:20px; border-radius:8px; border:1px solid var(--border); margin-bottom:20px;">
                     <h3 style="margin-bottom:15px; font-size:1.1em;">Buat Form Order Baru</h3>
@@ -1539,6 +1542,7 @@
 
         let generatedFormsCount = 0;
         let dbPromises = [];
+        let formsDataArray = []; // Menyimpan data untuk sheet massal
 
         Object.keys(groupedItems).forEach(mitraId => {
             const mitra = _mitras.find(m => m.id === mitraId);
@@ -1554,10 +1558,19 @@
                 timestamp: firebase.firestore.FieldValue.serverTimestamp()
             };
 
-            generateOrderFormPDF(formData);
-            downloadOrderFormExcel(formData);
+            formsDataArray.push(formData);
+            generateOrderFormPDF(formData); // Download PDF selalu satu per satu
             dbPromises.push(db.collection("orderforms").add(formData));
         });
+
+        // DOWNLOAD EXCEL
+        if(formsDataArray.length === 1) {
+            // Jika hanya 1 Mitra, pakai fungsi lama ber-styling HTML
+            downloadOrderFormExcel(formsDataArray[0]);
+        } else if(formsDataArray.length > 1) {
+            // Jika lebih dari 1 Mitra, pakai fungsi multi-sheet baru
+            downloadBatchOrderFormExcel(formsDataArray);
+        }
 
         Object.keys(globalUpdatesByItem).forEach(itemId => {
             const invItem = _inventory.find(i => i.id === itemId); if(!invItem) return;
@@ -1581,6 +1594,60 @@
         }).catch(err => {
             console.error(err); alert(`Form PDF/Excel sudah terdownload, tetapi terjadi kendala saat menyimpan ke database server.`);
         });
+    }
+
+    // FUNGSI BARU: GENERATE EXCEL MULTI-SHEET MENGGUNAKAN SHEETJS
+    function downloadBatchOrderFormExcel(formsData) {
+        if(!window.XLSX) { alert('Library Excel gagal dimuat. Coba refresh halaman.'); return; }
+        let wb = XLSX.utils.book_new();
+
+        formsData.forEach((f, idx) => {
+            let wsData = [
+                ["FORM ORDER / SERAH TERIMA BARANG MITRA"],
+                ["No. Form", f.formNo],
+                ["Tanggal", formatDateDisplay(f.date)],
+                ["Mitra Penerima", f.mitraName],
+                ["Lokasi Mitra", f.mitraLoc || '-'],
+                ["Petugas Gudang", f.gudangName || '-'],
+                ["Catatan", f.notes || '-'],
+                [],
+                ["No", "Nama Artikel", "Brand", "Kondisi", "Size", "Qty"]
+            ];
+            
+            let totalQty = 0;
+            (f.items || []).forEach((it, i) => {
+                totalQty += parseInt(it.qty) || 0;
+                wsData.push([i + 1, it.itemName, it.brand, it.condition, it.size, parseInt(it.qty)||0]);
+            });
+            
+            wsData.push(["", "", "", "", "TOTAL QTY", totalQty]);
+            wsData.push([]);
+            wsData.push(["Diserahkan oleh (Gudang)", "", "", "Diterima oleh (Mitra)"]);
+            wsData.push([`Nama: ${f.gudangName || '-'}`, "", "", "Nama: ......................................."]);
+
+            let ws = XLSX.utils.aoa_to_sheet(wsData);
+            
+            // Atur lebar kolom agar rapi
+            ws['!cols'] = [{wch: 5}, {wch: 35}, {wch: 10}, {wch: 10}, {wch: 10}, {wch: 8}];
+
+            // Bersihkan dan batasi nama sheet maksimal 31 karakter sesuai aturan Excel
+            let cleanName = `${f.mitraName} ${f.mitraLoc||''}`.replace(/[\\\/\?\*\[\]\:]/g, ' ').replace(/\s+/g, ' ').trim();
+            let sheetName = cleanName.substring(0, 31);
+            
+            // Cegah error jika ada duplikat nama sheet
+            let finalName = sheetName;
+            let counter = 1;
+            while(wb.SheetNames.includes(finalName)) {
+                let suffix = `_${counter}`;
+                finalName = sheetName.substring(0, 31 - suffix.length) + suffix;
+                counter++;
+            }
+
+            XLSX.utils.book_append_sheet(wb, ws, finalName);
+        });
+
+        const today = new Date(); const y = today.getFullYear(); const m = String(today.getMonth()+1).padStart(2,'0'); const d = String(today.getDate()).padStart(2,'0');
+        XLSX.writeFile(wb, `Form_Order_Massal_${y}${m}${d}.xlsx`);
     }
 
     function loadOrderFormHistory() {
@@ -2004,7 +2071,7 @@
         });
     }
 
-    // ================= EXPORT EXCEL =================
+    // ================= EXPORT EXCEL UTAMA =================
     function exportExcel(type) {
         let tableHtml = ""; let filename = "";
         const thStyle = "background-color:#0f172a; color:#ffffff; font-weight:bold; padding:10px; border:1px solid #000; text-align:center; vertical-align:middle;";
