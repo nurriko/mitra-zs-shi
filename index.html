@@ -10,6 +10,9 @@
     <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore-compat.js"></script>
 
+    <!-- jsPDF (CDN) - untuk generate file PDF Form Order Mitra -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
     <style>
         :root {
             --primary: #0f172a; --primary-hover: #1e293b;
@@ -101,6 +104,39 @@
 
         /* Server Loading Indicator */
         #server-status { position: fixed; bottom: 10px; right: 10px; background: var(--primary); color: white; padding: 8px 15px; border-radius: 20px; font-size: 0.8em; z-index: 9999; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+
+        /* ================= NOTIFIKASI ================= */
+        .notif-wrapper { position: relative; }
+        .notif-bell { background: var(--bg-color); color: var(--primary); border: 1px solid var(--border); padding: 9px 12px; font-size: 1.1em; position: relative; line-height: 1; }
+        .notif-bell:hover { background: #e2e8f0; }
+        .notif-count { position: absolute; top: -6px; right: -6px; background: var(--danger); color: white; font-size: 0.65em; font-weight: 700; min-width: 18px; height: 18px; border-radius: 20px; display: flex; align-items: center; justify-content: center; padding: 0 4px; }
+        .notif-panel { position: absolute; top: 46px; right: 0; width: 340px; max-height: 420px; overflow-y: auto; background: white; border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 10px 30px rgba(0,0,0,0.12); z-index: 500; }
+        .notif-panel-header { padding: 12px 15px; font-weight: 700; font-size: 0.85em; color: var(--primary); border-bottom: 1px solid var(--border); background: #f8fafc; border-radius: 10px 10px 0 0; }
+        .notif-item { padding: 10px 15px; border-bottom: 1px solid #f1f5f9; font-size: 0.82em; display: flex; gap: 8px; align-items: flex-start; }
+        .notif-item:last-child { border-bottom: none; }
+        .notif-icon { font-size: 1.1em; flex-shrink: 0; }
+        .notif-empty { padding: 25px 15px; text-align: center; color: var(--text-muted); font-size: 0.85em; }
+        .notif-title { font-weight: 600; color: var(--primary); }
+        .notif-sub { color: var(--text-muted); margin-top: 2px; }
+
+        /* ================= FILTER & SORT ================= */
+        .filter-bar select, .filter-bar input { max-width: 220px; }
+        .sort-select { background: white; }
+        .table-row-warn { background-color: #fffbeb !important; }
+        .table-row-danger { background-color: #fef2f2 !important; }
+        .table-row-danger td { box-shadow: inset 3px 0 0 var(--danger); }
+        .table-row-warn td { box-shadow: inset 3px 0 0 var(--warning); }
+        .mini-tag { font-size: 0.7em; font-weight: 700; padding: 2px 6px; border-radius: 4px; display: inline-block; margin-left: 6px; vertical-align: middle; }
+        .mini-tag-danger { background: #fee2e2; color: #b91c1c; }
+        .mini-tag-warn { background: #fef3c7; color: #b45309; }
+
+        /* ================= FORM ORDER MITRA ================= */
+        .order-select-table th, .order-select-table td { padding: 8px 10px; font-size: 0.85em; }
+        .order-select-table input[type="number"] { width: 80px; padding: 6px; text-align: center; }
+        .order-select-table input[type="checkbox"] { width: 16px; height: 16px; }
+        .form-doc-preview { background: #f8fafc; border: 1px dashed var(--border); border-radius: 8px; padding: 15px; margin-top: 15px; font-size: 0.85em; color: var(--text-muted); }
+        .status-void { background-color: #fee2e2; color: #b91c1c; padding: 3px 8px; border-radius: 4px; font-size: 0.8em; font-weight: bold; }
+        .status-issued { background-color: #dbeafe; color: #1e40af; padding: 3px 8px; border-radius: 4px; font-size: 0.8em; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -194,6 +230,17 @@
             </div>
 
             <div id="admin-view-users">
+                <div class="header-actions">
+                    <div class="filter-bar">
+                        <input type="text" id="admin-filter-user" placeholder="Cari Username..." oninput="loadAdminData()">
+                        <select id="admin-filter-role" onchange="loadAdminData()">
+                            <option value="ALL">Semua Role</option>
+                            <option value="gudang">Gudang</option>
+                            <option value="sales_staff">Sales Staff</option>
+                            <option value="sales_leader">Sales Leader</option>
+                        </select>
+                    </div>
+                </div>
                 <div class="table-container">
                     <table id="admin-table">
                         <thead><tr><th>Username</th><th>Role / Posisi</th><th>Status Reset</th><th>Aksi</th></tr></thead>
@@ -204,6 +251,13 @@
 
             <div id="admin-view-logs" class="hidden">
                 <div class="header-actions">
+                    <div class="filter-bar">
+                        <input type="text" id="admin-logs-filter-cari" placeholder="Cari User / Aksi / Keterangan..." oninput="loadAdminLogs()">
+                        <select id="admin-logs-sort" class="sort-select" onchange="loadAdminLogs()">
+                            <option value="terbaru">Urutkan: Terbaru</option>
+                            <option value="terlama">Urutkan: Terlama</option>
+                        </select>
+                    </div>
                     <button class="btn-success btn-small" onclick="exportExcel('log')">📥 Download Log Excel</button>
                 </div>
                 <div class="table-container">
@@ -221,12 +275,22 @@
         <div class="card">
             <div class="flex-header">
                 <h2>Dashboard Gudang</h2>
-                <button class="btn-danger btn-small" onclick="logout()">Logout</button>
+                <div style="display:flex; gap:10px; align-items:center;">
+                    <div class="notif-wrapper">
+                        <button class="notif-bell" onclick="toggleNotifPanel('gudang')" title="Notifikasi Stok">🔔<span class="notif-count hidden" id="notif-count-gudang">0</span></button>
+                        <div class="notif-panel hidden" id="notif-panel-gudang">
+                            <div class="notif-panel-header">Notifikasi Stok</div>
+                            <div id="notif-list-gudang"></div>
+                        </div>
+                    </div>
+                    <button class="btn-danger btn-small" onclick="logout()">Logout</button>
+                </div>
             </div>
 
             <div class="tabs">
                 <button class="tab-btn active" id="tab-gudang-input" onclick="switchGudangTab('input')">Input & Stok Gudang</button>
                 <button class="tab-btn" id="tab-gudang-alokasi" onclick="switchGudangTab('alokasi')">Tinjau Hasil Alokasi Sales</button>
+                <button class="tab-btn" id="tab-gudang-form" onclick="switchGudangTab('form')">🖊️ Form Order Mitra</button>
             </div>
 
             <div id="gudang-view-input">
@@ -253,6 +317,17 @@
                     <div class="filter-bar">
                         <input type="text" id="gudang-filter-nama" placeholder="Cari Nama Baju..." oninput="loadGudangData()">
                         <select id="gudang-filter-brand" onchange="loadGudangData()"><option value="ALL">Semua Brand</option><option value="ZS">ZS</option><option value="SHI">SHI</option></select>
+                        <select id="gudang-filter-kondisi" onchange="loadGudangData()"><option value="ALL">Semua Kondisi</option><option value="Oke">Oke</option><option value="Defect">Defect</option></select>
+                        <select id="gudang-filter-alert" onchange="loadGudangData()"><option value="ALL">Semua Status</option><option value="LOW">⚠️ Stok Menipis</option><option value="NEAR">🎯 Mendekati Target</option></select>
+                        <select id="gudang-sort" class="sort-select" onchange="loadGudangData()">
+                            <option value="terbaru">Urutkan: Tgl Masuk Terbaru</option>
+                            <option value="terlama">Urutkan: Tgl Masuk Terlama</option>
+                            <option value="nama_az">Urutkan: Nama A-Z</option>
+                            <option value="nama_za">Urutkan: Nama Z-A</option>
+                            <option value="progress_desc">Urutkan: Progress Tertinggi</option>
+                            <option value="progress_asc">Urutkan: Progress Terendah</option>
+                            <option value="stok_desc">Urutkan: Total Stok Terbanyak</option>
+                        </select>
                     </div>
                     <button class="btn-success" onclick="exportExcel('gudang_input')">📥 Download Laporan Stok Excel</button>
                 </div>
@@ -267,12 +342,67 @@
             <!-- VIEW: GUDANG ALOKASI -->
             <div id="gudang-view-alokasi" class="hidden">
                 <div class="header-actions" style="margin-top:10px;">
-                    <p style="font-size:0.85em; color:var(--text-muted); flex-grow: 1; margin:0;">Di tab ini Anda hanya dapat memantau barang yang <b>sudah di-Approve</b> oleh Sales Leader.</p>
+                    <div class="filter-bar">
+                        <input type="text" id="gudang-alokasi-filter-nama" placeholder="Cari Nama Baju..." oninput="loadGudangAlokasiData()">
+                        <select id="gudang-alokasi-filter-mitra" onchange="loadGudangAlokasiData()"><option value="ALL">Semua Mitra</option></select>
+                    </div>
                     <button class="btn-success" onclick="exportExcel('alokasi')">📥 Download Laporan Alokasi Excel</button>
                 </div>
+                <p style="font-size:0.85em; color:var(--text-muted); margin:8px 0 0;">Di tab ini Anda hanya dapat memantau barang yang <b>sudah di-Approve</b> oleh Sales Leader.</p>
                 <div class="table-container">
                     <table id="gudang-alokasi-table">
                         <thead><tr><th>Artikel</th><th>Foto</th><th>Rincian Alokasi (Approved)</th></tr></thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- VIEW: FORM ORDER MITRA (KHUSUS GUDANG) -->
+            <div id="gudang-view-form" class="hidden">
+                <p style="font-size:0.85em; color:var(--text-muted); margin:8px 0 20px;">Terbitkan <b>Form Order / Surat Serah Terima Barang</b> untuk mitra berdasarkan alokasi yang sudah <b>di-Approve</b>. Saat diterbitkan, file <b>PDF</b> dan <b>Excel</b> akan otomatis terunduh ke perangkat Anda, lengkap dengan kolom tanda tangan kosong untuk ditandatangani manual di atas kertas oleh pihak Gudang dan Mitra.</p>
+
+                <div style="background:#f8fafc; padding:20px; border-radius:8px; border:1px solid var(--border); margin-bottom:20px;">
+                    <h3 style="margin-bottom:15px; font-size:1.1em;">Buat Form Order Baru</h3>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Pilih Mitra Tujuan</label>
+                            <select id="order-mitra-select" onchange="onFormOrderMitraChange()">
+                                <option value="">-- Pilih Mitra --</option>
+                            </select>
+                        </div>
+                        <div class="form-group"><label>Nama Petugas Gudang (Penyerah)</label><input type="text" id="order-gudang-name" placeholder="Nama petugas yang menyerahkan"></div>
+                        <div class="form-group"><label>Tanggal Serah Terima</label><input type="date" id="order-date"></div>
+                    </div>
+
+                    <div id="order-items-wrapper" class="hidden">
+                        <label>Pilih Barang & Qty yang Akan Diserahkan (maks. sesuai sisa alokasi belum diterbitkan)</label>
+                        <div class="table-container">
+                            <table class="order-select-table" id="order-items-table">
+                                <thead><tr><th style="width:30px;"></th><th>Artikel</th><th>Size</th><th>Kondisi</th><th>Sudah Dialokasikan</th><th>Sudah Diterbitkan</th><th>Qty Diserahkan Sekarang</th></tr></thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                        <div class="form-group" style="margin-top:10px;"><label>Catatan (opsional)</label><input type="text" id="order-notes" placeholder="Contoh: Pengiriman tahap 1"></div>
+                        <div id="order-no-preview" class="form-doc-preview"></div>
+                        <button class="btn-success" onclick="terbitkanFormOrder()" style="margin-top:15px;">📤 Terbitkan Form Order (Download PDF & Excel)</button>
+                    </div>
+                    <div id="order-empty-msg" class="notif-empty hidden">Mitra ini belum memiliki alokasi approved yang tersedia untuk diterbitkan.</div>
+                </div>
+
+                <h3 style="margin-top:30px; border-top: 1px solid #eee; padding-top:20px;">Riwayat Form Order Diterbitkan</h3>
+                <div class="header-actions">
+                    <div class="filter-bar">
+                        <input type="text" id="orderform-filter-cari" placeholder="Cari No. Form / Nama Mitra..." oninput="loadOrderFormHistory()">
+                        <select id="orderform-filter-status" onchange="loadOrderFormHistory()"><option value="ALL">Semua Status</option><option value="issued">Diterbitkan</option><option value="void">Dibatalkan</option></select>
+                        <select id="orderform-sort" class="sort-select" onchange="loadOrderFormHistory()">
+                            <option value="terbaru">Urutkan: Terbaru</option>
+                            <option value="terlama">Urutkan: Terlama</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="table-container">
+                    <table id="orderform-table">
+                        <thead><tr><th>No. Form</th><th>Mitra</th><th>Tanggal</th><th>Jumlah Item</th><th>Status</th><th>Aksi</th></tr></thead>
                         <tbody></tbody>
                     </table>
                 </div>
@@ -338,7 +468,16 @@
         <div class="card">
             <div class="flex-header">
                 <h2>Dashboard Sales <span id="sales-role-badge" style="font-size:0.6em; background:var(--primary); color:#fff; padding:3px 8px; border-radius:12px; vertical-align:middle; margin-left:10px;"></span></h2>
-                <button class="btn-danger btn-small" onclick="logout()">Logout</button>
+                <div style="display:flex; gap:10px; align-items:center;">
+                    <div class="notif-wrapper">
+                        <button class="notif-bell" onclick="toggleNotifPanel('sales')" title="Notifikasi Stok">🔔<span class="notif-count hidden" id="notif-count-sales">0</span></button>
+                        <div class="notif-panel hidden" id="notif-panel-sales">
+                            <div class="notif-panel-header">Notifikasi Stok</div>
+                            <div id="notif-list-sales"></div>
+                        </div>
+                    </div>
+                    <button class="btn-danger btn-small" onclick="logout()">Logout</button>
+                </div>
             </div>
 
             <div class="tabs">
@@ -353,6 +492,15 @@
                     <div class="filter-bar">
                         <input type="text" id="sales-filter-nama" placeholder="Cari Nama Baju..." oninput="loadSalesData()">
                         <select id="sales-filter-brand" onchange="loadSalesData()"><option value="ALL">Semua Brand</option><option value="ZS">ZS</option><option value="SHI">SHI</option></select>
+                        <select id="sales-filter-kondisi" onchange="loadSalesData()"><option value="ALL">Semua Kondisi</option><option value="Oke">Oke</option><option value="Defect">Defect</option></select>
+                        <select id="sales-sort" class="sort-select" onchange="loadSalesData()">
+                            <option value="terbaru">Urutkan: Tgl Masuk Terbaru</option>
+                            <option value="terlama">Urutkan: Tgl Masuk Terlama</option>
+                            <option value="nama_az">Urutkan: Nama A-Z</option>
+                            <option value="nama_za">Urutkan: Nama Z-A</option>
+                            <option value="sisa_desc">Urutkan: Sisa Stok Terbanyak</option>
+                            <option value="sisa_asc">Urutkan: Sisa Stok Tersedikit</option>
+                        </select>
                     </div>
                     <button class="btn-success" id="btn-export-sales" onclick="exportExcel('sales_belum')">📥 Download Laporan Excel</button>
                 </div>
@@ -385,9 +533,14 @@
                 <div class="header-actions" style="margin-top: 30px;">
                     <h3 style="margin:0; font-size:1.1em; flex-grow: 1;">Daftar Mitra Tersimpan</h3>
                     <div class="filter-bar" style="padding: 10px; background: transparent; border:none; margin:0;">
-                        <label style="margin:0; font-weight:600;">Filter Brand:</label>
+                        <input type="text" id="mitra-filter-cari" placeholder="Cari Nama/Lokasi Mitra..." oninput="loadMitraData()" style="max-width:200px;">
                         <select id="mitra-filter-brand" onchange="loadMitraData()" style="max-width: 200px; margin:0;">
                             <option value="ALL">Semua Brand</option><option value="ZS">Hanya ZS</option><option value="SHI">Hanya SHI</option><option value="BOTH">Keduanya (ZS & SHI)</option>
+                        </select>
+                        <select id="mitra-sort" class="sort-select" onchange="loadMitraData()" style="max-width:200px;">
+                            <option value="terbaru">Urutkan: Terbaru</option>
+                            <option value="nama_az">Urutkan: Nama A-Z</option>
+                            <option value="nama_za">Urutkan: Nama Z-A</option>
                         </select>
                     </div>
                 </div>
@@ -448,12 +601,18 @@
     let _inventory = [];
     let _mitras = [];
     let _logs = [];
+    let _orderForms = [];
     let globalSizes = ['S', 'M', 'L', 'XL', 'All Size', 'S-M', 'L-XL', 'XXL'];
     let activeSalesTab = 'belum';
     let currentUser = null;
     let currentUserRole = null;
 
+    // Ambang batas notifikasi "canggih": stok menipis & mendekati target produksi
+    const LOW_STOCK_THRESHOLD = 5;      // pcs sisa (belum dialokasikan) dianggap menipis
+    const NEAR_TARGET_PERCENT = 90;     // % progress produksi dianggap mendekati target
+
     document.getElementById('itemDate').valueAsDate = new Date();
+    document.getElementById('order-date').valueAsDate = new Date();
 
     function toggleSalesLevel() {
         let r = document.getElementById('reg-role').value;
@@ -492,11 +651,13 @@
         // Refresh UI secara real-time
         if(!document.getElementById('gudang-section').classList.contains('hidden')) {
             if(document.getElementById('gudang-view-input').classList.contains('hidden') === false) loadGudangData();
-            else loadGudangAlokasiData();
+            else if(document.getElementById('gudang-view-alokasi').classList.contains('hidden') === false) loadGudangAlokasiData();
+            else if(document.getElementById('gudang-view-form').classList.contains('hidden') === false) { onFormOrderMitraChange(); loadOrderFormHistory(); }
         }
         if(!document.getElementById('sales-section').classList.contains('hidden')) {
             if(document.getElementById('sales-view-data').classList.contains('hidden') === false) loadSalesData();
         }
+        computeNotifications();
     });
 
     // Listener Mitras
@@ -504,7 +665,17 @@
         _mitras = [];
         snap.forEach(doc => { _mitras.push({id: doc.id, ...doc.data()}); });
         if(!document.getElementById('sales-view-mitra').classList.contains('hidden')) loadMitraData();
+        populateMitraSelects();
     });
+
+    // Listener Order Forms (Form Order Mitra - khusus Gudang)
+    db.collection("orderforms").orderBy("createdAtLocal", "asc").onSnapshot(snap => {
+        _orderForms = [];
+        snap.forEach(doc => { _orderForms.push({id: doc.id, ...doc.data()}); });
+        if(!document.getElementById('gudang-section').classList.contains('hidden') && document.getElementById('gudang-view-form').classList.contains('hidden') === false) {
+            loadOrderFormHistory(); onFormOrderMitraChange();
+        }
+    }, err => { console.error(err); });
 
     // Listener Logs
     db.collection("logs").orderBy("timestamp", "asc").onSnapshot(snap => {
@@ -544,6 +715,40 @@
         let dates = [...new Set(item.history.map(h => h.date))].sort();
         let displayStr = dates.map(d => formatDateDisplay(d)).join(', ');
         return `<span class="clickable-dates" style="font-weight:600; text-decoration: underline; color:var(--secondary);" onclick="openHistoryModal('${item.id}', '${role}'); event.stopPropagation();" title="Klik untuk lihat detail ukuran masuk per tanggal">${displayStr} <br><small><i>(Klik lihat detail)</i></small></span>`;
+    }
+
+    // ================= UTILITAS STOK & ALOKASI (dipakai bersama) =================
+    function getDetailAllocatedTotal(d) {
+        let a = d.allocated || {}; let mitraTotal = 0;
+        if(typeof a.mitra === 'object') Object.values(a.mitra).forEach(v => mitraTotal += (parseInt(v) || 0));
+        return (a.tiktok||0) + (a.shopee||0) + (a.web||0) + (a.butik||0) + (a.foc||0) + mitraTotal;
+    }
+    function getDetailIssuedToMitra(d, mitraId) {
+        if(!d.issued || typeof d.issued.mitra !== 'object') return 0;
+        return parseInt(d.issued.mitra[mitraId]) || 0;
+    }
+    function getItemTotalMasuk(item) { return (item.details || []).reduce((sum, d) => sum + (d.totalQty || 0), 0); }
+    function getItemProgressPercent(item) {
+        let total = getItemTotalMasuk(item);
+        return item.qtyProduksi > 0 ? (total / item.qtyProduksi) * 100 : 0;
+    }
+    function getItemAvailableStock(item) {
+        return (item.details || []).reduce((sum, d) => sum + Math.max(0, (d.totalQty || 0) - getDetailAllocatedTotal(d)), 0);
+    }
+    function isLowStockItem(item) {
+        return (item.details || []).some(d => { let sisa = (d.totalQty||0) - getDetailAllocatedTotal(d); return sisa > 0 && sisa <= LOW_STOCK_THRESHOLD; });
+    }
+    function isNearTargetItem(item) {
+        let pct = getItemProgressPercent(item);
+        return item.qtyProduksi > 0 && pct >= NEAR_TARGET_PERCENT && pct < 100;
+    }
+    function getItemEarliestDate(item) {
+        if(!item.history || item.history.length === 0) return item.date || '';
+        return item.history.map(h => h.date).sort()[0];
+    }
+    function getItemLatestDate(item) {
+        if(!item.history || item.history.length === 0) return item.date || '';
+        return item.history.map(h => h.date).sort().slice(-1)[0];
     }
 
     // --- SETUP SIZES CHECKBOXES ---
@@ -654,18 +859,36 @@
     }
 
     function loadAdminData() {
+        const fUser = document.getElementById('admin-filter-user').value.toLowerCase();
+        const fRole = document.getElementById('admin-filter-role').value;
         const tbody = document.querySelector('#admin-table tbody'); tbody.innerHTML = '';
+        let rendered = 0;
         for (const [uname, data] of Object.entries(_users)) {
             if (uname === 'admin') continue;
+            if (fUser !== '' && !uname.toLowerCase().includes(fUser)) continue;
+            if (fRole !== 'ALL' && data.role !== fRole) continue;
+            rendered++;
             let reqAlert = data.reqReset ? `<span style="color:var(--danger); font-weight:bold;">Minta Reset!</span>` : `Aman`;
             tbody.innerHTML += `<tr><td><strong>${uname}</strong></td><td>${data.role.toUpperCase().replace('_', ' ')}</td><td>${reqAlert}</td>
                 <td><button class="btn-warning btn-small" onclick="resetUserPwd('${uname}')">Reset Pwd (1234)</button> <button class="btn-danger btn-small" onclick="deleteUser('${uname}')">Hapus</button></td></tr>`;
         }
+        if(rendered === 0) tbody.innerHTML = `<tr><td colspan="4" class="notif-empty">Tidak ada user yang cocok dengan filter.</td></tr>`;
     }
 
     function loadAdminLogs() {
+        const fCari = document.getElementById('admin-logs-filter-cari').value.toLowerCase();
+        const sortBy = document.getElementById('admin-logs-sort').value;
         const tbody = document.querySelector('#admin-logs-table tbody'); tbody.innerHTML = '';
-        _logs.slice().reverse().forEach(log => {
+
+        let list = _logs.filter(log => {
+            if(fCari === '') return true;
+            return (log.user||'').toLowerCase().includes(fCari) || (log.action||'').toLowerCase().includes(fCari) || (log.details||'').toLowerCase().includes(fCari);
+        });
+        list = sortBy === 'terlama' ? list : list.slice().reverse();
+
+        if(list.length === 0) { tbody.innerHTML = `<tr><td colspan="4" class="notif-empty">Tidak ada log yang cocok dengan pencarian.</td></tr>`; return; }
+
+        list.forEach(log => {
             tbody.innerHTML += `<tr><td style="font-size:0.85em; color:var(--text-muted);">${log.time}</td>
                 <td><strong>${log.user}</strong> <br><small style="color:var(--secondary)">[${log.role.toUpperCase().replace('_', ' ')}]</small></td>
                 <td><span class="badge" style="background:#e2e8f0; color:#334155;">${log.action}</span></td><td>${log.details}</td></tr>`;
@@ -717,9 +940,17 @@
 
     // ================= BAGIAN GUDANG =================
     function switchGudangTab(tab) {
-        document.getElementById('tab-gudang-input').classList.toggle('active', tab === 'input'); document.getElementById('tab-gudang-alokasi').classList.toggle('active', tab === 'alokasi');
-        if (tab === 'alokasi') { document.getElementById('gudang-view-input').classList.add('hidden'); document.getElementById('gudang-view-alokasi').classList.remove('hidden'); loadGudangAlokasiData(); } 
-        else { document.getElementById('gudang-view-alokasi').classList.add('hidden'); document.getElementById('gudang-view-input').classList.remove('hidden'); loadGudangData(); }
+        document.getElementById('tab-gudang-input').classList.toggle('active', tab === 'input');
+        document.getElementById('tab-gudang-alokasi').classList.toggle('active', tab === 'alokasi');
+        document.getElementById('tab-gudang-form').classList.toggle('active', tab === 'form');
+
+        document.getElementById('gudang-view-input').classList.add('hidden');
+        document.getElementById('gudang-view-alokasi').classList.add('hidden');
+        document.getElementById('gudang-view-form').classList.add('hidden');
+
+        if (tab === 'alokasi') { document.getElementById('gudang-view-alokasi').classList.remove('hidden'); loadGudangAlokasiData(); }
+        else if (tab === 'form') { document.getElementById('gudang-view-form').classList.remove('hidden'); populateMitraSelects(); onFormOrderMitraChange(); loadOrderFormHistory(); }
+        else { document.getElementById('gudang-view-input').classList.remove('hidden'); loadGudangData(); }
     }
 
     function saveInventory() {
@@ -773,16 +1004,43 @@
 
     function loadGudangData() {
         const fName = document.getElementById('gudang-filter-nama').value.toLowerCase(); const fBrand = document.getElementById('gudang-filter-brand').value;
+        const fKondisi = document.getElementById('gudang-filter-kondisi').value; const fAlert = document.getElementById('gudang-filter-alert').value;
+        const sortBy = document.getElementById('gudang-sort').value;
         const tbody = document.querySelector('#gudang-table tbody'); tbody.innerHTML = '';
-        _inventory.slice().reverse().forEach(item => {
-            if ((fName !== '' && !item.name.toLowerCase().includes(fName)) || (fBrand !== 'ALL' && item.brand !== fBrand)) return;
-            let totalMasuk = 0; item.details.forEach(d => totalMasuk += d.totalQty);
+
+        let list = _inventory.filter(item => {
+            if(fName !== '' && !item.name.toLowerCase().includes(fName)) return false;
+            if(fBrand !== 'ALL' && item.brand !== fBrand) return false;
+            if(fKondisi !== 'ALL' && item.condition !== fKondisi) return false;
+            if(fAlert === 'LOW' && !isLowStockItem(item)) return false;
+            if(fAlert === 'NEAR' && !isNearTargetItem(item)) return false;
+            return true;
+        });
+
+        list.sort((a, b) => {
+            if(sortBy === 'nama_az') return a.name.localeCompare(b.name);
+            if(sortBy === 'nama_za') return b.name.localeCompare(a.name);
+            if(sortBy === 'progress_desc') return getItemProgressPercent(b) - getItemProgressPercent(a);
+            if(sortBy === 'progress_asc') return getItemProgressPercent(a) - getItemProgressPercent(b);
+            if(sortBy === 'stok_desc') return getItemTotalMasuk(b) - getItemTotalMasuk(a);
+            if(sortBy === 'terlama') return (getItemLatestDate(a) || '').localeCompare(getItemLatestDate(b) || '');
+            return (getItemLatestDate(b) || '').localeCompare(getItemLatestDate(a) || ''); // terbaru (default)
+        });
+
+        if(list.length === 0) { tbody.innerHTML = `<tr><td colspan="4" class="notif-empty">Tidak ada data yang cocok dengan filter.</td></tr>`; return; }
+
+        list.forEach(item => {
+            let totalMasuk = getItemTotalMasuk(item);
             let percent = item.qtyProduksi > 0 ? ((totalMasuk / item.qtyProduksi) * 100).toFixed(1) : 0;
             let detailStr = item.details.map(d => `<span style="background:#f1f5f9; padding:2px 6px; border-radius:4px; font-size:0.9em; margin-right:5px; white-space:nowrap; display:inline-block; margin-bottom:5px;"><b>${d.size}</b>: ${d.totalQty}</span>`).join(' ');
             let imgStr = item.image ? `<img src="${item.image}" class="item-image-preview">` : `<span style="font-size:0.8em; color:#999;">No Image</span>`;
-            
-            tbody.innerHTML += `<tr>
-                <td><strong>${item.name}</strong><br><small style="color:var(--text-muted); display:block; margin:4px 0;">📅 Tgl Masuk: <br>${getDatesDisplay(item, 'gudang')}</small>${getBadge(item.brand, 'brand')} ${getBadge(item.condition, 'cond')}<br><span class="progress-text">Progress: ${totalMasuk} / ${item.qtyProduksi || 0} pcs (${percent}%)</span></td>
+            let alertTags = '';
+            if(isLowStockItem(item)) alertTags += `<span class="mini-tag mini-tag-danger">⚠️ Stok Menipis</span>`;
+            if(isNearTargetItem(item)) alertTags += `<span class="mini-tag mini-tag-warn">🎯 Mendekati Target</span>`;
+            let rowClass = isLowStockItem(item) ? 'table-row-danger' : (isNearTargetItem(item) ? 'table-row-warn' : '');
+
+            tbody.innerHTML += `<tr class="${rowClass}">
+                <td><strong>${item.name}</strong> ${alertTags}<br><small style="color:var(--text-muted); display:block; margin:4px 0;">📅 Tgl Masuk: <br>${getDatesDisplay(item, 'gudang')}</small>${getBadge(item.brand, 'brand')} ${getBadge(item.condition, 'cond')}<br><span class="progress-text">Progress: ${totalMasuk} / ${item.qtyProduksi || 0} pcs (${percent}%)</span></td>
                 <td>${imgStr}</td><td>${detailStr}</td>
                 <td><button class="btn-warning btn-small" onclick="openEditInfoModal('${item.id}')">Edit Info Utama</button> <br><button class="btn-danger btn-small" style="margin-top:5px;" onclick="deleteGudangItem('${item.id}')">Hapus Permanen</button></td>
             </tr>`;
@@ -790,23 +1048,30 @@
     }
 
     function loadGudangAlokasiData() {
+        const fName = document.getElementById('gudang-alokasi-filter-nama').value.toLowerCase();
+        const fMitra = document.getElementById('gudang-alokasi-filter-mitra').value;
         const tbody = document.querySelector('#gudang-alokasi-table tbody'); tbody.innerHTML = '';
+        let rendered = 0;
         _inventory.forEach(item => {
+            if(fName !== '' && !item.name.toLowerCase().includes(fName)) return;
             let itemMitras = _mitras.filter(m => m.brand === item.brand || m.brand === 'BOTH'); let allocDetails = '';
             item.details.forEach(d => {
                 if(d.allocationStatus !== 'approved') return; 
 
-                let a = d.allocated; let mHtml = '';
-                if(itemMitras.length > 0) { itemMitras.forEach(m => { let v = (typeof a.mitra === 'object' && a.mitra[m.id]) ? a.mitra[m.id] : 0; if(v > 0) mHtml += `[${m.name} (${m.loc}): ${v}] `; }); }
+                let a = d.allocated; let mHtml = ''; let matchesMitraFilter = (fMitra === 'ALL');
+                if(itemMitras.length > 0) { itemMitras.forEach(m => { let v = (typeof a.mitra === 'object' && a.mitra[m.id]) ? a.mitra[m.id] : 0; if(v > 0) { mHtml += `[${m.name} (${m.loc}): ${v}] `; if(fMitra !== 'ALL' && m.id === fMitra) matchesMitraFilter = true; } }); }
+                if(!matchesMitraFilter) return;
                 let hasAlloc = (a.tiktok||a.shopee||a.web||a.butik||a.foc||mHtml.length > 0);
                 if(hasAlloc) {
                     allocDetails += `<div style="border-bottom:1px dashed #ccc; padding:5px 0; font-size:0.85em;"><strong>Size ${d.size}</strong> ➔ Tiktok:${a.tiktok||0}, Shopee:${a.shopee||0}, Web:${a.web||0}, Butik:${a.butik||0}, FOC:${a.foc||0} <br><span style="color:var(--secondary)">Mitra: ${mHtml || 'Tidak ada'}</span></div>`;
                 }
             });
             if(allocDetails === '') return; 
+            rendered++;
             let imgStr = item.image ? `<img src="${item.image}" style="max-width:80px; border-radius:5px;">` : `-`;
             tbody.innerHTML += `<tr><td style="width:25%"><strong>${item.name}</strong><br>${getBadge(item.brand, 'brand')}</td><td style="width:15%">${imgStr}</td><td style="width:60%">${allocDetails}</td></tr>`;
         });
+        if(rendered === 0) tbody.innerHTML = `<tr><td colspan="3" class="notif-empty">Tidak ada data alokasi approved yang cocok.</td></tr>`;
     }
 
     function deleteGudangItem(id) { 
@@ -933,6 +1198,373 @@
     }
 
 
+    // ================= NOTIFIKASI: STOK MENIPIS & MENDEKATI TARGET PRODUKSI =================
+    function computeNotifications() {
+        let entries = [];
+        _inventory.forEach(item => {
+            (item.details || []).forEach(d => {
+                let sisa = (d.totalQty || 0) - getDetailAllocatedTotal(d);
+                if(sisa > 0 && sisa <= LOW_STOCK_THRESHOLD) {
+                    entries.push({ icon: '⚠️', title: `Stok Menipis: ${item.name}`, sub: `Size ${d.size} (${item.condition}) — sisa ${sisa} pcs belum dialokasikan` });
+                }
+            });
+            if(isNearTargetItem(item)) {
+                let pct = getItemProgressPercent(item).toFixed(0);
+                entries.push({ icon: '🎯', title: `Mendekati Target Produksi: ${item.name}`, sub: `Progress ${pct}% (${getItemTotalMasuk(item)} / ${item.qtyProduksi} pcs)` });
+            }
+        });
+
+        ['gudang', 'sales'].forEach(role => {
+            const countEl = document.getElementById(`notif-count-${role}`);
+            const listEl = document.getElementById(`notif-list-${role}`);
+            if(!countEl || !listEl) return;
+            if(entries.length === 0) {
+                countEl.classList.add('hidden');
+                listEl.innerHTML = `<div class="notif-empty">Tidak ada notifikasi saat ini 👍</div>`;
+            } else {
+                countEl.classList.remove('hidden'); countEl.innerText = entries.length;
+                listEl.innerHTML = entries.map(e => `<div class="notif-item"><span class="notif-icon">${e.icon}</span><div><div class="notif-title">${e.title}</div><div class="notif-sub">${e.sub}</div></div></div>`).join('');
+            }
+        });
+    }
+
+    function toggleNotifPanel(which) {
+        ['gudang', 'sales'].forEach(role => {
+            const panel = document.getElementById(`notif-panel-${role}`);
+            if(!panel) return;
+            if(role === which) panel.classList.toggle('hidden'); else panel.classList.add('hidden');
+        });
+    }
+    document.addEventListener('click', function(e) {
+        ['gudang', 'sales'].forEach(role => {
+            const wrapper = document.getElementById(`notif-panel-${role}`);
+            const bell = wrapper ? wrapper.parentElement : null;
+            if(wrapper && bell && !bell.contains(e.target)) wrapper.classList.add('hidden');
+        });
+    });
+
+    // ================= FORM ORDER MITRA (KHUSUS GUDANG) =================
+    function populateMitraSelects() {
+        const alokasiSelect = document.getElementById('gudang-alokasi-filter-mitra');
+        const orderSelect = document.getElementById('order-mitra-select');
+        if(alokasiSelect) {
+            let cur = alokasiSelect.value;
+            alokasiSelect.innerHTML = `<option value="ALL">Semua Mitra</option>` + _mitras.map(m => `<option value="${m.id}">${m.name} (${m.loc})</option>`).join('');
+            if([...alokasiSelect.options].some(o => o.value === cur)) alokasiSelect.value = cur;
+        }
+        if(orderSelect) {
+            let cur = orderSelect.value;
+            orderSelect.innerHTML = `<option value="">-- Pilih Mitra --</option>` + _mitras.map(m => `<option value="${m.id}">${m.name} (${m.loc}) - ${m.brand}</option>`).join('');
+            if([...orderSelect.options].some(o => o.value === cur)) orderSelect.value = cur;
+        }
+    }
+
+    function onFormOrderMitraChange() {
+        const mitraId = document.getElementById('order-mitra-select').value;
+        const wrapper = document.getElementById('order-items-wrapper');
+        const emptyMsg = document.getElementById('order-empty-msg');
+        const tbody = document.querySelector('#order-items-table tbody');
+        tbody.innerHTML = '';
+
+        if(!mitraId) { wrapper.classList.add('hidden'); emptyMsg.classList.add('hidden'); return; }
+        const mitra = _mitras.find(m => m.id === mitraId);
+        if(!mitra) { wrapper.classList.add('hidden'); emptyMsg.classList.add('hidden'); return; }
+
+        let rowCount = 0;
+        _inventory.forEach(item => {
+            if(mitra.brand !== 'BOTH' && item.brand !== mitra.brand) return;
+            (item.details || []).forEach(d => {
+                if(d.allocationStatus !== 'approved') return;
+                let allocated = (d.allocated && typeof d.allocated.mitra === 'object') ? (parseInt(d.allocated.mitra[mitraId]) || 0) : 0;
+                if(allocated <= 0) return;
+                let issued = getDetailIssuedToMitra(d, mitraId);
+                let available = allocated - issued;
+                if(available <= 0) return;
+                rowCount++;
+                tbody.innerHTML += `<tr data-itemid="${item.id}" data-size="${d.size}" data-available="${available}">
+                    <td><input type="checkbox" checked onchange="updateOrderPreview()"></td>
+                    <td><strong>${item.name}</strong><br>${getBadge(item.brand, 'brand')}</td>
+                    <td>${d.size}</td>
+                    <td>${getBadge(item.condition, 'cond')}</td>
+                    <td>${allocated}</td>
+                    <td>${issued}</td>
+                    <td><input type="number" min="0" max="${available}" value="${available}" oninput="this.value = Math.max(0, Math.min(${available}, parseInt(this.value)||0)); updateOrderPreview();"></td>
+                </tr>`;
+            });
+        });
+
+        if(rowCount === 0) { wrapper.classList.add('hidden'); emptyMsg.classList.remove('hidden'); }
+        else { wrapper.classList.remove('hidden'); emptyMsg.classList.add('hidden'); updateOrderPreview(); }
+    }
+
+    function updateOrderPreview() {
+        const rows = document.querySelectorAll('#order-items-table tbody tr');
+        let itemCount = 0, totalQty = 0;
+        rows.forEach(r => {
+            const chk = r.querySelector('input[type="checkbox"]'); const qtyInput = r.querySelector('input[type="number"]');
+            if(chk.checked && (parseInt(qtyInput.value) || 0) > 0) { itemCount++; totalQty += parseInt(qtyInput.value) || 0; }
+        });
+        document.getElementById('order-no-preview').innerText = itemCount > 0
+            ? `Siap diterbitkan: ${itemCount} baris item, total ${totalQty} pcs.`
+            : `Belum ada item terpilih untuk diterbitkan.`;
+    }
+
+    function generateOrderFormNumber() {
+        const today = new Date(); const y = today.getFullYear(); const m = String(today.getMonth()+1).padStart(2,'0'); const d = String(today.getDate()).padStart(2,'0');
+        const prefix = `FO-${y}${m}${d}`;
+        const countToday = _orderForms.filter(f => (f.formNo || '').startsWith(prefix)).length;
+        return `${prefix}-${String(countToday + 1).padStart(3, '0')}`;
+    }
+
+    function terbitkanFormOrder() {
+        const mitraId = document.getElementById('order-mitra-select').value;
+        const mitra = _mitras.find(m => m.id === mitraId);
+        const gudangName = document.getElementById('order-gudang-name').value.trim();
+        const dateVal = document.getElementById('order-date').value;
+        const notes = document.getElementById('order-notes').value.trim();
+
+        if(!mitra) { alert('Pilih mitra tujuan terlebih dahulu.'); return; }
+        if(!gudangName) { alert('Nama petugas gudang (penyerah) wajib diisi.'); return; }
+        if(!dateVal) { alert('Tanggal serah terima wajib diisi.'); return; }
+
+        const rows = document.querySelectorAll('#order-items-table tbody tr');
+        let items = []; let updatesByItem = {};
+        rows.forEach(r => {
+            const chk = r.querySelector('input[type="checkbox"]'); const qtyInput = r.querySelector('input[type="number"]');
+            const qty = parseInt(qtyInput.value) || 0;
+            if(!chk.checked || qty <= 0) return;
+            const itemId = r.dataset.itemid; const size = r.dataset.size;
+            const invItem = _inventory.find(i => i.id === itemId);
+            if(!invItem) return;
+            items.push({ itemId, itemName: invItem.name, brand: invItem.brand, condition: invItem.condition, size, qty });
+            if(!updatesByItem[itemId]) updatesByItem[itemId] = [];
+            updatesByItem[itemId].push({ size, qty });
+        });
+
+        if(items.length === 0) { alert('Pilih minimal satu barang dengan qty lebih dari 0.'); return; }
+
+        const formNo = generateOrderFormNumber();
+        const formData = {
+            formNo, mitraId, mitraName: mitra.name, mitraLoc: mitra.loc, brand: mitra.brand,
+            date: dateVal, items, gudangName, notes,
+            status: 'issued', createdBy: currentUser || 'Guest',
+            createdAtLocal: Date.now(), timestamp: firebase.firestore.FieldValue.serverTimestamp()
+        };
+
+        // 1) Download file PDF & Excel LANGSUNG - murni di browser, tidak bergantung pada server,
+        //    supaya Gudang tetap mendapat filenya walaupun ada masalah koneksi/penyimpanan ke Firestore.
+        generateOrderFormPDF(formData);
+        downloadOrderFormExcel(formData);
+
+        // 2) Simpan record ke Firestore untuk riwayat & agar qty yang sudah diterbitkan tidak dobel
+        db.collection("orderforms").add(formData).then(() => {
+            Object.keys(updatesByItem).forEach(itemId => {
+                const invItem = _inventory.find(i => i.id === itemId);
+                if(!invItem) return;
+                let newDetails = JSON.parse(JSON.stringify(invItem.details));
+                updatesByItem[itemId].forEach(u => {
+                    let d = newDetails.find(x => x.size === u.size);
+                    if(!d) return;
+                    if(!d.issued) d.issued = {};
+                    if(!d.issued.mitra) d.issued.mitra = {};
+                    d.issued.mitra[mitraId] = (parseInt(d.issued.mitra[mitraId]) || 0) + u.qty;
+                });
+                db.collection("inventory").doc(itemId).update({ details: newDetails });
+            });
+
+            logActivity('Terbitkan Form Order Mitra', `No. Form ${formNo} untuk mitra ${mitra.name} (${items.length} baris item)`);
+
+            // Reset form
+            document.getElementById('order-gudang-name').value = '';
+            document.getElementById('order-notes').value = '';
+            document.getElementById('order-mitra-select').value = '';
+            onFormOrderMitraChange();
+            alert(`Form Order ${formNo} berhasil diterbitkan.\nFile PDF & Excel sudah otomatis terunduh ke perangkat Anda.`);
+        }).catch(err => {
+            alert(`File PDF & Excel untuk Form ${formNo} SUDAH berhasil diunduh ke perangkat Anda.\n\nNamun terjadi masalah saat menyimpan catatan ke server: ${err.message}\n\nKemungkinan besar Firestore Security Rules belum mengizinkan koleksi "orderforms". Karena catatan gagal tersimpan, sistem tidak bisa melacak qty yang sudah diterbitkan untuk form ini - mohon cek Security Rules Anda, lalu terbitkan ulang bila perlu.`);
+        });
+    }
+
+    function loadOrderFormHistory() {
+        const fCari = document.getElementById('orderform-filter-cari').value.toLowerCase();
+        const fStatus = document.getElementById('orderform-filter-status').value;
+        const sortBy = document.getElementById('orderform-sort').value;
+        const tbody = document.querySelector('#orderform-table tbody'); tbody.innerHTML = '';
+
+        let list = _orderForms.filter(f => {
+            if(fStatus !== 'ALL' && f.status !== fStatus) return false;
+            if(fCari !== '' && !((f.formNo||'').toLowerCase().includes(fCari) || (f.mitraName||'').toLowerCase().includes(fCari))) return false;
+            return true;
+        });
+        list.sort((a, b) => sortBy === 'terlama' ? (a.createdAtLocal||0) - (b.createdAtLocal||0) : (b.createdAtLocal||0) - (a.createdAtLocal||0));
+
+        if(list.length === 0) { tbody.innerHTML = `<tr><td colspan="6" class="notif-empty">Belum ada form order yang diterbitkan.</td></tr>`; return; }
+
+        list.forEach(f => {
+            const statusHtml = f.status === 'void' ? `<span class="status-void">Dibatalkan</span>` : `<span class="status-issued">Diterbitkan</span>`;
+            const voidBtn = f.status === 'issued' ? `<button class="btn-danger btn-small" onclick="voidOrderForm('${f.id}')">Batalkan</button>` : '';
+            tbody.innerHTML += `<tr>
+                <td>${f.formNo}</td>
+                <td>${f.mitraName}<br><small style="color:var(--text-muted);">${f.mitraLoc||''}</small></td>
+                <td>${formatDateDisplay(f.date)}</td>
+                <td>${(f.items||[]).length} baris (${(f.items||[]).reduce((s,i)=>s+(i.qty||0),0)} pcs)</td>
+                <td>${statusHtml}</td>
+                <td>
+                    <button class="btn-primary btn-small" onclick="generateOrderFormPDF(_orderForms.find(x=>x.id==='${f.id}'))">📄 PDF</button>
+                    <button class="btn-success btn-small" onclick="downloadOrderFormExcel(_orderForms.find(x=>x.id==='${f.id}'))">📊 Excel</button>
+                    ${voidBtn}
+                </td>
+            </tr>`;
+        });
+    }
+
+    // Helper: potong teks supaya muat di lebar kolom PDF (mencegah tulisan tumpang tindih antar kolom)
+    function truncatePdfText(doc, text, maxWidth) {
+        text = String(text == null ? '' : text);
+        if(doc.getTextWidth(text) <= maxWidth) return text;
+        while(text.length > 1 && doc.getTextWidth(text + '…') > maxWidth) text = text.slice(0, -1);
+        return text + '…';
+    }
+
+    // Generate & download FILE PDF asli (bukan window.print) menggunakan jsPDF
+    function generateOrderFormPDF(f) {
+        if(!f) { alert('Data form tidak ditemukan.'); return; }
+        if(!window.jspdf) { alert('Library PDF gagal dimuat (kemungkinan tidak ada koneksi internet). Coba refresh halaman lalu ulangi.'); return; }
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+        const pageWidth = doc.internal.pageSize.getWidth();
+        const marginX = 15;
+        let y = 18;
+
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(14); doc.setTextColor(15, 23, 42);
+        doc.text('FORM ORDER / SERAH TERIMA BARANG MITRA', marginX, y);
+        y += 6;
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(90);
+        doc.text('Zaskia Sungkar (ZS) & Shi By Shireen (SHI)', marginX, y);
+
+        doc.setTextColor(0); doc.setFontSize(10);
+        doc.text(`No. Form: ${f.formNo}`, pageWidth - marginX, 16, { align: 'right' });
+        doc.text(`Tanggal: ${formatDateDisplay(f.date)}`, pageWidth - marginX, 22, { align: 'right' });
+
+        y += 5;
+        doc.setLineWidth(0.8); doc.setDrawColor(15, 23, 42);
+        doc.line(marginX, y, pageWidth - marginX, y);
+        y += 9;
+
+        doc.setFontSize(10); doc.setFont('helvetica', 'normal');
+        doc.text(`Mitra Penerima : ${f.mitraName}`, marginX, y); y += 6;
+        doc.text(`Lokasi Mitra   : ${f.mitraLoc || '-'}`, marginX, y); y += 10;
+
+        // ---- Tabel item (digambar manual, tanpa plugin tambahan agar stabil) ----
+        const headers = ['No', 'Nama Artikel', 'Brand', 'Kondisi', 'Size', 'Qty'];
+        const colW = [12, 78, 20, 25, 22, 23]; // total = 180mm (lebar A4 - margin kiri/kanan 15mm)
+        const rowH = 8;
+
+        function drawRow(vals, opts) {
+            let x = marginX;
+            vals.forEach((val, i) => {
+                if(opts.fill) { doc.setFillColor(15, 23, 42); doc.rect(x, y, colW[i], rowH, 'F'); }
+                else { doc.rect(x, y, colW[i], rowH); }
+                doc.setTextColor(opts.fill ? 255 : 0);
+                doc.setFont('helvetica', opts.fill ? 'bold' : 'normal'); doc.setFontSize(9);
+                const align = (i === 1 && !opts.fill) ? 'left' : 'center';
+                const padX = align === 'left' ? x + 2 : x + colW[i] / 2;
+                const displayVal = truncatePdfText(doc, val, colW[i] - 3);
+                doc.text(displayVal, padX, y + rowH / 2 + 1.3, { align });
+                x += colW[i];
+            });
+            y += rowH;
+        }
+
+        drawRow(headers, { fill: true });
+        (f.items || []).forEach((it, idx) => {
+            if(y > 265) { doc.addPage(); y = 20; drawRow(headers, { fill: true }); }
+            drawRow([String(idx + 1), it.itemName, it.brand, it.condition, it.size, String(it.qty)], { fill: false });
+        });
+
+        const totalQty = (f.items || []).reduce((s, i) => s + (parseInt(i.qty) || 0), 0);
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(0);
+        doc.text(`TOTAL QTY: ${totalQty} pcs`, pageWidth - marginX, y + 6, { align: 'right' });
+        y += 14;
+
+        if(f.notes) {
+            doc.setFont('helvetica', 'italic'); doc.setFontSize(9);
+            doc.text(`Catatan: ${truncatePdfText(doc, f.notes, pageWidth - marginX * 2)}`, marginX, y);
+            y += 8;
+        }
+
+        // ---- Kolom tanda tangan kosong (untuk ditandatangani manual di kertas) ----
+        y = Math.max(y + 20, 235);
+        if(y > 270) { doc.addPage(); y = 40; }
+        const signW = 75;
+        const sign1X = marginX, sign2X = pageWidth - marginX - signW;
+        doc.setDrawColor(51, 65, 85); doc.setLineWidth(0.3);
+        doc.line(sign1X, y, sign1X + signW, y);
+        doc.line(sign2X, y, sign2X + signW, y);
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(0);
+        doc.text('Diserahkan oleh (Gudang)', sign1X + signW / 2, y + 5, { align: 'center' });
+        doc.text(`Nama: ${f.gudangName || '-'}`, sign1X + signW / 2, y + 10, { align: 'center' });
+        doc.text('Diterima oleh (Mitra)', sign2X + signW / 2, y + 5, { align: 'center' });
+        doc.text('Nama: ......................................', sign2X + signW / 2, y + 10, { align: 'center' });
+
+        doc.save(`${f.formNo}.pdf`);
+    }
+
+    // Generate & download FILE EXCEL (.xls) memakai teknik yang sama persis dengan exportExcel() di atas
+    function downloadOrderFormExcel(f) {
+        if(!f) { alert('Data form tidak ditemukan.'); return; }
+        const thStyle = "background-color:#0f172a; color:#ffffff; font-weight:bold; padding:8px; border:1px solid #000; text-align:center;";
+        const tdText = "padding:6px; border:1px solid #000; text-align:left;";
+        const tdNum = "padding:6px; border:1px solid #000; text-align:center; mso-number-format:'0';";
+        const tdBold = "padding:6px; border:1px solid #000; text-align:center; font-weight:bold;";
+        const totalQty = (f.items || []).reduce((s, i) => s + (parseInt(i.qty) || 0), 0);
+
+        let tableHtml = `
+            <tr><td style="${tdBold}" colspan="2">FORM ORDER / SERAH TERIMA BARANG MITRA</td></tr>
+            <tr><td style="${tdText}">No. Form</td><td style="${tdText}">${f.formNo}</td></tr>
+            <tr><td style="${tdText}">Tanggal</td><td style="${tdText}">${formatDateDisplay(f.date)}</td></tr>
+            <tr><td style="${tdText}">Mitra Penerima</td><td style="${tdText}">${f.mitraName}</td></tr>
+            <tr><td style="${tdText}">Lokasi Mitra</td><td style="${tdText}">${f.mitraLoc || '-'}</td></tr>
+            <tr><td style="${tdText}">Petugas Gudang</td><td style="${tdText}">${f.gudangName || '-'}</td></tr>
+            <tr><td style="${tdText}">Catatan</td><td style="${tdText}">${f.notes || '-'}</td></tr>
+            <tr><td colspan="2">&nbsp;</td></tr>
+            <tr><th style="${thStyle}">No</th><th style="${thStyle}">Nama Artikel</th><th style="${thStyle}" colspan="2">Brand / Kondisi</th><th style="${thStyle}">Size</th><th style="${thStyle}">Qty</th></tr>
+        `;
+        (f.items || []).forEach((it, idx) => {
+            tableHtml += `<tr><td style="${tdNum}">${idx + 1}</td><td style="${tdText}">${it.itemName}</td><td style="${tdText}" colspan="2">${it.brand} / ${it.condition}</td><td style="${tdText}">${it.size}</td><td style="${tdBold}">${it.qty}</td></tr>`;
+        });
+        tableHtml += `<tr><td colspan="4" style="${tdBold}; text-align:right;">TOTAL QTY</td><td colspan="2" style="${tdBold}">${totalQty}</td></tr>`;
+        tableHtml += `<tr><td colspan="6">&nbsp;</td></tr>`;
+        tableHtml += `<tr><td style="${tdText}" colspan="3">Diserahkan oleh (Gudang)</td><td style="${tdText}" colspan="3">Diterima oleh (Mitra)</td></tr>`;
+        tableHtml += `<tr><td style="${tdText}" colspan="3">Nama: ${f.gudangName || '-'}</td><td style="${tdText}" colspan="3">Nama: .......................................</td></tr>`;
+
+        let fullHtml = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="UTF-8"><style>table{border-collapse:collapse;font-family:sans-serif;}</style></head><body><table>${tableHtml}</table></body></html>`;
+        let blob = new Blob([fullHtml], { type: 'application/vnd.ms-excel' });
+        let url = URL.createObjectURL(blob); let a = document.createElement('a');
+        a.href = url; a.download = `${f.formNo}.xls`;
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    }
+
+    function voidOrderForm(formId) {
+        const f = _orderForms.find(x => x.id === formId);
+        if(!f || f.status !== 'issued') return;
+        if(!confirm(`Batalkan Form Order ${f.formNo} untuk mitra ${f.mitraName}? Qty yang sudah diterbitkan akan dikembalikan sebagai belum diterbitkan.`)) return;
+
+        (f.items || []).forEach(it => {
+            const invItem = _inventory.find(i => i.id === it.itemId);
+            if(!invItem) return;
+            let newDetails = JSON.parse(JSON.stringify(invItem.details));
+            let d = newDetails.find(x => x.size === it.size);
+            if(!d || !d.issued || !d.issued.mitra) return;
+            d.issued.mitra[f.mitraId] = Math.max(0, (parseInt(d.issued.mitra[f.mitraId]) || 0) - it.qty);
+            db.collection("inventory").doc(it.itemId).update({ details: newDetails });
+        });
+
+        db.collection("orderforms").doc(formId).update({ status: 'void', voidedBy: currentUser || 'Guest', voidedAtLocal: Date.now() }).then(() => {
+            logActivity('Batalkan Form Order Mitra', `No. Form ${f.formNo} untuk mitra ${f.mitraName}`);
+        });
+    }
+
     // ================= BAGIAN SALES =================
     function switchSalesTab(tab) {
         activeSalesTab = tab;
@@ -964,10 +1596,22 @@
     
     function loadMitraData() {
         const fBrand = document.getElementById('mitra-filter-brand').value;
+        const fCari = document.getElementById('mitra-filter-cari').value.toLowerCase();
+        const sortBy = document.getElementById('mitra-sort').value;
         const tbody = document.querySelector('#mitra-table tbody'); tbody.innerHTML = '';
-        
-        _mitras.slice().reverse().forEach(m => { 
-            if (fBrand !== 'ALL' && m.brand !== fBrand && m.brand !== 'BOTH') return;
+
+        let list = _mitras.filter(m => {
+            if(fBrand !== 'ALL' && m.brand !== fBrand && m.brand !== 'BOTH') return false;
+            if(fCari !== '' && !(m.name.toLowerCase().includes(fCari) || (m.loc||'').toLowerCase().includes(fCari))) return false;
+            return true;
+        });
+        list.reverse(); // default: terbaru dulu
+        if(sortBy === 'nama_az') list.sort((a,b) => a.name.localeCompare(b.name));
+        else if(sortBy === 'nama_za') list.sort((a,b) => b.name.localeCompare(a.name));
+
+        if(list.length === 0) { tbody.innerHTML = `<tr><td colspan="4" class="notif-empty">Tidak ada mitra yang cocok.</td></tr>`; return; }
+
+        list.forEach(m => { 
             tbody.innerHTML += `<tr><td><strong>${m.name}</strong></td><td>${m.loc}</td><td>${getBadge(m.brand, 'brand')}</td><td>
                 <button class="btn-warning btn-small" onclick="openEditMitra('${m.id}')">Edit</button>
                 <button class="btn-danger btn-small" onclick="deleteMitra('${m.id}')">Hapus</button>
@@ -1002,12 +1646,36 @@
 
     function toggleEditAlloc(id) { document.getElementById(`summary-${id}`).classList.toggle('hidden'); document.getElementById(`form-${id}`).classList.toggle('hidden'); }
 
+    // BUG FIX: fungsi ini dipanggil oleh baris tabel Sales (onclick="toggleAccordion(...)") untuk membuka/tutup
+    // form alokasi, tapi sebelumnya tidak pernah didefinisikan di file asli - menyebabkan klik baris tidak bereaksi
+    // sama sekali (form alokasi tidak pernah muncul) dan sales tidak bisa mengalokasikan barang.
+    function toggleAccordion(itemId) {
+        const row = document.getElementById(`acc-${itemId}`);
+        if(row) row.classList.toggle('hidden');
+    }
+
     function loadSalesData() {
         const fName = document.getElementById('sales-filter-nama').value.toLowerCase(); const fBrand = document.getElementById('sales-filter-brand').value;
+        const fKondisi = document.getElementById('sales-filter-kondisi').value; const sortBy = document.getElementById('sales-sort').value;
         const tbody = document.querySelector('#sales-table tbody'); tbody.innerHTML = '';
 
-        _inventory.forEach(item => {
-            if((fName && !item.name.toLowerCase().includes(fName)) || (fBrand !== 'ALL' && item.brand !== fBrand)) return;
+        let sourceList = _inventory.filter(item => {
+            if(fName && !item.name.toLowerCase().includes(fName)) return false;
+            if(fBrand !== 'ALL' && item.brand !== fBrand) return false;
+            if(fKondisi !== 'ALL' && item.condition !== fKondisi) return false;
+            return true;
+        });
+        sourceList.sort((a, b) => {
+            if(sortBy === 'nama_az') return a.name.localeCompare(b.name);
+            if(sortBy === 'nama_za') return b.name.localeCompare(a.name);
+            if(sortBy === 'sisa_desc') return getItemAvailableStock(b) - getItemAvailableStock(a);
+            if(sortBy === 'sisa_asc') return getItemAvailableStock(a) - getItemAvailableStock(b);
+            if(sortBy === 'terlama') return (getItemEarliestDate(a) || '').localeCompare(getItemEarliestDate(b) || '');
+            return (getItemLatestDate(b) || '').localeCompare(getItemLatestDate(a) || ''); // terbaru (default)
+        });
+
+        let renderedAny = false;
+        sourceList.forEach(item => {
 
             let totalStock = 0; let totalAlloc = 0; let sizesToRender = [];
             let itemMitras = _mitras.filter(m => m.brand === item.brand || m.brand === 'BOTH');
@@ -1027,6 +1695,7 @@
             });
 
             if(sizesToRender.length === 0) return; 
+            renderedAny = true;
             let sisaGudang = totalStock - totalAlloc;
             let percent = item.qtyProduksi > 0 ? ((totalStock / item.qtyProduksi) * 100).toFixed(1) : 0;
 
@@ -1138,6 +1807,7 @@
             trStr += `<div style="margin-top:10px; text-align:right;">${actionBtns}</div></div></td></tr>`;
             tbody.innerHTML += trStr;
         });
+        if(!renderedAny) tbody.innerHTML = `<tr><td colspan="5" class="notif-empty">Tidak ada data yang cocok dengan filter.</td></tr>`;
     }
 
     function saveAllocation(itemId, mode, targetStatus) {
