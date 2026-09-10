@@ -258,16 +258,17 @@
                 </div>
             </div>
 
+            <!-- VIEW: OVERSIGHT FORM ORDER KHUSUS ADMIN -->
             <div id="admin-view-form" class="hidden">
                 <div class="header-actions" style="margin-top:10px;">
                     <div class="filter-bar">
                         <input type="text" id="admin-orderform-filter" placeholder="Cari No. Form / Mitra..." oninput="loadAdminFormOrder()">
                     </div>
                 </div>
-                <p style="font-size:0.85em; color:var(--text-muted);">Pantauan seluruh Surat Serah Terima (Form Order) yang diterbitkan Gudang. (Read-Only)</p>
+                <p style="font-size:0.85em; color:var(--text-muted);">Pantauan seluruh Surat Serah Terima (Form Order). Anda dapat menghapus permanen form yang berstatus "Dibatalkan".</p>
                 <div class="table-container">
                     <table id="admin-orderform-table">
-                        <thead><tr><th>No. Form</th><th>Mitra</th><th>Tanggal</th><th>Jumlah Item</th><th>Status</th><th>Aksi (Download)</th></tr></thead>
+                        <thead><tr><th>No. Form</th><th>Mitra</th><th>Tanggal</th><th>Jumlah Item</th><th>Status</th><th>Aksi</th></tr></thead>
                         <tbody></tbody>
                     </table>
                 </div>
@@ -450,7 +451,6 @@
                     </div>
                 </div>
                 
-                <!-- FITUR BARU: Aksi Massal History -->
                 <div class="filter-bar" style="margin-bottom:15px; padding: 10px 15px; border: 1px solid var(--border); background: white;">
                     <span style="font-size:0.85em; font-weight:bold; color:var(--text-muted); margin-right:5px;">Aksi Massal Terpilih:</span>
                     <button class="btn-primary btn-small" onclick="batchDownloadHistoryPDF()">📄 Print PDF Massal</button>
@@ -605,7 +605,6 @@
                 </div>
             </div>
 
-            <!-- VIEW: MANAJEMEN MITRA -->
             <div id="sales-view-mitra" class="hidden">
                 <div style="background:#f8fafc; padding:20px; border-radius:8px; border:1px solid var(--border); margin-bottom:20px;">
                     <h3 style="margin-bottom: 15px; font-size:1.1em;">Tambah Mitra Baru</h3>
@@ -648,7 +647,6 @@
         </div>
     </div>
 
-    <!-- MODAL EDIT MITRA -->
     <div id="modal-edit-mitra" class="modal-overlay hidden">
         <div class="modal-content fade-in" style="max-width: 500px;">
             <h3>Edit Mitra</h3><input type="hidden" id="edit-mitra-id">
@@ -689,20 +687,10 @@
     // ==========================================
     // GLOBAL STATE VARIABLES 
     // ==========================================
-    let _users = {};
-    let _inventory = [];
-    let _mitras = [];
-    let _logs = [];
-    let _orderForms = [];
-    
-    // Variabel Sistem Dinamis
+    let _users = {}; let _inventory = []; let _mitras = []; let _logs = []; let _orderForms = [];
     let globalSizes = ['S', 'M', 'L', 'XL', 'All Size', 'S-M', 'L-XL', 'XXL'];
-    let LOW_STOCK_THRESHOLD = 5;      
-    let NEAR_TARGET_PERCENT = 90;     
-
-    let activeSalesTab = 'belum';
-    let currentUser = null;
-    let currentUserRole = null;
+    let LOW_STOCK_THRESHOLD = 5; let NEAR_TARGET_PERCENT = 90;     
+    let activeSalesTab = 'belum'; let currentUser = null; let currentUserRole = null;
 
     document.getElementById('itemDate').valueAsDate = new Date();
     document.getElementById('order-date').valueAsDate = new Date();
@@ -710,29 +698,20 @@
     // ==========================================
     // FIREBASE REAL-TIME LISTENERS
     // ==========================================
-    
     db.collection("users").onSnapshot(snap => {
-        _users = {};
-        snap.forEach(doc => { _users[doc.id] = doc.data(); });
-        if (!_users['admin']) {
-            db.collection("users").doc("admin").set({ password: 'admin', role: 'admin', status: 'active', reqReset: false, mustChange: false });
-        }
+        _users = {}; snap.forEach(doc => { _users[doc.id] = doc.data(); });
+        if (!_users['admin']) { db.collection("users").doc("admin").set({ password: 'admin', role: 'admin', status: 'active', reqReset: false, mustChange: false }); }
         if(!document.getElementById('admin-section').classList.contains('hidden') && !document.getElementById('admin-view-users').classList.contains('hidden')) loadAdminData();
-        document.getElementById('server-status').innerText = "🟢 Terhubung ke Server";
-        document.getElementById('server-status').style.backgroundColor = "var(--success)";
+        document.getElementById('server-status').innerText = "🟢 Terhubung ke Server"; document.getElementById('server-status').style.backgroundColor = "var(--success)";
     }, err => { console.error(err); document.getElementById('server-status').innerText = "🔴 Gagal Konek Database"; });
 
     db.collection("settings").doc("system").onSnapshot(doc => {
         if (doc.exists) {
-            let data = doc.data();
-            LOW_STOCK_THRESHOLD = data.lowStockThreshold || 5;
-            NEAR_TARGET_PERCENT = data.nearTargetPercent || 90;
+            let data = doc.data(); LOW_STOCK_THRESHOLD = data.lowStockThreshold || 5; NEAR_TARGET_PERCENT = data.nearTargetPercent || 90;
             if(data.globalSizes && Array.isArray(data.globalSizes)) { globalSizes = data.globalSizes; }
         }
         if(document.getElementById('setting-low-stock')) {
-            document.getElementById('setting-low-stock').value = LOW_STOCK_THRESHOLD;
-            document.getElementById('setting-near-target').value = NEAR_TARGET_PERCENT;
-            document.getElementById('setting-sizes').value = globalSizes.join(', ');
+            document.getElementById('setting-low-stock').value = LOW_STOCK_THRESHOLD; document.getElementById('setting-near-target').value = NEAR_TARGET_PERCENT; document.getElementById('setting-sizes').value = globalSizes.join(', ');
         }
         renderSizeCheckboxes('size-container', '');
         if(!document.getElementById('modal-edit-batch').classList.contains('hidden')) renderSizeCheckboxes('edit-batch-size-container', 'edit-batch-');
@@ -741,8 +720,7 @@
     });
 
     db.collection("inventory").onSnapshot(snap => {
-        _inventory = [];
-        snap.forEach(doc => { let data = doc.data(); data.id = doc.id; _inventory.push(data); });
+        _inventory = []; snap.forEach(doc => { let data = doc.data(); data.id = doc.id; _inventory.push(data); });
         
         if(!document.getElementById('gudang-section').classList.contains('hidden')) {
             if(document.getElementById('gudang-view-input').classList.contains('hidden') === false) loadGudangData();
@@ -760,15 +738,12 @@
     });
 
     db.collection("mitras").onSnapshot(snap => {
-        _mitras = [];
-        snap.forEach(doc => { _mitras.push({id: doc.id, ...doc.data()}); });
-        if(!document.getElementById('sales-view-mitra').classList.contains('hidden')) loadMitraData();
-        populateMitraSelects();
+        _mitras = []; snap.forEach(doc => { _mitras.push({id: doc.id, ...doc.data()}); });
+        if(!document.getElementById('sales-view-mitra').classList.contains('hidden')) loadMitraData(); populateMitraSelects();
     });
 
     db.collection("orderforms").orderBy("createdAtLocal", "asc").onSnapshot(snap => {
-        _orderForms = [];
-        snap.forEach(doc => { _orderForms.push({id: doc.id, ...doc.data()}); });
+        _orderForms = []; snap.forEach(doc => { _orderForms.push({id: doc.id, ...doc.data()}); });
         if(!document.getElementById('gudang-section').classList.contains('hidden') && document.getElementById('gudang-view-form').classList.contains('hidden') === false) {
             loadOrderFormHistory(); onFormOrderMitraChange();
         }
@@ -779,8 +754,7 @@
     });
 
     db.collection("logs").orderBy("timestamp", "asc").onSnapshot(snap => {
-        _logs = [];
-        snap.forEach(doc => { _logs.push(doc.data()); });
+        _logs = []; snap.forEach(doc => { _logs.push(doc.data()); });
         if(!document.getElementById('admin-view-logs').classList.contains('hidden')) loadAdminLogs();
     });
 
@@ -793,18 +767,13 @@
     function safeId(str) { return str.replace(/[^a-zA-Z0-9]/g, '_'); }
     function getBadge(val, type) { 
         if(type === 'brand') {
-            if(val === 'ZS') return `<span class="badge badge-zs">ZS</span>`;
-            if(val === 'SHI') return `<span class="badge badge-shi">SHI</span>`;
-            if(val === 'BOTH') return `<span class="badge badge-both">ZS & SHI</span>`;
+            if(val === 'ZS') return `<span class="badge badge-zs">ZS</span>`; if(val === 'SHI') return `<span class="badge badge-shi">SHI</span>`; if(val === 'BOTH') return `<span class="badge badge-both">ZS & SHI</span>`;
         }
         return (val === 'Oke' ? `<span class="badge badge-oke">Oke</span>` : `<span class="badge badge-defect">Defect</span>`); 
     }
     function formatDateDisplay(dateStr) { return dateStr ? dateStr.split('-').reverse().join('-') : '-'; }
-
     function getDatesDisplay(item, role) {
-        if(!item.history) return '-';
-        let dates = [...new Set(item.history.map(h => h.date))].sort();
-        let displayStr = dates.map(d => formatDateDisplay(d)).join(', ');
+        if(!item.history) return '-'; let dates = [...new Set(item.history.map(h => h.date))].sort(); let displayStr = dates.map(d => formatDateDisplay(d)).join(', ');
         return `<span class="clickable-dates" style="font-weight:600; text-decoration: underline; color:var(--secondary);" onclick="openHistoryModal('${item.id}', '${role}'); event.stopPropagation();" title="Klik untuk lihat detail ukuran masuk per tanggal">${displayStr} <br><small><i>(Klik lihat detail)</i></small></span>`;
     }
 
@@ -814,33 +783,14 @@
         if(typeof a.mitra === 'object') Object.values(a.mitra).forEach(v => mitraTotal += (parseInt(v) || 0));
         return (a.tiktok||0) + (a.shopee||0) + (a.web||0) + (a.butik||0) + (a.foc||0) + mitraTotal;
     }
-    function getDetailIssuedToMitra(d, mitraId) {
-        if(!d.issued || typeof d.issued.mitra !== 'object') return 0;
-        return parseInt(d.issued.mitra[mitraId]) || 0;
-    }
+    function getDetailIssuedToMitra(d, mitraId) { if(!d.issued || typeof d.issued.mitra !== 'object') return 0; return parseInt(d.issued.mitra[mitraId]) || 0; }
     function getItemTotalMasuk(item) { return (item.details || []).reduce((sum, d) => sum + (d.totalQty || 0), 0); }
-    function getItemProgressPercent(item) {
-        let total = getItemTotalMasuk(item);
-        return item.qtyProduksi > 0 ? (total / item.qtyProduksi) * 100 : 0;
-    }
-    function getItemAvailableStock(item) {
-        return (item.details || []).reduce((sum, d) => sum + Math.max(0, (d.totalQty || 0) - getDetailAllocatedTotal(d)), 0);
-    }
-    function isLowStockItem(item) {
-        return (item.details || []).some(d => { let sisa = (d.totalQty||0) - getDetailAllocatedTotal(d); return sisa > 0 && sisa <= LOW_STOCK_THRESHOLD; });
-    }
-    function isNearTargetItem(item) {
-        let pct = getItemProgressPercent(item);
-        return item.qtyProduksi > 0 && pct >= NEAR_TARGET_PERCENT && pct < 100;
-    }
-    function getItemEarliestDate(item) {
-        if(!item.history || item.history.length === 0) return item.date || '';
-        return item.history.map(h => h.date).sort()[0];
-    }
-    function getItemLatestDate(item) {
-        if(!item.history || item.history.length === 0) return item.date || '';
-        return item.history.map(h => h.date).sort().slice(-1)[0];
-    }
+    function getItemProgressPercent(item) { let total = getItemTotalMasuk(item); return item.qtyProduksi > 0 ? (total / item.qtyProduksi) * 100 : 0; }
+    function getItemAvailableStock(item) { return (item.details || []).reduce((sum, d) => sum + Math.max(0, (d.totalQty || 0) - getDetailAllocatedTotal(d)), 0); }
+    function isLowStockItem(item) { return (item.details || []).some(d => { let sisa = (d.totalQty||0) - getDetailAllocatedTotal(d); return sisa > 0 && sisa <= LOW_STOCK_THRESHOLD; }); }
+    function isNearTargetItem(item) { let pct = getItemProgressPercent(item); return item.qtyProduksi > 0 && pct >= NEAR_TARGET_PERCENT && pct < 100; }
+    function getItemEarliestDate(item) { if(!item.history || item.history.length === 0) return item.date || ''; return item.history.map(h => h.date).sort()[0]; }
+    function getItemLatestDate(item) { if(!item.history || item.history.length === 0) return item.date || ''; return item.history.map(h => h.date).sort().slice(-1)[0]; }
 
     function renderSizeCheckboxes(containerId, prefix) {
         const container = document.getElementById(containerId); container.innerHTML = '';
@@ -850,21 +800,15 @@
         });
     }
     function toggleSizeInput(prefix, sid) { const input = document.getElementById(`${prefix}qty-${sid}`); input.classList.toggle('hidden'); if(input.classList.contains('hidden')) input.value = ''; }
-    
     function addCustomSize(ctx) {
-        let inputEl;
-        if(ctx === 'main') inputEl = document.getElementById('custom-size-input');
-        else if (ctx === 'batch') inputEl = document.getElementById('edit-batch-custom-size-input');
-        
+        let inputEl; if(ctx === 'main') inputEl = document.getElementById('custom-size-input'); else if (ctx === 'batch') inputEl = document.getElementById('edit-batch-custom-size-input');
         const val = inputEl.value.trim();
         if(val && !globalSizes.includes(val)) { 
-            globalSizes.push(val); 
-            renderSizeCheckboxes('size-container', ''); 
+            globalSizes.push(val); renderSizeCheckboxes('size-container', ''); 
             if(!document.getElementById('modal-edit-batch').classList.contains('hidden')) renderSizeCheckboxes('edit-batch-size-container', 'edit-batch-'); 
         }
         inputEl.value = '';
     }
-    renderSizeCheckboxes('size-container', '');
 
     // --- AUTENTIKASI ---
     function toggleAuth(view) {
@@ -875,19 +819,12 @@
 
     function login() {
         const u = document.getElementById('login-username').value.trim().toLowerCase(); 
-        const p = document.getElementById('login-password').value;
-        const userData = _users[u];
+        const p = document.getElementById('login-password').value; const userData = _users[u];
 
         if (userData && userData.password === p) {
-            if (userData.status === 'suspended') {
-                document.getElementById('login-msg').innerText = 'Akun dinonaktifkan oleh Admin.';
-                return;
-            }
-
+            if (userData.status === 'suspended') { document.getElementById('login-msg').innerText = 'Akun dinonaktifkan oleh Admin.'; return; }
             document.getElementById('login-msg').innerText = ''; document.getElementById('auth-section').classList.add('hidden'); 
-            currentUser = u;
-            currentUserRole = userData.role;
-
+            currentUser = u; currentUserRole = userData.role;
             db.collection("users").doc(u).update({ lastLogin: Date.now() });
 
             if (userData.mustChange) { document.getElementById('force-pwd-section').classList.remove('hidden'); } 
@@ -900,10 +837,8 @@
         else if (role === 'gudang') { document.getElementById('gudang-section').classList.remove('hidden'); loadGudangData(); } 
         else { 
             document.getElementById('sales-section').classList.remove('hidden'); 
-            let badgeRole = role === 'sales_leader' ? 'LEADER / SPV' : 'STAFF';
-            document.getElementById('sales-role-badge').innerText = badgeRole;
-            if(role === 'sales_leader') document.getElementById('sales-role-badge').style.backgroundColor = '#6b21a8';
-            else document.getElementById('sales-role-badge').style.backgroundColor = '#0f172a';
+            let badgeRole = role === 'sales_leader' ? 'LEADER / SPV' : 'STAFF'; document.getElementById('sales-role-badge').innerText = badgeRole;
+            if(role === 'sales_leader') document.getElementById('sales-role-badge').style.backgroundColor = '#6b21a8'; else document.getElementById('sales-role-badge').style.backgroundColor = '#0f172a';
             loadSalesData(); 
         }
     }
@@ -926,9 +861,7 @@
     }
 
     function saveForcedPassword() {
-        const p = document.getElementById('force-new-pwd').value;
-        if(p.length < 3) return alert('Password minimal 3 karakter');
-        
+        const p = document.getElementById('force-new-pwd').value; if(p.length < 3) return alert('Password minimal 3 karakter');
         db.collection("users").doc(currentUser).update({ password: p, mustChange: false }).then(() => {
             logActivity('Ganti Password Wajib', `User berhasil mengganti password sementara`);
             document.getElementById('force-pwd-section').classList.add('hidden'); alert('Password berhasil diubah!'); routeUser(currentUserRole);
@@ -938,62 +871,38 @@
     // --- SUPERADMIN ---
     function switchAdminTab(tab) {
         ['users', 'logs', 'alokasi', 'form', 'mitra', 'settings'].forEach(t => {
-            document.getElementById(`tab-admin-${t}`).classList.toggle('active', tab === t);
-            document.getElementById(`admin-view-${t}`).classList.add('hidden');
+            document.getElementById(`tab-admin-${t}`).classList.toggle('active', tab === t); document.getElementById(`admin-view-${t}`).classList.add('hidden');
         });
         document.getElementById(`admin-view-${tab}`).classList.remove('hidden');
-
-        if(tab === 'users') loadAdminData();
-        else if(tab === 'logs') loadAdminLogs();
-        else if(tab === 'alokasi') loadAdminAlokasi();
-        else if(tab === 'form') loadAdminFormOrder();
+        if(tab === 'users') loadAdminData(); else if(tab === 'logs') loadAdminLogs(); else if(tab === 'alokasi') loadAdminAlokasi(); else if(tab === 'form') loadAdminFormOrder();
     }
 
     function saveSystemSettings() {
-        let low = parseInt(document.getElementById('setting-low-stock').value) || 5;
-        let near = parseInt(document.getElementById('setting-near-target').value) || 90;
-        let sizesStr = document.getElementById('setting-sizes').value;
-        let sizesArr = sizesStr.split(',').map(s => s.trim()).filter(s => s.length > 0);
-        
+        let low = parseInt(document.getElementById('setting-low-stock').value) || 5; let near = parseInt(document.getElementById('setting-near-target').value) || 90;
+        let sizesStr = document.getElementById('setting-sizes').value; let sizesArr = sizesStr.split(',').map(s => s.trim()).filter(s => s.length > 0);
         if(sizesArr.length === 0) sizesArr = ['S', 'M', 'L', 'XL'];
         
         db.collection("settings").doc("system").set({ lowStockThreshold: low, nearTargetPercent: near, globalSizes: sizesArr }, { merge: true }).then(() => {
-            logActivity('Ubah Pengaturan Sistem', `Admin memperbarui ambang batas notifikasi & ukuran master`);
-            alert('Pengaturan sistem berhasil disimpan!');
+            logActivity('Ubah Pengaturan Sistem', `Admin memperbarui ambang batas notifikasi & ukuran master`); alert('Pengaturan sistem berhasil disimpan!');
         }).catch(err => { console.error(err); alert('Gagal menyimpan pengaturan!'); });
     }
 
-    function openAddUserModal() {
-        document.getElementById('new-user-name').value = ''; document.getElementById('new-user-pwd').value = '';
-        document.getElementById('modal-add-user').classList.remove('hidden');
-    }
+    function openAddUserModal() { document.getElementById('new-user-name').value = ''; document.getElementById('new-user-pwd').value = ''; document.getElementById('modal-add-user').classList.remove('hidden'); }
     function closeAddUserModal() { document.getElementById('modal-add-user').classList.add('hidden'); }
-    
     function saveNewUser() {
-        const u = document.getElementById('new-user-name').value.trim().toLowerCase();
-        const p = document.getElementById('new-user-pwd').value;
-        const r = document.getElementById('new-user-role').value;
-        if(!u || !p) return alert('Username & Password wajib diisi!');
-        if(_users[u]) return alert('Username sudah terdaftar!');
-        
+        const u = document.getElementById('new-user-name').value.trim().toLowerCase(); const p = document.getElementById('new-user-pwd').value; const r = document.getElementById('new-user-role').value;
+        if(!u || !p) return alert('Username & Password wajib diisi!'); if(_users[u]) return alert('Username sudah terdaftar!');
         db.collection("users").doc(u).set({ password: p, role: r, status: 'active', reqReset: false, mustChange: true }).then(() => {
-            logActivity('Buat User Baru', `Admin membuat akun baru: ${u} (${r})`);
-            closeAddUserModal(); alert(`Akun ${u} berhasil dibuat. Saat login pertama, sistem akan memaksa ganti password.`);
+            logActivity('Buat User Baru', `Admin membuat akun baru: ${u} (${r})`); closeAddUserModal(); alert(`Akun ${u} berhasil dibuat. Saat login pertama, sistem akan memaksa ganti password.`);
         });
     }
 
-    function changeUserRole(uname, newRole) {
-        db.collection("users").doc(uname).update({ role: newRole }).then(() => { logActivity('Ubah Role User', `Admin mengubah role ${uname} menjadi ${newRole}`); });
-    }
-    function toggleUserStatus(uname, newStatus) {
-        db.collection("users").doc(uname).update({ status: newStatus }).then(() => { logActivity('Ubah Status User', `Admin men-set status ${uname} menjadi ${newStatus}`); });
-    }
+    function changeUserRole(uname, newRole) { db.collection("users").doc(uname).update({ role: newRole }).then(() => { logActivity('Ubah Role User', `Admin mengubah role ${uname} menjadi ${newRole}`); }); }
+    function toggleUserStatus(uname, newStatus) { db.collection("users").doc(uname).update({ status: newStatus }).then(() => { logActivity('Ubah Status User', `Admin men-set status ${uname} menjadi ${newStatus}`); }); }
 
     function loadAdminData() {
-        const fUser = document.getElementById('admin-filter-user').value.toLowerCase();
-        const fRole = document.getElementById('admin-filter-role').value;
-        const tbody = document.querySelector('#admin-table tbody'); tbody.innerHTML = '';
-        let rendered = 0;
+        const fUser = document.getElementById('admin-filter-user').value.toLowerCase(); const fRole = document.getElementById('admin-filter-role').value;
+        const tbody = document.querySelector('#admin-table tbody'); tbody.innerHTML = ''; let rendered = 0;
         
         for (const [uname, data] of Object.entries(_users)) {
             if (uname === 'admin') continue;
@@ -1003,46 +912,30 @@
             
             let reqAlert = data.reqReset ? `<span style="color:var(--danger); font-weight:bold;">Minta Reset!</span>` : `Aman`;
             let roleSelect = `<select onchange="changeUserRole('${uname}', this.value)" style="padding:4px; font-size:0.9em; width:auto; border:1px solid #ccc;">
-                <option value="gudang" ${data.role==='gudang'?'selected':''}>Gudang</option>
-                <option value="sales_staff" ${data.role==='sales_staff'?'selected':''}>Sales Staff</option>
-                <option value="sales_leader" ${data.role==='sales_leader'?'selected':''}>Sales Leader</option>
+                <option value="gudang" ${data.role==='gudang'?'selected':''}>Gudang</option><option value="sales_staff" ${data.role==='sales_staff'?'selected':''}>Sales Staff</option><option value="sales_leader" ${data.role==='sales_leader'?'selected':''}>Sales Leader</option>
             </select>`;
             let statusBadge = data.status === 'suspended' ? `<span class="badge badge-defect">Suspended</span>` : `<span class="badge badge-oke">Aktif</span>`;
             let suspendBtn = data.status === 'suspended' ? `<button class="btn-success btn-small" onclick="toggleUserStatus('${uname}', 'active')">Aktifkan</button>` : `<button class="btn-warning btn-small" onclick="toggleUserStatus('${uname}', 'suspended')">Suspend</button>`;
             let lastLoginText = data.lastLogin ? new Date(data.lastLogin).toLocaleString('id-ID', {day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit'}) : '-';
 
             tbody.innerHTML += `<tr>
-                <td><strong>${uname}</strong><br>${statusBadge}</td>
-                <td>${roleSelect}</td>
-                <td><small style="color:var(--text-muted);">${lastLoginText}</small></td>
-                <td>${reqAlert}</td>
-                <td>
-                    ${suspendBtn}
-                    <button class="btn-primary btn-small" onclick="resetUserPwd('${uname}')" style="margin-left:4px;">Reset Pwd</button> 
-                    <button class="btn-danger btn-small" onclick="deleteUser('${uname}')" style="margin-left:4px;">Hapus</button>
-                </td>
+                <td><strong>${uname}</strong><br>${statusBadge}</td><td>${roleSelect}</td><td><small style="color:var(--text-muted);">${lastLoginText}</small></td><td>${reqAlert}</td>
+                <td>${suspendBtn} <button class="btn-primary btn-small" onclick="resetUserPwd('${uname}')" style="margin-left:4px;">Reset Pwd</button> <button class="btn-danger btn-small" onclick="deleteUser('${uname}')" style="margin-left:4px;">Hapus</button></td>
             </tr>`;
         }
         if(rendered === 0) tbody.innerHTML = `<tr><td colspan="5" class="notif-empty">Tidak ada user yang cocok dengan filter.</td></tr>`;
     }
 
     function loadAdminLogs() {
-        const fCari = document.getElementById('admin-logs-filter-cari').value.toLowerCase();
-        const sortBy = document.getElementById('admin-logs-sort').value;
+        const fCari = document.getElementById('admin-logs-filter-cari').value.toLowerCase(); const sortBy = document.getElementById('admin-logs-sort').value;
         const tbody = document.querySelector('#admin-logs-table tbody'); tbody.innerHTML = '';
-
         let list = _logs.filter(log => {
-            if(fCari === '') return true;
-            return (log.user||'').toLowerCase().includes(fCari) || (log.action||'').toLowerCase().includes(fCari) || (log.details||'').toLowerCase().includes(fCari);
+            if(fCari === '') return true; return (log.user||'').toLowerCase().includes(fCari) || (log.action||'').toLowerCase().includes(fCari) || (log.details||'').toLowerCase().includes(fCari);
         });
         list = sortBy === 'terlama' ? list : list.slice().reverse();
-
         if(list.length === 0) { tbody.innerHTML = `<tr><td colspan="4" class="notif-empty">Tidak ada log yang cocok dengan pencarian.</td></tr>`; return; }
-
         list.forEach(log => {
-            tbody.innerHTML += `<tr><td style="font-size:0.85em; color:var(--text-muted);">${log.time}</td>
-                <td><strong>${log.user}</strong> <br><small style="color:var(--secondary)">[${log.role.toUpperCase().replace('_', ' ')}]</small></td>
-                <td><span class="badge" style="background:#e2e8f0; color:#334155;">${log.action}</span></td><td>${log.details}</td></tr>`;
+            tbody.innerHTML += `<tr><td style="font-size:0.85em; color:var(--text-muted);">${log.time}</td><td><strong>${log.user}</strong> <br><small style="color:var(--secondary)">[${log.role.toUpperCase().replace('_', ' ')}]</small></td><td><span class="badge" style="background:#e2e8f0; color:#334155;">${log.action}</span></td><td>${log.details}</td></tr>`;
         });
     }
 
@@ -1059,9 +952,7 @@
     }
 
     function loadAdminAlokasi() {
-        const fName = document.getElementById('admin-alokasi-filter-nama').value.toLowerCase();
-        const tbody = document.querySelector('#admin-alokasi-table tbody'); tbody.innerHTML = '';
-        let rendered = 0;
+        const fName = document.getElementById('admin-alokasi-filter-nama').value.toLowerCase(); const tbody = document.querySelector('#admin-alokasi-table tbody'); tbody.innerHTML = ''; let rendered = 0;
         _inventory.forEach(item => {
             if(fName !== '' && !item.name.toLowerCase().includes(fName)) return;
             let itemMitras = _mitras.filter(m => m.brand === item.brand || m.brand === 'BOTH'); let allocDetails = '';
@@ -1073,14 +964,14 @@
                     allocDetails += `<div style="border-bottom:1px dashed #ccc; padding:5px 0; font-size:0.85em;"><strong>Size ${d.size}</strong> ➔ Tiktok:${a.tiktok||0}, Shopee:${a.shopee||0}, Web:${a.web||0}, Butik:${a.butik||0}, FOC:${a.foc||0} <br><span style="color:var(--secondary)">Mitra: ${mHtml || 'Tidak ada'}</span></div>`;
                 }
             });
-            if(allocDetails === '') return; 
-            rendered++;
+            if(allocDetails === '') return;  rendered++;
             let imgStr = item.image ? `<img src="${item.image}" style="max-width:80px; border-radius:5px;">` : `-`;
             tbody.innerHTML += `<tr><td style="width:25%"><strong>${item.name}</strong><br>${getBadge(item.brand, 'brand')}</td><td style="width:15%">${imgStr}</td><td style="width:60%">${allocDetails}</td></tr>`;
         });
         if(rendered === 0) tbody.innerHTML = `<tr><td colspan="3" class="notif-empty">Tidak ada data alokasi yang cocok.</td></tr>`;
     }
 
+    // TAMPILAN FORM ORDER ADMIN & FUNGSI HAPUS PERMANEN
     function loadAdminFormOrder() {
         const fCari = document.getElementById('admin-orderform-filter').value.toLowerCase();
         const tbody = document.querySelector('#admin-orderform-table tbody'); tbody.innerHTML = '';
@@ -1094,6 +985,14 @@
 
         list.forEach(f => {
             const statusHtml = f.status === 'void' ? `<span class="status-void">Dibatalkan</span>` : `<span class="status-issued">Diterbitkan</span>`;
+            
+            let adminBtn = '';
+            if (f.status === 'issued') {
+                adminBtn = `<button class="btn-warning btn-small" style="margin-left:4px;" onclick="voidOrderForm('${f.id}')">Batalkan (Void)</button>`;
+            } else if (f.status === 'void') {
+                adminBtn = `<button class="btn-danger btn-small" style="margin-left:4px;" onclick="deleteOrderFormPermanently('${f.id}')">Hapus Permanen</button>`;
+            }
+
             tbody.innerHTML += `<tr>
                 <td>${f.formNo}</td><td>${f.mitraName}</td><td>${formatDateDisplay(f.date)}</td>
                 <td>${(f.items||[]).length} baris (${(f.items||[]).reduce((s,i)=>s+(i.qty||0),0)} pcs)</td>
@@ -1101,36 +1000,24 @@
                 <td>
                     <button class="btn-primary btn-small" onclick="generateOrderFormPDF(_orderForms.find(x=>x.id==='${f.id}'))">📄 PDF</button>
                     <button class="btn-success btn-small" onclick="downloadBatchOrderFormExcel([_orderForms.find(x=>x.id==='${f.id}')])">📊 Excel</button>
+                    ${adminBtn}
                 </td>
             </tr>`;
         });
     }
 
-    function handleImagePaste(e, itemId) {
-        let items = (e.clipboardData || e.originalEvent.clipboardData).items;
-        for (let index in items) {
-            let item = items[index];
-            if (item.kind === 'file' && item.type.includes('image')) {
-                let blob = item.getAsFile(); let reader = new FileReader();
-                reader.onload = function(event) {
-                    let img = new Image();
-                    img.onload = function() {
-                        let cvs = document.createElement('canvas'); let maxW = 300; let scale = maxW / img.width;
-                        cvs.width = maxW; cvs.height = img.height * scale;
-                        let ctx = cvs.getContext('2d'); ctx.drawImage(img, 0, 0, cvs.width, cvs.height);
-                        let dataUrl = cvs.toDataURL('image/jpeg', 0.8);
-                        
-                        db.collection("inventory").doc(itemId).update({ image: dataUrl }).then(() => {
-                            let invItem = _inventory.find(x => x.id === itemId);
-                            logActivity('Upload Foto', `Menyisipkan foto pada barang: ${invItem ? invItem.name : itemId}`); 
-                            alert('Foto tersimpan!'); 
-                        });
-                    }
-                    img.src = event.target.result;
-                };
-                reader.readAsDataURL(blob); e.preventDefault(); return;
-            }
-        }
+    function deleteOrderFormPermanently(formId) {
+        const f = _orderForms.find(x => x.id === formId);
+        if(!f) return;
+        if(f.status !== 'void') { alert('Form Order harus dibatalkan (void) terlebih dahulu agar stok dikembalikan ke sistem!'); return; }
+        if(!confirm(`PERINGATAN: Anda akan menghapus permanen riwayat Form Order ${f.formNo} untuk mitra ${f.mitraName}.\n\nData yang dihapus tidak dapat dikembalikan. Lanjutkan?`)) return;
+
+        db.collection("orderforms").doc(formId).delete().then(() => {
+            logActivity('Hapus Permanen Form Order', `Superadmin menghapus permanen No. Form ${f.formNo} dari database`);
+            alert(`Form Order ${f.formNo} berhasil dihapus permanen.`);
+        }).catch(err => {
+            console.error(err); alert('Terjadi kendala saat menghapus Form Order dari database.');
+        });
     }
 
     // ================= BAGIAN GUDANG =================
@@ -1240,16 +1127,13 @@
     }
 
     function loadGudangAlokasiData() {
-        const fName = document.getElementById('gudang-alokasi-filter-nama').value.toLowerCase();
-        const fMitra = document.getElementById('gudang-alokasi-filter-mitra').value;
-        const tbody = document.querySelector('#gudang-alokasi-table tbody'); tbody.innerHTML = '';
-        let rendered = 0;
+        const fName = document.getElementById('gudang-alokasi-filter-nama').value.toLowerCase(); const fMitra = document.getElementById('gudang-alokasi-filter-mitra').value;
+        const tbody = document.querySelector('#gudang-alokasi-table tbody'); tbody.innerHTML = ''; let rendered = 0;
         _inventory.forEach(item => {
             if(fName !== '' && !item.name.toLowerCase().includes(fName)) return;
             let itemMitras = _mitras.filter(m => m.brand === item.brand || m.brand === 'BOTH'); let allocDetails = '';
             item.details.forEach(d => {
                 if(d.allocationStatus !== 'approved') return; 
-
                 let a = d.allocated; let mHtml = ''; let matchesMitraFilter = (fMitra === 'ALL');
                 if(itemMitras.length > 0) { itemMitras.forEach(m => { let v = (typeof a.mitra === 'object' && a.mitra[m.id]) ? a.mitra[m.id] : 0; if(v > 0) { mHtml += `[${m.name} (${m.loc}): ${v}] `; if(fMitra !== 'ALL' && m.id === fMitra) matchesMitraFilter = true; } }); }
                 if(!matchesMitraFilter) return;
@@ -1258,8 +1142,7 @@
                     allocDetails += `<div style="border-bottom:1px dashed #ccc; padding:5px 0; font-size:0.85em;"><strong>Size ${d.size}</strong> ➔ Tiktok:${a.tiktok||0}, Shopee:${a.shopee||0}, Web:${a.web||0}, Butik:${a.butik||0}, FOC:${a.foc||0} <br><span style="color:var(--secondary)">Mitra: ${mHtml || 'Tidak ada'}</span></div>`;
                 }
             });
-            if(allocDetails === '') return; 
-            rendered++;
+            if(allocDetails === '') return; rendered++;
             let imgStr = item.image ? `<img src="${item.image}" style="max-width:80px; border-radius:5px;">` : `-`;
             tbody.innerHTML += `<tr><td style="width:25%"><strong>${item.name}</strong><br>${getBadge(item.brand, 'brand')}</td><td style="width:15%">${imgStr}</td><td style="width:60%">${allocDetails}</td></tr>`;
         });
@@ -1566,7 +1449,7 @@
             dbPromises.push(db.collection("orderforms").add(formData));
         });
 
-        downloadBatchOrderFormExcel(formsDataArray); // Gunakan fungsi excel terbaru dengan styling
+        downloadBatchOrderFormExcel(formsDataArray); 
 
         Object.keys(globalUpdatesByItem).forEach(itemId => {
             const invItem = _inventory.find(i => i.id === itemId); if(!invItem) return;
@@ -1748,6 +1631,26 @@
         });
     }
 
+    function voidOrderForm(formId) {
+        const f = _orderForms.find(x => x.id === formId);
+        if(!f || f.status !== 'issued') return;
+        if(!confirm(`Batalkan Form Order ${f.formNo} untuk mitra ${f.mitraName}? Qty yang sudah diterbitkan akan dikembalikan sebagai belum diterbitkan.`)) return;
+
+        (f.items || []).forEach(it => {
+            const invItem = _inventory.find(i => i.id === it.itemId);
+            if(!invItem) return;
+            let newDetails = JSON.parse(JSON.stringify(invItem.details));
+            let d = newDetails.find(x => x.size === it.size);
+            if(!d || !d.issued || !d.issued.mitra) return;
+            d.issued.mitra[f.mitraId] = Math.max(0, (parseInt(d.issued.mitra[f.mitraId]) || 0) - it.qty);
+            db.collection("inventory").doc(it.itemId).update({ details: newDetails });
+        });
+
+        db.collection("orderforms").doc(formId).update({ status: 'void', voidedBy: currentUser || 'Guest', voidedAtLocal: Date.now() }).then(() => {
+            logActivity('Batalkan Form Order Mitra', `No. Form ${f.formNo} untuk mitra ${f.mitraName}`);
+        });
+    }
+
     function loadOrderFormHistory() {
         const fCari = document.getElementById('orderform-filter-cari').value.toLowerCase();
         const fStatus = document.getElementById('orderform-filter-status').value;
@@ -1765,6 +1668,7 @@
 
         list.forEach(f => {
             const statusHtml = f.status === 'void' ? `<span class="status-void">Dibatalkan</span>` : `<span class="status-issued">Diterbitkan</span>`;
+            const voidBtn = f.status === 'issued' ? `<button class="btn-danger btn-small" onclick="voidOrderForm('${f.id}')">Batalkan</button>` : '';
             tbody.innerHTML += `<tr>
                 <td><input type="checkbox" class="history-cb" value="${f.id}"></td>
                 <td>${f.formNo}</td>
@@ -1775,6 +1679,7 @@
                 <td>
                     <button class="btn-primary btn-small" onclick="generateOrderFormPDF(_orderForms.find(x=>x.id==='${f.id}'))">📄 PDF</button>
                     <button class="btn-success btn-small" onclick="downloadBatchOrderFormExcel([_orderForms.find(x=>x.id==='${f.id}')])">📊 Excel</button>
+                    ${voidBtn}
                 </td>
             </tr>`;
         });
