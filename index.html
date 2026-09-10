@@ -217,18 +217,15 @@
     </div>
 
     <!-- ================= HALAMAN ADMIN (SUPERADMIN) ================= -->
-    <div id="admin-section" class="hidden fade-in">
-        <div class="card">
-            <div class="flex-header">
-                <h2>Dashboard Superadmin</h2>
-                <button class="btn-danger btn-small" onclick="logout()">Logout</button>
-            </div>
-            
-            <div class="tabs">
+    <div class="tabs">
                 <button class="tab-btn active" id="tab-admin-users" onclick="switchAdminTab('users')">Manajemen User</button>
-                <button class="tab-btn" id="tab-admin-logs" onclick="switchAdminTab('logs')">📋 Log Aktivitas Sistem</button>
+                <button class="tab-btn" id="tab-admin-logs" onclick="switchAdminTab('logs')">📋 Log Aktivitas</button>
+                <button class="tab-btn" id="tab-admin-alokasi" onclick="switchAdminTab('alokasi')">👁️ Oversight Alokasi</button>
+                <button class="tab-btn" id="tab-admin-form" onclick="switchAdminTab('form')">👁️ Oversight Form Order</button>
+                <button class="tab-btn" id="tab-admin-mitra" onclick="switchAdminTab('mitra')">⚙️ Kelola Mitra</button>
             </div>
 
+            <!-- VIEW: USER -->
             <div id="admin-view-users">
                 <div class="header-actions">
                     <div class="filter-bar">
@@ -249,6 +246,7 @@
                 </div>
             </div>
 
+            <!-- VIEW: LOGS -->
             <div id="admin-view-logs" class="hidden">
                 <div class="header-actions">
                     <div class="filter-bar">
@@ -267,8 +265,48 @@
                     </table>
                 </div>
             </div>
-        </div>
-    </div>
+
+            <!-- VIEW: OVERSIGHT ALOKASI -->
+            <div id="admin-view-alokasi" class="hidden">
+                <div class="header-actions" style="margin-top:10px;">
+                    <div class="filter-bar">
+                        <input type="text" id="admin-alokasi-filter-nama" placeholder="Cari Nama Baju..." oninput="loadAdminAlokasi()">
+                    </div>
+                    <button class="btn-success" onclick="exportExcel('alokasi')">📥 Download Laporan Alokasi</button>
+                </div>
+                <p style="font-size:0.85em; color:var(--text-muted);">Pantauan seluruh alokasi yang telah diapprove Sales. (Read-Only)</p>
+                <div class="table-container">
+                    <table id="admin-alokasi-table">
+                        <thead><tr><th>Artikel</th><th>Foto</th><th>Rincian Alokasi (Approved)</th></tr></thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- VIEW: OVERSIGHT FORM ORDER -->
+            <div id="admin-view-form" class="hidden">
+                <div class="header-actions" style="margin-top:10px;">
+                    <div class="filter-bar">
+                        <input type="text" id="admin-orderform-filter" placeholder="Cari No. Form / Mitra..." oninput="loadAdminFormOrder()">
+                    </div>
+                </div>
+                <p style="font-size:0.85em; color:var(--text-muted);">Pantauan seluruh Surat Serah Terima (Form Order) yang diterbitkan Gudang. (Read-Only)</p>
+                <div class="table-container">
+                    <table id="admin-orderform-table">
+                        <thead><tr><th>No. Form</th><th>Mitra</th><th>Tanggal</th><th>Jumlah Item</th><th>Status</th><th>Aksi (Download)</th></tr></thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- VIEW: KELOLA MITRA (ADMIN) -->
+            <div id="admin-view-mitra" class="hidden">
+                <div class="header-actions" style="margin-top:10px;">
+                    <p style="font-size:0.85em; color:var(--text-muted); flex-grow:1;">Anda memiliki akses penuh untuk mengelola daftar Mitra.</p>
+                    <button class="btn-primary" onclick="switchSalesTab('mitra'); document.getElementById('admin-section').classList.add('hidden'); document.getElementById('sales-section').classList.remove('hidden');">Buka Panel Mitra Penuh ➔</button>
+                </div>
+                <p style="font-size:0.85em; color:var(--primary); font-weight:bold;">Sistem akan mengarahkan Anda ke modul Mitra di Panel Sales dengan hak akses Admin.</p>
+            </div>
 
     <!-- ================= HALAMAN GUDANG ================= -->
     <div id="gudang-section" class="hidden fade-in">
