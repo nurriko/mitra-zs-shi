@@ -699,7 +699,7 @@
         </div>
     </div>
 
-    <!-- MODAL EDIT MITRA & ROLE (TETAP SAMA) -->
+    <!-- MODAL EDIT MITRA & ROLE -->
     <div id="modal-edit-mitra" class="modal-overlay hidden">
         <div class="modal-content fade-in" style="max-width: 500px;">
             <h3>Edit Mitra</h3><input type="hidden" id="edit-mitra-id">
@@ -897,17 +897,27 @@
     function formatDateDisplay(dateStr) { return dateStr ? dateStr.split('-').reverse().join('-') : '-'; }
 
     // ================= PRESENCE & CHAT FEATURES =================
+    
+    // PERBAIKAN: Menjalankan penghitungan ulang lokal secara rutin agar user offline otomatis hilang
     function startPresenceTracking() {
         if(presenceInterval) clearInterval(presenceInterval);
-        const updatePresence = () => { if(currentUser) db.collection("users").doc(currentUser).update({ lastActive: Date.now() }).catch(e=>{}); };
+        const updatePresence = () => { 
+            if(currentUser) db.collection("users").doc(currentUser).update({ lastActive: Date.now() }).catch(e=>{});
+            updateOnlineStatusUI(); 
+        };
         updatePresence();
-        presenceInterval = setInterval(updatePresence, 30000);
+        presenceInterval = setInterval(updatePresence, 15000); // interval dipercepat ke 15 detik
     }
+    
+    // PERBAIKAN: Hitung jumlah online secara real-time di UI
     function updateOnlineStatusUI() {
         if(!currentUser) return;
         const now = Date.now();
         let onlineCount = 0;
-        for(let u in _users) { if(now - (_users[u].lastActive || 0) < 60000) onlineCount++; }
+        for(let u in _users) { 
+            // Jika lastActive dalam 35 detik terakhir (karena kita ping per 15 detik)
+            if(now - (_users[u].lastActive || 0) < 35000) onlineCount++; 
+        }
         document.getElementById('online-count-text').innerText = `${onlineCount} Aktif`;
     }
     
@@ -931,7 +941,7 @@
     function showOnlineUsers() {
         const now = Date.now(); let html = '';
         for(let u in _users) {
-            if(now - (_users[u].lastActive || 0) < 60000) {
+            if(now - (_users[u].lastActive || 0) < 35000) {
                 let role = _users[u].role.replace('_', ' ').toUpperCase();
                 let chatBtn = (u !== currentUser) ? `<button class="btn-primary btn-small" onclick="openChat('${u}'); closeOnlineUsers();">💬 Chat</button>` : `<span style="font-size:0.8em; color:#888; padding-right:10px;">(Anda)</span>`;
                 html += `<div style="padding:10px 0; border-bottom:1px solid #eee; display:flex; justify-content:space-between; align-items:center;">
@@ -951,22 +961,35 @@
         document.getElementById('chat-widget-title').innerText = 'Chat: ' + targetUser;
         document.getElementById('chat-input').focus();
         
-        // Mark existing messages as read
+        // Tandai sudah dibaca
         db.collection("chats").where("receiver", "==", currentUser).where("sender", "==", targetUser).where("read", "==", false)
           .get().then(snap => { snap.forEach(doc => doc.ref.update({read: true})); });
 
         if(activeChatUnsubscribe) activeChatUnsubscribe();
         
-        activeChatUnsubscribe = db.collection("chats").orderBy("timestamp", "asc").onSnapshot(snap => {
-            let html = '';
+        // PERBAIKAN: Menghapus orderBy dari Firestore (agar tidak error index) dan mem-bypass null serverTimestamp 
+        activeChatUnsubscribe = db.collection("chats").onSnapshot(snap => {
+            let msgs = [];
             snap.forEach(doc => {
                 let d = doc.data();
                 if ((d.sender === currentUser && d.receiver === targetUser) || (d.sender === targetUser && d.receiver === currentUser)) {
-                    let isMe = d.sender === currentUser;
-                    let cls = isMe ? 'me' : 'other';
-                    html += `<div class="chat-msg ${cls}">${d.message}</div>`;
+                    d.id = doc.id;
+                    // serverTimestamp bernilai null saat baru dikirim (local event), gunakan fallback Date.now()
+                    d._time = d.timestamp ? d.timestamp.toMillis() : Date.now();
+                    msgs.push(d);
                 }
             });
+            
+            // Sort manual secara lokal
+            msgs.sort((a,b) => a._time - b._time);
+            
+            let html = '';
+            msgs.forEach(d => {
+                let isMe = d.sender === currentUser;
+                let cls = isMe ? 'me' : 'other';
+                html += `<div class="chat-msg ${cls}">${d.message}</div>`;
+            });
+            
             let box = document.getElementById('chat-messages');
             box.innerHTML = html || '<div style="text-align:center; color:#888; font-size:0.8em; margin-top:10px;">Belum ada pesan.</div>';
             box.scrollTop = box.scrollHeight;
@@ -984,13 +1007,18 @@
         let msg = input.value.trim();
         if(!msg || !currentChatUser) return;
         
+        // PERBAIKAN: Tangkap pesan error jika Security Rules Firestore belum diizinkan
         db.collection("chats").add({
             sender: currentUser,
             receiver: currentChatUser,
             message: msg,
             timestamp: firebase.firestore.FieldValue.serverTimestamp(),
             read: false
+        }).catch(err => {
+            console.error(err);
+            alert("Pesan gagal terkirim. Mohon cek Security Rules Firestore Anda, pastikan koleksi 'chats' diizinkan (allow read, write;).");
         });
+        
         input.value = '';
     }
 
@@ -1088,7 +1116,7 @@
             document.getElementById('nav-logout-btn').style.display = 'block';
             
             startPresenceTracking();
-            initGlobalChatListener(); // Mulai dengar pesan masuk baru
+            initGlobalChatListener();
 
             if (_users[u].mustChange) { document.getElementById('force-pwd-section').classList.remove('hidden'); } 
             else { logActivity('Login', `Masuk ke dalam sistem`); routeUser(currentUserRole); }
