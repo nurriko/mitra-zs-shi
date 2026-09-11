@@ -148,7 +148,8 @@
 
         /* ================= DASHBOARD SUPERADMIN ================= */
         .stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; }
-        .stat-card { background: white; border: 1px solid var(--border); border-radius: 10px; padding: 18px; text-align: center; }
+        .stat-card { background: white; border: 1px solid var(--border); border-radius: 10px; padding: 18px; text-align: center; cursor: pointer; transition: transform 0.15s ease, box-shadow 0.15s ease; }
+        .stat-card:hover { transform: translateY(-3px); box-shadow: 0 6px 16px rgba(0,0,0,0.08); border-color: var(--secondary); }
         .stat-value { font-size: 1.8em; font-weight: 800; color: var(--primary); line-height: 1.2; }
         .stat-label { font-size: 0.8em; color: var(--text-muted); margin-top: 4px; }
         .size-chip { display: inline-flex; align-items: center; gap: 6px; background: #e2e8f0; color: #334155; padding: 5px 10px; border-radius: 20px; font-size: 0.85em; font-weight: 600; }
@@ -741,6 +742,16 @@
         </div>
     </div>
 
+    <div id="modal-dashboard-detail" class="modal-overlay hidden">
+        <div class="modal-content fade-in" style="max-width: 720px;">
+            <div class="flex-header" style="margin-bottom:15px;">
+                <h3 id="dashboard-detail-title" style="margin:0;">Detail</h3>
+                <button class="btn-dark btn-small" onclick="closeDashboardDetailModal()">Tutup</button>
+            </div>
+            <div id="dashboard-detail-body" style="max-height:60vh; overflow-y:auto;"></div>
+        </div>
+    </div>
+
 </div>
 
 <script>
@@ -1180,10 +1191,10 @@
         const totalUserAktif = Object.values(_users).filter(u => !u.disabled).length;
 
         document.getElementById('admin-stat-cards').innerHTML = `
-            <div class="stat-card"><div class="stat-value">${totalArtikel}</div><div class="stat-label">Total Artikel</div></div>
-            <div class="stat-card"><div class="stat-value">${totalStok.toLocaleString('id-ID')}</div><div class="stat-label">Total Stok Masuk (pcs)</div></div>
-            <div class="stat-card"><div class="stat-value">${totalMitra}</div><div class="stat-label">Total Mitra</div></div>
-            <div class="stat-card"><div class="stat-value">${totalUserAktif}</div><div class="stat-label">User Aktif</div></div>
+            <div class="stat-card" onclick="showDashboardDetail('artikel')" title="Klik untuk lihat detail"><div class="stat-value">${totalArtikel}</div><div class="stat-label">Total Artikel</div></div>
+            <div class="stat-card" onclick="showDashboardDetail('stok')" title="Klik untuk lihat detail"><div class="stat-value">${totalStok.toLocaleString('id-ID')}</div><div class="stat-label">Total Stok Masuk (pcs)</div></div>
+            <div class="stat-card" onclick="showDashboardDetail('mitra')" title="Klik untuk lihat detail"><div class="stat-value">${totalMitra}</div><div class="stat-label">Total Mitra</div></div>
+            <div class="stat-card" onclick="showDashboardDetail('user')" title="Klik untuk lihat detail"><div class="stat-value">${totalUserAktif}</div><div class="stat-label">User Aktif</div></div>
         `;
 
         let channels = { Tiktok: 0, Shopee: 0, Web: 0, Butik: 0, FOC: 0, Mitra: 0 };
@@ -1222,6 +1233,60 @@
             ? `<div class="notif-empty">Belum ada alokasi ke mitra.</div>`
             : topMitra.map((m, i) => `<div style="display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid #f1f5f9;"><span>${i + 1}. <b>${m.name}</b><br><small style="color:var(--text-muted);">${m.loc}</small></span><span style="font-weight:700; color:var(--primary);">${m.vol} pcs</span></div>`).join('');
     }
+
+    // Detail drill-down saat kartu statistik dashboard Admin diklik
+    function showDashboardDetail(type) {
+        const title = document.getElementById('dashboard-detail-title');
+        const body = document.getElementById('dashboard-detail-body');
+        const thS = 'padding:8px; text-align:left; background:#f1f5f9; font-size:0.85em;';
+        const tdS = 'padding:8px; border-bottom:1px solid #f1f5f9; font-size:0.85em;';
+
+        if(type === 'artikel') {
+            title.innerText = `Detail Artikel (${_inventory.length})`;
+            if(_inventory.length === 0) { body.innerHTML = `<div class="notif-empty">Belum ada artikel.</div>`; }
+            else {
+                let rows = _inventory.slice().sort((a, b) => getItemTotalMasuk(b) - getItemTotalMasuk(a)).map(item => {
+                    const total = getItemTotalMasuk(item);
+                    const pct = item.qtyProduksi > 0 ? ((total / item.qtyProduksi) * 100).toFixed(0) : '-';
+                    return `<tr><td style="${tdS}">${item.name}</td><td style="${tdS}; text-align:center;">${getBadge(item.brand, 'brand')}</td><td style="${tdS}; text-align:center;">${getBadge(item.condition, 'cond')}</td><td style="${tdS}; text-align:center;">${total} pcs</td><td style="${tdS}; text-align:center;">${pct}${pct !== '-' ? '%' : ''}</td></tr>`;
+                }).join('');
+                body.innerHTML = `<table style="width:100%; border-collapse:collapse;"><thead><tr><th style="${thS}">Nama Artikel</th><th style="${thS}; text-align:center;">Brand</th><th style="${thS}; text-align:center;">Kondisi</th><th style="${thS}; text-align:center;">Total Stok</th><th style="${thS}; text-align:center;">Progress</th></tr></thead><tbody>${rows}</tbody></table>`;
+            }
+        } else if(type === 'stok') {
+            title.innerText = `Detail Total Stok Masuk`;
+            let byBrand = {}, byCondition = {};
+            _inventory.forEach(item => {
+                const total = getItemTotalMasuk(item);
+                byBrand[item.brand] = (byBrand[item.brand] || 0) + total;
+                byCondition[item.condition] = (byCondition[item.condition] || 0) + total;
+            });
+            const rowsBrand = Object.entries(byBrand).map(([k, v]) => `<tr><td style="${tdS}">${k}</td><td style="${tdS}; text-align:right; font-weight:700;">${v.toLocaleString('id-ID')} pcs</td></tr>`).join('');
+            const rowsCond = Object.entries(byCondition).map(([k, v]) => `<tr><td style="${tdS}">${k}</td><td style="${tdS}; text-align:right; font-weight:700;">${v.toLocaleString('id-ID')} pcs</td></tr>`).join('');
+            body.innerHTML = `
+                <h4 style="margin-top:0; font-size:0.95em;">Berdasarkan Brand</h4>
+                <table style="width:100%; border-collapse:collapse; margin-bottom:20px;">${rowsBrand || `<tr><td style="${tdS}">-</td></tr>`}</table>
+                <h4 style="font-size:0.95em;">Berdasarkan Kondisi</h4>
+                <table style="width:100%; border-collapse:collapse;">${rowsCond || `<tr><td style="${tdS}">-</td></tr>`}</table>
+            `;
+        } else if(type === 'mitra') {
+            title.innerText = `Detail Mitra (${_mitras.length})`;
+            if(_mitras.length === 0) { body.innerHTML = `<div class="notif-empty">Belum ada mitra.</div>`; }
+            else {
+                let rows = _mitras.map(m => `<tr><td style="${tdS}">${m.name}</td><td style="${tdS}">${m.loc}</td><td style="${tdS}; text-align:center;">${getBadge(m.brand, 'brand')}</td></tr>`).join('');
+                body.innerHTML = `<table style="width:100%; border-collapse:collapse;"><thead><tr><th style="${thS}">Nama Mitra</th><th style="${thS}">Lokasi</th><th style="${thS}; text-align:center;">Brand</th></tr></thead><tbody>${rows}</tbody></table>`;
+            }
+        } else if(type === 'user') {
+            let entries = Object.entries(_users).filter(([u]) => u !== 'admin');
+            title.innerText = `Detail User (${entries.length})`;
+            if(entries.length === 0) { body.innerHTML = `<div class="notif-empty">Belum ada user.</div>`; }
+            else {
+                let rows = entries.map(([u, d]) => `<tr><td style="${tdS}">${u}</td><td style="${tdS}; text-align:center;">${d.role.toUpperCase().replace('_', ' ')}</td><td style="${tdS}; text-align:center;">${d.disabled ? '<span class="mini-tag mini-tag-danger">Nonaktif</span>' : '<span style="color:var(--success); font-weight:600;">● Aktif</span>'}</td></tr>`).join('');
+                body.innerHTML = `<table style="width:100%; border-collapse:collapse;"><thead><tr><th style="${thS}">Username</th><th style="${thS}; text-align:center;">Role</th><th style="${thS}; text-align:center;">Status</th></tr></thead><tbody>${rows}</tbody></table>`;
+            }
+        }
+        document.getElementById('modal-dashboard-detail').classList.remove('hidden');
+    }
+    function closeDashboardDetailModal() { document.getElementById('modal-dashboard-detail').classList.add('hidden'); }
 
     // ================= ALOKASI SALES (OVERSIGHT ADMIN, READ-ONLY) =================
     function loadAdminAlokasiData() {
@@ -2149,20 +2214,41 @@
     function voidOrderForm(formId) {
         const f = _orderForms.find(x => x.id === formId);
         if(!f || f.status !== 'issued') return;
-        if(!confirm(`Batalkan Form Order ${f.formNo} untuk mitra ${f.mitraName}? Qty yang sudah diterbitkan akan dikembalikan sebagai belum diterbitkan.`)) return;
+        if(!confirm(`Batalkan Form Order ${f.formNo} untuk mitra ${f.mitraName}? Qty yang sudah diterbitkan akan DIKEMBALIKAN sepenuhnya sebagai stok belum teralokasi (alokasi ke mitra ini ikut dilepas), sehingga bisa dialokasikan ulang ke mitra/channel manapun oleh Sales.`)) return;
 
+        // Kelompokkan dulu per itemId (1 form bisa berisi beberapa size dari artikel yang sama) supaya proses
+        // baca-ubah-simpan ke Firestore tidak saling menimpa satu sama lain (race condition antar size).
+        let itemsByItemId = {};
         (f.items || []).forEach(it => {
-            const invItem = _inventory.find(i => i.id === it.itemId);
+            if(!itemsByItemId[it.itemId]) itemsByItemId[it.itemId] = [];
+            itemsByItemId[it.itemId].push(it);
+        });
+
+        Object.keys(itemsByItemId).forEach(itemId => {
+            const invItem = _inventory.find(i => i.id === itemId);
             if(!invItem) return;
             let newDetails = JSON.parse(JSON.stringify(invItem.details));
-            let d = newDetails.find(x => x.size === it.size);
-            if(!d || !d.issued || !d.issued.mitra) return;
-            d.issued.mitra[f.mitraId] = Math.max(0, (parseInt(d.issued.mitra[f.mitraId]) || 0) - it.qty);
-            db.collection("inventory").doc(it.itemId).update({ details: newDetails });
+            itemsByItemId[itemId].forEach(it => {
+                let d = newDetails.find(x => x.size === it.size);
+                if(!d) return;
+                // 1) Kembalikan tracking "sudah diterbitkan"
+                if(d.issued && d.issued.mitra) {
+                    d.issued.mitra[f.mitraId] = Math.max(0, (parseInt(d.issued.mitra[f.mitraId]) || 0) - it.qty);
+                }
+                // 2) INI PERBAIKANNYA: lepas juga ALOKASI-nya (bukan cuma tracking terbit), supaya qty ini
+                //    benar-benar kembali jadi "sisa stok" yang bisa dialokasikan lagi ke mitra/channel manapun.
+                if(d.allocated && typeof d.allocated.mitra === 'object') {
+                    d.allocated.mitra[f.mitraId] = Math.max(0, (parseInt(d.allocated.mitra[f.mitraId]) || 0) - it.qty);
+                }
+                // 3) Jika setelah dilepas totalnya nihil di semua channel/mitra, kembalikan status size ini ke
+                //    'none' supaya muncul lagi di tab "Daftar Stok" (belum dialokasikan) milik Sales.
+                if(getDetailAllocatedTotal(d) === 0) d.allocationStatus = 'none';
+            });
+            db.collection("inventory").doc(itemId).update({ details: newDetails });
         });
 
         db.collection("orderforms").doc(formId).update({ status: 'void', voidedBy: currentUser || 'Guest', voidedAtLocal: Date.now() }).then(() => {
-            logActivity('Batalkan Form Order Mitra', `No. Form ${f.formNo} untuk mitra ${f.mitraName}`);
+            logActivity('Batalkan Form Order Mitra', `No. Form ${f.formNo} untuk mitra ${f.mitraName} - stok dikembalikan ke gudang`);
         });
     }
 
