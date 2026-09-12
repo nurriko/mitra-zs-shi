@@ -205,7 +205,7 @@
 <body>
 
 <!-- TOP NAVIGATION HEADER -->
-<div class="top-nav" id="top-nav-bar" class="hidden">
+<div class="top-nav" id="top-nav-bar">
     <div class="top-nav-logo">
         <span style="background:var(--primary); color:white; padding:4px 8px; border-radius:6px; font-size:0.9em;">ZS & SHI</span>
         <span id="server-status">🔴 Offline</span>
@@ -705,6 +705,10 @@
             <h3>Edit Mitra</h3><input type="hidden" id="edit-mitra-id">
             <div class="form-group"><label>Nama Mitra</label><input type="text" id="edit-mitra-name"></div>
             <div class="form-group"><label>Lokasi / Kota</label><input type="text" id="edit-mitra-loc"></div>
+            <div class="form-group">
+                <label>Brand Mitra</label>
+                <select id="edit-mitra-brand"><option value="ZS">Zaskia Sungkar (ZS)</option><option value="SHI">Shi By Shireen (SHI)</option><option value="BOTH">Keduanya (ZS & SHI)</option></select>
+            </div>
             <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
                 <button class="btn-dark" onclick="closeEditMitraModal()">Batal</button>
                 <button class="btn-success" onclick="saveEditMitra()">Simpan Perubahan</button>
@@ -1068,6 +1072,13 @@
         let dates = [...new Set(item.history.map(h => h.date))].sort();
         let displayStr = dates.map(d => formatDateDisplay(d)).join(', ');
         return `<span class="clickable-dates" style="font-weight:600; text-decoration: underline; color:var(--secondary);" onclick="openHistoryModal('${item.id}', '${role}'); event.stopPropagation();" title="Detail Size Masuk">${displayStr}</span>`;
+    }
+    // PERBAIKAN: fungsi ini sebelumnya dipanggil di exportExcel() & generatePeriodicReport() tapi tidak pernah didefinisikan,
+    // menyebabkan semua fitur download Excel/Laporan Periodik gagal total (ReferenceError). Versi teks polos (tanpa HTML/onclick) untuk kebutuhan export.
+    function getRawDates(item) {
+        if(!item.history || item.history.length === 0) return item.date ? formatDateDisplay(item.date) : '-';
+        let dates = [...new Set(item.history.map(h => h.date))].sort();
+        return dates.map(d => formatDateDisplay(d)).join(', ');
     }
 
     function renderSizeCheckboxes(containerId, prefix) {
@@ -1559,8 +1570,32 @@
     });
 
     // ================= FORM ORDER MITRA (GUDANG / ADMIN) =================
-    
-    // PEMBARUAN: TERBITKAN FORM ORDER DIPERBAIKI (TRY-CATCH)
+
+    // ================= COUNTER NOMOR FORM ORDER (ATOMIK) =================
+    // PEMBARUAN PENTING: nomor Form Order sebelumnya dihitung dari `_orderForms.length` (data cache lokal di browser).
+    // Ini TIDAK aman untuk multi-user: kalau 2 petugas gudang menerbitkan form di waktu yang nyaris bersamaan,
+    // keduanya bisa membaca panjang array yang sama sebelum salah satu selesai menyimpan, sehingga menghasilkan
+    // NOMOR FORM YANG SAMA/BENTROK. Fungsi ini menggantinya dengan Firestore Transaction pada dokumen counter
+    // khusus (settings/orderFormCounter), yang dijamin server memprosesnya satu per satu secara berurutan.
+    function getNextOrderFormNumbers(count) {
+        const counterRef = db.collection("settings").doc("orderFormCounter");
+        return db.runTransaction(transaction => {
+            return transaction.get(counterRef).then(doc => {
+                let current;
+                if (doc.exists && typeof doc.data().value === 'number') {
+                    current = doc.data().value;
+                } else {
+                    // Migrasi dari skema lama: kalau counter belum pernah dibuat, mulai dari jumlah form
+                    // yang sudah ada sekarang supaya penomoran tetap nyambung (tidak mengulang dari 0/001).
+                    current = _orderForms.length;
+                }
+                const next = current + count;
+                transaction.set(counterRef, { value: next }, { merge: true });
+                return current; // nomor pertama pada batch ini = current + 1
+            });
+        });
+    }
+
     function terbitkanFormOrder() {
         try {
             const checkedBoxes = [...document.querySelectorAll('#order-mitra-checklist input[type="checkbox"]:checked')];
@@ -1591,25 +1626,28 @@
                 if(items.length === 0) { skipped.push(mitra.name); return; }
 
                 formsToIssue.push({
-                    formNo: `FO-${new Date().toISOString().slice(0,10).replace(/-/g,'')}-${String(_orderForms.length + formsToIssue.length + 1).padStart(3, '0')}`, 
                     mitraId: mitra.id, mitraName: mitra.name, mitraLoc: mitra.loc, brand: mitra.brand,
                     date: dateVal, items, gudangName, notes, status: 'issued', createdBy: currentUser || 'Guest',
-                    createdAtLocal: Date.now() + formsToIssue.length, timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                    timestamp: firebase.firestore.FieldValue.serverTimestamp()
                 });
             });
 
             if(formsToIssue.length === 0) return alert('Tidak ada barang yang dipilih untuk diserahkan. Pastikan Anda mengisi Qty > 0.');
 
-            // Download file dibungkus try-catch agar jika library gagal load, sistem tidak berhenti.
-            try {
-                if(window.jspdf) generateMultiOrderFormPDF(formsToIssue);
-                downloadMultiOrderFormExcelXML(formsToIssue);
-            } catch(fileErr) {
-                console.error("Error generating files: ", fileErr);
-                alert("Gagal mengunduh file PDF/Excel (Abaikan jika tetap ingin menyimpan ke riwayat): " + fileErr.message);
-            }
+            // PEMBARUAN: 1) ambil nomor form secara atomik lewat transaksi, 2) simpan SEMUA perubahan
+            // (form baru + update stok inventory) dalam SATU batch atomik, baru 3) unduh PDF/Excel setelah
+            // tersimpan sukses. Urutan lama mengunduh file SEBELUM data tersimpan — kalau penyimpanan gagal
+            // (offline/rules Firestore menolak), file sudah terlanjur terunduh/diserahkan ke mitra padahal
+            // sistem tidak mencatatnya sama sekali. Sekarang itu tidak bisa lagi terjadi.
+            getNextOrderFormNumbers(formsToIssue.length).then(startNumber => {
+                const dateCode = new Date().toISOString().slice(0,10).replace(/-/g,'');
+                formsToIssue.forEach((fd, idx) => {
+                    fd.formNo = `FO-${dateCode}-${String(startNumber + idx + 1).padStart(3, '0')}`;
+                    fd.createdAtLocal = Date.now() + idx; // tetap dipakai utk sortir tampilan lokal
+                });
 
-            Promise.all(formsToIssue.map(fd => db.collection("orderforms").add(fd))).then(() => {
+                const batch = db.batch();
+                formsToIssue.forEach(fd => { batch.set(db.collection("orderforms").doc(), fd); });
                 Object.keys(allUpdatesByItem).forEach(itemId => {
                     const invItem = _inventory.find(i => i.id === itemId); if(!invItem) return;
                     let newDetails = JSON.parse(JSON.stringify(invItem.details));
@@ -1618,15 +1656,29 @@
                         if(!d.issued) d.issued = {}; if(!d.issued.mitra) d.issued.mitra = {};
                         d.issued.mitra[u.mitraId] = (parseInt(d.issued.mitra[u.mitraId]) || 0) + u.qty;
                     });
-                    db.collection("inventory").doc(itemId).update({ details: newDetails });
+                    batch.update(db.collection("inventory").doc(itemId), { details: newDetails });
                 });
+
+                return batch.commit();
+            }).then(() => {
+                // Download file dibungkus try-catch agar jika library gagal load, sistem tidak berhenti
+                // (data di database sudah aman tersimpan lebih dulu).
+                try {
+                    if(window.jspdf) generateMultiOrderFormPDF(formsToIssue);
+                    downloadMultiOrderFormExcelXML(formsToIssue);
+                } catch(fileErr) {
+                    console.error("Error generating files: ", fileErr);
+                    alert("Form sudah TERSIMPAN di sistem, tapi gagal mengunduh file PDF/Excel: " + fileErr.message + "\nSilakan unduh ulang lewat Riwayat Form Order.");
+                }
+
                 logActivity('Terbitkan Form Order', `${formsToIssue.length} form diterbitkan.`);
                 document.querySelectorAll('#order-mitra-checklist input[type="checkbox"]').forEach(cb => cb.checked = false); 
                 onFormOrderMitraChange();
-                alert(`${formsToIssue.length} Form Order berhasil diterbitkan.\nFile PDF/Excel otomatis terunduh.`);
+                let skipMsg = skipped.length > 0 ? `\n\nDilewati (tidak ada alokasi tersedia): ${skipped.join(', ')}` : '';
+                alert(`${formsToIssue.length} Form Order berhasil diterbitkan.\nFile PDF/Excel otomatis terunduh.${skipMsg}`);
             }).catch(dbErr => {
                 console.error(dbErr);
-                alert("Gagal menyimpan form ke database Firebase. Error: " + dbErr.message);
+                alert("Gagal menyimpan form ke database Firebase. Error: " + dbErr.message + "\nTidak ada file yang diunduh karena data belum tersimpan. Silakan coba lagi.");
             });
 
         } catch (globalErr) {
@@ -1751,14 +1803,18 @@
     function loadAdminOrderFormData() {
         const tbody = document.querySelector('#admin-orderform-table tbody'); tbody.innerHTML = '';
         const fStatus = document.getElementById('admin-orderform-filter-status').value;
-        let list = _orderForms.filter(f => fStatus === 'ALL' || f.status === fStatus); list.sort((a,b) => document.getElementById('admin-orderform-sort').value === 'terlama' ? a.createdAtLocal - b.createdAtLocal : b.createdAtLocal - a.createdAtLocal);
+        const fCari = document.getElementById('admin-orderform-filter-cari').value.toLowerCase();
+        let list = _orderForms.filter(f => (fStatus === 'ALL' || f.status === fStatus) && (fCari === '' || f.formNo.toLowerCase().includes(fCari) || f.mitraName.toLowerCase().includes(fCari)));
+        list.sort((a,b) => document.getElementById('admin-orderform-sort').value === 'terlama' ? a.createdAtLocal - b.createdAtLocal : b.createdAtLocal - a.createdAtLocal);
         list.forEach(f => tbody.innerHTML += `<tr><td><input type="checkbox" class="cb-form-history-admin" value="${f.id}"></td><td>${f.formNo}</td><td>${f.mitraName}</td><td>${formatDateDisplay(f.date)}</td><td>${f.gudangName || '-'}</td><td>${(f.items||[]).length} baris</td><td>${f.status === 'void' ? '<span class="status-void">Dibatalkan</span>' : '<span class="status-issued">Diterbitkan</span>'}</td><td><button class="btn-primary btn-small" onclick="generateOrderFormPDF(_orderForms.find(x=>x.id==='${f.id}'))">📄 PDF</button> ${f.status === 'issued' ? `<button class="btn-danger btn-small" onclick="voidOrderForm('${f.id}')">Batalkan</button>` : ''}</td></tr>`);
     }
 
     function loadOrderFormHistory() {
         const tbody = document.querySelector('#orderform-table tbody'); tbody.innerHTML = '';
         const fStatus = document.getElementById('orderform-filter-status').value;
-        let list = _orderForms.filter(f => fStatus === 'ALL' || f.status === fStatus); list.sort((a,b) => b.createdAtLocal - a.createdAtLocal);
+        const fCari = document.getElementById('orderform-filter-cari').value.toLowerCase();
+        let list = _orderForms.filter(f => (fStatus === 'ALL' || f.status === fStatus) && (fCari === '' || f.formNo.toLowerCase().includes(fCari) || f.mitraName.toLowerCase().includes(fCari)));
+        list.sort((a,b) => b.createdAtLocal - a.createdAtLocal);
         list.forEach(f => tbody.innerHTML += `<tr><td><input type="checkbox" class="cb-form-history-gudang" value="${f.id}"></td><td>${f.formNo}</td><td>${f.mitraName}</td><td>${formatDateDisplay(f.date)}</td><td>${(f.items||[]).length} baris</td><td>${f.status === 'void' ? '<span class="status-void">Dibatalkan</span>' : '<span class="status-issued">Diterbitkan</span>'}</td><td><button class="btn-primary btn-small" onclick="generateOrderFormPDF(_orderForms.find(x=>x.id==='${f.id}'))">📄 PDF</button> ${f.status === 'issued' ? `<button class="btn-danger btn-small" onclick="voidOrderForm('${f.id}')">Batalkan</button>` : ''}</td></tr>`);
     }
 
@@ -1767,6 +1823,12 @@
         if(!confirm(`Batalkan Form Order ${f.formNo}? \n\nQty akan ditarik kembali dari mitra ini dan menjadi "Belum Dialokasikan" (Sisa Stok Gudang) di dashboard Sales.`)) return;
 
         let itemsByItemId = {}; (f.items || []).forEach(it => { if(!itemsByItemId[it.itemId]) itemsByItemId[it.itemId] = []; itemsByItemId[it.itemId].push(it); });
+
+        // PEMBARUAN: update stok tiap item + perubahan status form jadi 'void' sekarang digabung dalam
+        // SATU batch atomik. Sebelumnya ini beberapa .update() terpisah — kalau salah satu gagal di tengah
+        // jalan (mis. koneksi putus), bisa terjadi stok sudah dikembalikan tapi status form masih 'issued',
+        // atau sebaliknya. Dengan batch, semuanya berhasil bersamaan atau gagal bersamaan (tidak ada setengah-jalan).
+        const batch = db.batch();
         Object.keys(itemsByItemId).forEach(itemId => {
             const inv = _inventory.find(i => i.id === itemId); if(!inv) return;
             let nDetails = JSON.parse(JSON.stringify(inv.details));
@@ -1776,9 +1838,14 @@
                 if(d.allocated && typeof d.allocated.mitra === 'object') d.allocated.mitra[f.mitraId] = Math.max(0, (parseInt(d.allocated.mitra[f.mitraId]) || 0) - it.qty);
                 if(getDetailAllocatedTotal(d) === 0) d.allocationStatus = 'none';
             });
-            db.collection("inventory").doc(itemId).update({ details: nDetails });
+            batch.update(db.collection("inventory").doc(itemId), { details: nDetails });
         });
-        db.collection("orderforms").doc(formId).update({ status: 'void', voidedBy: currentUser || 'Guest', voidedAtLocal: Date.now() });
+        batch.update(db.collection("orderforms").doc(formId), { status: 'void', voidedBy: currentUser || 'Guest', voidedAtLocal: Date.now() });
+
+        batch.commit().catch(err => {
+            console.error(err);
+            alert('Gagal membatalkan form: ' + err.message + '\nSilakan coba lagi.');
+        });
     }
 
     // ================= BAGIAN SALES =================
