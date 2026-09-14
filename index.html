@@ -205,7 +205,7 @@
 <body>
 
 <!-- TOP NAVIGATION HEADER -->
-<div class="top-nav" id="top-nav-bar">
+<div class="top-nav" id="top-nav-bar" class="hidden">
     <div class="top-nav-logo">
         <span style="background:var(--primary); color:white; padding:4px 8px; border-radius:6px; font-size:0.9em;">ZS & SHI</span>
         <span id="server-status">🔴 Offline</span>
@@ -484,6 +484,7 @@
                 <button class="tab-btn active" id="tab-gudang-input" onclick="switchGudangTab('input')">Input & Stok Gudang</button>
                 <button class="tab-btn" id="tab-gudang-alokasi" onclick="switchGudangTab('alokasi')">Tinjau Hasil Alokasi Sales</button>
                 <button class="tab-btn" id="tab-gudang-form" onclick="switchGudangTab('form')">🖊️ Form Order Mitra</button>
+                <button class="tab-btn" id="tab-gudang-request" onclick="switchGudangTab('request')">📝 Permintaan Mitra</button>
             </div>
 
             <div id="gudang-view-input">
@@ -581,6 +582,24 @@
                     </table>
                 </div>
             </div>
+            
+            <!-- VIEW: PERMINTAAN KHUSUS MITRA (GUDANG ONLY VIEW) -->
+            <div id="gudang-view-request" class="hidden">
+                <p style="font-size:0.85em; color:var(--text-muted); margin:8px 0 20px;">Tinjau permintaan khusus quantity dari Mitra yang telah diinput oleh Sales.</p>
+                <div class="header-actions">
+                    <div class="filter-bar">
+                        <input type="text" id="gudang-req-filter-nama" placeholder="Cari Artikel..." oninput="loadGudangRequestData()">
+                        <select id="gudang-req-filter-mitra" onchange="loadGudangRequestData()"><option value="ALL">Semua Mitra</option></select>
+                    </div>
+                    <button class="btn-success" onclick="exportExcel('sales_request')">📥 Download Excel Permintaan</button>
+                </div>
+                <div class="table-container">
+                    <table id="gudang-request-table">
+                        <thead><tr><th>Artikel</th><th>Mitra</th><th>Rincian Permintaan & Pemenuhan</th></tr></thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -600,7 +619,6 @@
         </div>
     </div>
 
-    <!-- MODAL BARU: RIWAYAT LENGKAP PER-ARTIKEL -->
     <div id="modal-item-history-full" class="modal-overlay hidden">
         <div class="modal-content fade-in" style="max-width: 700px;">
             <div class="flex-header" style="margin-bottom:15px;">
@@ -653,8 +671,10 @@
                 <button class="tab-btn" id="tab-sales-pending" onclick="switchSalesTab('pending')">Menunggu Approval</button>
                 <button class="tab-btn" id="tab-sales-sudah" onclick="switchSalesTab('sudah')">Telah Dialokasikan</button>
                 <button class="tab-btn" id="tab-sales-mitra" onclick="switchSalesTab('mitra')">⚙️ Mitra</button>
+                <button class="tab-btn" id="tab-sales-request" onclick="switchSalesTab('request')">📝 Permintaan Khusus</button>
             </div>
 
+            <!-- VIEW: STOK / ALOKASI (BELUM, PENDING, SUDAH) -->
             <div id="sales-view-data">
                 <div class="header-actions">
                     <div class="filter-bar">
@@ -666,11 +686,48 @@
                     </div>
                     <button class="btn-success" id="btn-export-sales" onclick="exportExcel('sales_belum')">📥 Download Laporan Excel</button>
                 </div>
-                <p id="sales-void-notif" style="font-size:0.85em; color:var(--danger); font-weight:600; margin:5px 0;">*Catatan: Barang dari Form Order yang dibatalkan oleh Gudang otomatis kembali ke tab "Daftar Stok" ini siap dialokasikan ulang.</p>
+                <p id="sales-void-notif" style="font-size:0.85em; color:var(--danger); font-weight:600; margin:5px 0;">*Catatan: Barang dari Form Order yang dibatalkan oleh Gudang akan otomatis kembali ke tab "Daftar Stok" ini sebagai Sisa Stok yang siap dialokasikan ulang.</p>
                 
                 <div class="table-container">
                     <table id="sales-table">
                         <thead><tr><th>Artikel & Progress Produksi</th><th>Foto / Gambar</th><th>Kondisi</th><th>Sisa Stok</th><th>Aksi</th></tr></thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- VIEW: PERMINTAAN KHUSUS MITRA -->
+            <div id="sales-view-request" class="hidden">
+                <div style="background:#f8fafc; padding:20px; border-radius:8px; border:1px solid var(--border); margin-bottom:20px;">
+                    <h3 style="margin-bottom: 15px; font-size:1.1em;">Input Permintaan Khusus Mitra</h3>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Pilih Artikel</label>
+                            <select id="req-item-select" onchange="onReqItemChange()"><option value="">-- Pilih Artikel --</option></select>
+                        </div>
+                        <div class="form-group">
+                            <label>Pilih Mitra</label>
+                            <select id="req-mitra-select"><option value="">-- Pilih Mitra --</option></select>
+                        </div>
+                    </div>
+                    <label>Masukkan Qty Permintaan per Size <span style="font-weight:normal; color:#888;">(Isi 0 untuk membatalkan request sebelumnya)</span>:</label>
+                    <div class="size-grid" id="req-size-container" style="margin-top:10px;">
+                        <div class="notif-empty" style="grid-column: 1/-1;">Pilih artikel terlebih dahulu.</div>
+                    </div>
+                    <button class="btn-success" onclick="saveMitraRequest()" style="margin-top:15px;">Simpan Permintaan</button>
+                </div>
+
+                <div class="header-actions">
+                    <div class="filter-bar">
+                        <input type="text" id="req-filter-nama" placeholder="Cari Artikel..." oninput="loadSalesRequestData()">
+                        <select id="req-filter-mitra" onchange="loadSalesRequestData()"><option value="ALL">Semua Mitra</option></select>
+                    </div>
+                    <button class="btn-success" onclick="exportExcel('sales_request')">📥 Download Excel Permintaan</button>
+                </div>
+                
+                <div class="table-container">
+                    <table id="sales-request-table">
+                        <thead><tr><th>Artikel</th><th>Mitra</th><th>Rincian Permintaan & Pemenuhan</th><th>Aksi</th></tr></thead>
                         <tbody></tbody>
                     </table>
                 </div>
@@ -705,10 +762,6 @@
             <h3>Edit Mitra</h3><input type="hidden" id="edit-mitra-id">
             <div class="form-group"><label>Nama Mitra</label><input type="text" id="edit-mitra-name"></div>
             <div class="form-group"><label>Lokasi / Kota</label><input type="text" id="edit-mitra-loc"></div>
-            <div class="form-group">
-                <label>Brand Mitra</label>
-                <select id="edit-mitra-brand"><option value="ZS">Zaskia Sungkar (ZS)</option><option value="SHI">Shi By Shireen (SHI)</option><option value="BOTH">Keduanya (ZS & SHI)</option></select>
-            </div>
             <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
                 <button class="btn-dark" onclick="closeEditMitraModal()">Batal</button>
                 <button class="btn-success" onclick="saveEditMitra()">Simpan Perubahan</button>
@@ -833,9 +886,13 @@
             if(!document.getElementById('gudang-view-input').classList.contains('hidden')) loadGudangData();
             else if(!document.getElementById('gudang-view-alokasi').classList.contains('hidden')) loadGudangAlokasiData();
             else if(!document.getElementById('gudang-view-form').classList.contains('hidden')) { onFormOrderMitraChange(); loadOrderFormHistory(); }
+            else if(!document.getElementById('gudang-view-request').classList.contains('hidden')) { loadGudangRequestData(); }
         }
         if(!document.getElementById('sales-section').classList.contains('hidden')) {
             if(!document.getElementById('sales-view-data').classList.contains('hidden')) loadSalesData();
+            if(!document.getElementById('sales-view-request').classList.contains('hidden')) {
+                populateReqItemSelect(); loadSalesRequestData();
+            }
         }
         computeNotifications();
     });
@@ -877,8 +934,7 @@
         if(!document.getElementById('admin-view-logs').classList.contains('hidden')) loadAdminLogs();
     });
 
-
-    // --- FUNGSI LOGGING ---
+    // --- FUNGSI LOGGING & HELPER ---
     function logActivity(action, details) {
         db.collection("logs").add({ 
             timestamp: firebase.firestore.FieldValue.serverTimestamp(),
@@ -898,11 +954,15 @@
         }
         return (val === 'Oke' ? `<span class="badge badge-oke">Oke</span>` : `<span class="badge badge-defect">Defect</span>`); 
     }
+    
+    // PEMBARUAN: getRawDates (Solusi Export Laporan)
     function formatDateDisplay(dateStr) { return dateStr ? dateStr.split('-').reverse().join('-') : '-'; }
+    function getRawDates(item) {
+        if(!item.history) return '-';
+        return [...new Set(item.history.map(h => h.date))].sort().map(d => formatDateDisplay(d)).join(', ');
+    }
 
     // ================= PRESENCE & CHAT FEATURES =================
-    
-    // PEMBARUAN: Memastikan user yang mati mendadak hilang dari list dengan refresh lokal rutin per 15 detik
     function startPresenceTracking() {
         if(presenceInterval) clearInterval(presenceInterval);
         const updatePresence = () => { 
@@ -968,14 +1028,13 @@
 
         if(activeChatUnsubscribe) activeChatUnsubscribe();
         
-        // PEMBARUAN: Hapus OrderBy agar tidak butuh index di firestore dan tidak error. Sortir manual di bawah.
         activeChatUnsubscribe = db.collection("chats").onSnapshot(snap => {
             let msgs = [];
             snap.forEach(doc => {
                 let d = doc.data();
                 if ((d.sender === currentUser && d.receiver === targetUser) || (d.sender === targetUser && d.receiver === currentUser)) {
                     d.id = doc.id;
-                    d._time = d.timestamp ? d.timestamp.toMillis() : Date.now(); // Perbaikan serverTimestamp null saat offline local rendering
+                    d._time = d.timestamp ? d.timestamp.toMillis() : Date.now(); 
                     msgs.push(d);
                 }
             });
@@ -1072,13 +1131,6 @@
         let dates = [...new Set(item.history.map(h => h.date))].sort();
         let displayStr = dates.map(d => formatDateDisplay(d)).join(', ');
         return `<span class="clickable-dates" style="font-weight:600; text-decoration: underline; color:var(--secondary);" onclick="openHistoryModal('${item.id}', '${role}'); event.stopPropagation();" title="Detail Size Masuk">${displayStr}</span>`;
-    }
-    // PERBAIKAN: fungsi ini sebelumnya dipanggil di exportExcel() & generatePeriodicReport() tapi tidak pernah didefinisikan,
-    // menyebabkan semua fitur download Excel/Laporan Periodik gagal total (ReferenceError). Versi teks polos (tanpa HTML/onclick) untuk kebutuhan export.
-    function getRawDates(item) {
-        if(!item.history || item.history.length === 0) return item.date ? formatDateDisplay(item.date) : '-';
-        let dates = [...new Set(item.history.map(h => h.date))].sort();
-        return dates.map(d => formatDateDisplay(d)).join(', ');
     }
 
     function renderSizeCheckboxes(containerId, prefix) {
@@ -1378,12 +1430,22 @@
         document.getElementById('tab-gudang-input').classList.toggle('active', tab === 'input');
         document.getElementById('tab-gudang-alokasi').classList.toggle('active', tab === 'alokasi');
         document.getElementById('tab-gudang-form').classList.toggle('active', tab === 'form');
+        document.getElementById('tab-gudang-request').classList.toggle('active', tab === 'request');
+
         document.getElementById('gudang-view-input').classList.add('hidden');
         document.getElementById('gudang-view-alokasi').classList.add('hidden');
         document.getElementById('gudang-view-form').classList.add('hidden');
-        if (tab === 'alokasi') { document.getElementById('gudang-view-alokasi').classList.remove('hidden'); loadGudangAlokasiData(); }
-        else if (tab === 'form') { document.getElementById('gudang-view-form').classList.remove('hidden'); populateMitraSelects(); onFormOrderMitraChange(); loadOrderFormHistory(); }
-        else { document.getElementById('gudang-view-input').classList.remove('hidden'); loadGudangData(); }
+        document.getElementById('gudang-view-request').classList.add('hidden');
+
+        if (tab === 'alokasi') { 
+            document.getElementById('gudang-view-alokasi').classList.remove('hidden'); loadGudangAlokasiData(); 
+        } else if (tab === 'form') { 
+            document.getElementById('gudang-view-form').classList.remove('hidden'); populateMitraSelects(); onFormOrderMitraChange(); loadOrderFormHistory(); 
+        } else if (tab === 'request') { 
+            document.getElementById('gudang-view-request').classList.remove('hidden'); populateMitraSelects(); loadGudangRequestData();
+        } else { 
+            document.getElementById('gudang-view-input').classList.remove('hidden'); loadGudangData(); 
+        }
     }
 
     function saveInventory() {
@@ -1451,6 +1513,63 @@
         if(rendered === 0) tbody.innerHTML = `<tr><td colspan="3" class="notif-empty">Kosong</td></tr>`;
     }
 
+    // FUNGSI LOAD DATA PERMINTAAN (GUDANG ONLY VIEW)
+    function loadGudangRequestData() {
+        const fName = document.getElementById('gudang-req-filter-nama').value.toLowerCase();
+        const fMitra = document.getElementById('gudang-req-filter-mitra').value;
+        const tbody = document.querySelector('#gudang-request-table tbody'); 
+        if(!tbody) return;
+        tbody.innerHTML = '';
+        
+        let rendered = 0;
+        
+        _inventory.forEach(item => {
+            if(fName && !item.name.toLowerCase().includes(fName)) return;
+            
+            let requestsByMitra = {};
+            
+            item.details.forEach(d => {
+                if(d.requested && d.requested.mitra) {
+                    Object.entries(d.requested.mitra).forEach(([mId, reqQty]) => {
+                        if(fMitra !== 'ALL' && mId !== fMitra) return;
+                        if(reqQty > 0) {
+                            if(!requestsByMitra[mId]) requestsByMitra[mId] = [];
+                            
+                            let allocQty = (d.allocated && d.allocated.mitra && d.allocated.mitra[mId]) ? d.allocated.mitra[mId] : 0;
+                            let pct = Math.round((allocQty / reqQty) * 100);
+                            let statusStr = '';
+                            if(allocQty > 0) {
+                                statusStr = d.allocationStatus === 'approved' ? `<span class="status-approved">APPROVED</span>` : `<span class="status-pending">PENDING</span>`;
+                            } else {
+                                statusStr = `<span class="badge" style="background:#e2e8f0; color:#334155;">BELUM DIALOKASI</span>`;
+                            }
+                            
+                            let color = pct >= 100 ? 'var(--success)' : (pct > 0 ? 'var(--warning)' : 'var(--danger)');
+                            
+                            requestsByMitra[mId].push(`<div style="border-bottom:1px dashed #ccc; padding:6px 0; font-size:0.85em;">
+                                <strong>Size ${d.size}</strong>: Diminta <b style="color:var(--primary)">${reqQty}</b> ➔ Diberikan <b>${allocQty}</b> ${statusStr} (Terpenuhi: <b style="color:${color}">${pct}%</b>)
+                            </div>`);
+                        }
+                    });
+                }
+            });
+            
+            Object.entries(requestsByMitra).forEach(([mId, reqHtmlList]) => {
+                rendered++;
+                const mitra = _mitras.find(m => m.id === mId);
+                const mName = mitra ? `${mitra.name} <br><small>(${mitra.loc})</small>` : 'Mitra Terhapus';
+                
+                tbody.innerHTML += `<tr>
+                    <td><strong>${item.name}</strong><br>${getBadge(item.brand, 'brand')}</td>
+                    <td>${mName}</td>
+                    <td>${reqHtmlList.join('')}</td>
+                </tr>`;
+            });
+        });
+        
+        if(rendered === 0) tbody.innerHTML = `<tr><td colspan="3" class="notif-empty">Belum ada data permintaan khusus yang diinput Sales.</td></tr>`;
+    }
+
     function deleteGudangItem(id) { if(confirm('Hapus barang ini sepenuhnya?')) db.collection("inventory").doc(id).delete(); }
 
     function openEditInfoModal(id) {
@@ -1480,7 +1599,6 @@
     }
     function closeHistoryModal() { document.getElementById('modal-history').classList.add('hidden'); }
 
-    // --- MODAL BARU: RIWAYAT LENGKAP PER-ARTIKEL ---
     function openItemHistoryFullModal(itemId) {
         const item = _inventory.find(i => i.id === itemId); if(!item) return;
         document.getElementById('item-history-full-title').innerText = `Riwayat: ${item.name} (${item.brand})`;
@@ -1570,32 +1688,7 @@
     });
 
     // ================= FORM ORDER MITRA (GUDANG / ADMIN) =================
-
-    // ================= COUNTER NOMOR FORM ORDER (ATOMIK) =================
-    // PEMBARUAN PENTING: nomor Form Order sebelumnya dihitung dari `_orderForms.length` (data cache lokal di browser).
-    // Ini TIDAK aman untuk multi-user: kalau 2 petugas gudang menerbitkan form di waktu yang nyaris bersamaan,
-    // keduanya bisa membaca panjang array yang sama sebelum salah satu selesai menyimpan, sehingga menghasilkan
-    // NOMOR FORM YANG SAMA/BENTROK. Fungsi ini menggantinya dengan Firestore Transaction pada dokumen counter
-    // khusus (settings/orderFormCounter), yang dijamin server memprosesnya satu per satu secara berurutan.
-    function getNextOrderFormNumbers(count) {
-        const counterRef = db.collection("settings").doc("orderFormCounter");
-        return db.runTransaction(transaction => {
-            return transaction.get(counterRef).then(doc => {
-                let current;
-                if (doc.exists && typeof doc.data().value === 'number') {
-                    current = doc.data().value;
-                } else {
-                    // Migrasi dari skema lama: kalau counter belum pernah dibuat, mulai dari jumlah form
-                    // yang sudah ada sekarang supaya penomoran tetap nyambung (tidak mengulang dari 0/001).
-                    current = _orderForms.length;
-                }
-                const next = current + count;
-                transaction.set(counterRef, { value: next }, { merge: true });
-                return current; // nomor pertama pada batch ini = current + 1
-            });
-        });
-    }
-
+    
     function terbitkanFormOrder() {
         try {
             const checkedBoxes = [...document.querySelectorAll('#order-mitra-checklist input[type="checkbox"]:checked')];
@@ -1626,28 +1719,24 @@
                 if(items.length === 0) { skipped.push(mitra.name); return; }
 
                 formsToIssue.push({
+                    formNo: `FO-${new Date().toISOString().slice(0,10).replace(/-/g,'')}-${String(_orderForms.length + formsToIssue.length + 1).padStart(3, '0')}`, 
                     mitraId: mitra.id, mitraName: mitra.name, mitraLoc: mitra.loc, brand: mitra.brand,
                     date: dateVal, items, gudangName, notes, status: 'issued', createdBy: currentUser || 'Guest',
-                    timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                    createdAtLocal: Date.now() + formsToIssue.length, timestamp: firebase.firestore.FieldValue.serverTimestamp()
                 });
             });
 
             if(formsToIssue.length === 0) return alert('Tidak ada barang yang dipilih untuk diserahkan. Pastikan Anda mengisi Qty > 0.');
 
-            // PEMBARUAN: 1) ambil nomor form secara atomik lewat transaksi, 2) simpan SEMUA perubahan
-            // (form baru + update stok inventory) dalam SATU batch atomik, baru 3) unduh PDF/Excel setelah
-            // tersimpan sukses. Urutan lama mengunduh file SEBELUM data tersimpan — kalau penyimpanan gagal
-            // (offline/rules Firestore menolak), file sudah terlanjur terunduh/diserahkan ke mitra padahal
-            // sistem tidak mencatatnya sama sekali. Sekarang itu tidak bisa lagi terjadi.
-            getNextOrderFormNumbers(formsToIssue.length).then(startNumber => {
-                const dateCode = new Date().toISOString().slice(0,10).replace(/-/g,'');
-                formsToIssue.forEach((fd, idx) => {
-                    fd.formNo = `FO-${dateCode}-${String(startNumber + idx + 1).padStart(3, '0')}`;
-                    fd.createdAtLocal = Date.now() + idx; // tetap dipakai utk sortir tampilan lokal
-                });
+            try {
+                if(window.jspdf) generateMultiOrderFormPDF(formsToIssue);
+                downloadMultiOrderFormExcelXML(formsToIssue);
+            } catch(fileErr) {
+                console.error("Error generating files: ", fileErr);
+                alert("Gagal mengunduh file PDF/Excel (Abaikan jika tetap ingin menyimpan ke riwayat): " + fileErr.message);
+            }
 
-                const batch = db.batch();
-                formsToIssue.forEach(fd => { batch.set(db.collection("orderforms").doc(), fd); });
+            Promise.all(formsToIssue.map(fd => db.collection("orderforms").add(fd))).then(() => {
                 Object.keys(allUpdatesByItem).forEach(itemId => {
                     const invItem = _inventory.find(i => i.id === itemId); if(!invItem) return;
                     let newDetails = JSON.parse(JSON.stringify(invItem.details));
@@ -1656,29 +1745,15 @@
                         if(!d.issued) d.issued = {}; if(!d.issued.mitra) d.issued.mitra = {};
                         d.issued.mitra[u.mitraId] = (parseInt(d.issued.mitra[u.mitraId]) || 0) + u.qty;
                     });
-                    batch.update(db.collection("inventory").doc(itemId), { details: newDetails });
+                    db.collection("inventory").doc(itemId).update({ details: newDetails });
                 });
-
-                return batch.commit();
-            }).then(() => {
-                // Download file dibungkus try-catch agar jika library gagal load, sistem tidak berhenti
-                // (data di database sudah aman tersimpan lebih dulu).
-                try {
-                    if(window.jspdf) generateMultiOrderFormPDF(formsToIssue);
-                    downloadMultiOrderFormExcelXML(formsToIssue);
-                } catch(fileErr) {
-                    console.error("Error generating files: ", fileErr);
-                    alert("Form sudah TERSIMPAN di sistem, tapi gagal mengunduh file PDF/Excel: " + fileErr.message + "\nSilakan unduh ulang lewat Riwayat Form Order.");
-                }
-
                 logActivity('Terbitkan Form Order', `${formsToIssue.length} form diterbitkan.`);
                 document.querySelectorAll('#order-mitra-checklist input[type="checkbox"]').forEach(cb => cb.checked = false); 
                 onFormOrderMitraChange();
-                let skipMsg = skipped.length > 0 ? `\n\nDilewati (tidak ada alokasi tersedia): ${skipped.join(', ')}` : '';
-                alert(`${formsToIssue.length} Form Order berhasil diterbitkan.\nFile PDF/Excel otomatis terunduh.${skipMsg}`);
+                alert(`${formsToIssue.length} Form Order berhasil diterbitkan.\nFile PDF/Excel otomatis terunduh.`);
             }).catch(dbErr => {
                 console.error(dbErr);
-                alert("Gagal menyimpan form ke database Firebase. Error: " + dbErr.message + "\nTidak ada file yang diunduh karena data belum tersimpan. Silakan coba lagi.");
+                alert("Gagal menyimpan form ke database Firebase. Error: " + dbErr.message);
             });
 
         } catch (globalErr) {
@@ -1688,12 +1763,37 @@
     }
 
     function populateMitraSelects() {
+        // Dropdown di tab Gudang
         const alokasiSelect = document.getElementById('gudang-alokasi-filter-mitra');
         if(alokasiSelect) { let cur = alokasiSelect.value; alokasiSelect.innerHTML = `<option value="ALL">Semua Mitra</option>` + _mitras.map(m => `<option value="${m.id}">${m.name} (${m.loc})</option>`).join(''); if([...alokasiSelect.options].some(o => o.value === cur)) alokasiSelect.value = cur; }
+        
+        // Checklist Form Order Gudang
         const checklist = document.getElementById('order-mitra-checklist');
         if(checklist) {
             const checkedIds = new Set([...checklist.querySelectorAll('input[type="checkbox"]:checked')].map(cb => cb.value));
             checklist.innerHTML = _mitras.length === 0 ? `<span style="font-size:0.85em; color:var(--text-muted);">Belum ada data mitra.</span>` : _mitras.map(m => `<label class="order-mitra-check-item"><input type="checkbox" value="${m.id}" ${checkedIds.has(m.id) ? 'checked' : ''} onchange="onFormOrderMitraChange()"><span><strong>${m.name}</strong> <small style="color:var(--text-muted);">(${m.loc}) - ${m.brand}</small></span></label>`).join('');
+        }
+
+        // Dropdown Permintaan Khusus Mitra (Sales)
+        const reqSelect = document.getElementById('req-mitra-select');
+        if(reqSelect) {
+            let cur = reqSelect.value;
+            reqSelect.innerHTML = `<option value="">-- Pilih Mitra --</option>` + _mitras.map(m => `<option value="${m.id}">${m.name} (${m.loc})</option>`).join('');
+            if([...reqSelect.options].some(o => o.value === cur)) reqSelect.value = cur;
+        }
+
+        const reqFilter = document.getElementById('req-filter-mitra');
+        if(reqFilter) {
+            let cur = reqFilter.value;
+            reqFilter.innerHTML = `<option value="ALL">Semua Mitra</option>` + _mitras.map(m => `<option value="${m.id}">${m.name} (${m.loc})</option>`).join('');
+            if([...reqFilter.options].some(o => o.value === cur)) reqFilter.value = cur;
+        }
+        
+        const reqFilterGudang = document.getElementById('gudang-req-filter-mitra');
+        if(reqFilterGudang) {
+            let cur = reqFilterGudang.value;
+            reqFilterGudang.innerHTML = `<option value="ALL">Semua Mitra</option>` + _mitras.map(m => `<option value="${m.id}">${m.name} (${m.loc})</option>`).join('');
+            if([...reqFilterGudang.options].some(o => o.value === cur)) reqFilterGudang.value = cur;
         }
     }
     
@@ -1715,7 +1815,6 @@
                     let issued = (d.issued && typeof d.issued.mitra === 'object') ? parseInt(d.issued.mitra[mitra.id]) || 0 : 0;
                     let available = allocated - issued; if(available <= 0) return;
                     
-                    // PEMBARUAN: Memberikan validasi input Math.max secara realtime saat ketik
                     rowsHtml += `<tr data-itemid="${item.id}" data-size="${d.size}" data-available="${available}">
                         <td><input type="checkbox" checked onchange="updateOrderPreview()"></td>
                         <td><strong>${item.name}</strong><br>${getBadge(item.brand, 'brand')}</td>
@@ -1803,18 +1902,14 @@
     function loadAdminOrderFormData() {
         const tbody = document.querySelector('#admin-orderform-table tbody'); tbody.innerHTML = '';
         const fStatus = document.getElementById('admin-orderform-filter-status').value;
-        const fCari = document.getElementById('admin-orderform-filter-cari').value.toLowerCase();
-        let list = _orderForms.filter(f => (fStatus === 'ALL' || f.status === fStatus) && (fCari === '' || f.formNo.toLowerCase().includes(fCari) || f.mitraName.toLowerCase().includes(fCari)));
-        list.sort((a,b) => document.getElementById('admin-orderform-sort').value === 'terlama' ? a.createdAtLocal - b.createdAtLocal : b.createdAtLocal - a.createdAtLocal);
+        let list = _orderForms.filter(f => fStatus === 'ALL' || f.status === fStatus); list.sort((a,b) => document.getElementById('admin-orderform-sort').value === 'terlama' ? a.createdAtLocal - b.createdAtLocal : b.createdAtLocal - a.createdAtLocal);
         list.forEach(f => tbody.innerHTML += `<tr><td><input type="checkbox" class="cb-form-history-admin" value="${f.id}"></td><td>${f.formNo}</td><td>${f.mitraName}</td><td>${formatDateDisplay(f.date)}</td><td>${f.gudangName || '-'}</td><td>${(f.items||[]).length} baris</td><td>${f.status === 'void' ? '<span class="status-void">Dibatalkan</span>' : '<span class="status-issued">Diterbitkan</span>'}</td><td><button class="btn-primary btn-small" onclick="generateOrderFormPDF(_orderForms.find(x=>x.id==='${f.id}'))">📄 PDF</button> ${f.status === 'issued' ? `<button class="btn-danger btn-small" onclick="voidOrderForm('${f.id}')">Batalkan</button>` : ''}</td></tr>`);
     }
 
     function loadOrderFormHistory() {
         const tbody = document.querySelector('#orderform-table tbody'); tbody.innerHTML = '';
         const fStatus = document.getElementById('orderform-filter-status').value;
-        const fCari = document.getElementById('orderform-filter-cari').value.toLowerCase();
-        let list = _orderForms.filter(f => (fStatus === 'ALL' || f.status === fStatus) && (fCari === '' || f.formNo.toLowerCase().includes(fCari) || f.mitraName.toLowerCase().includes(fCari)));
-        list.sort((a,b) => b.createdAtLocal - a.createdAtLocal);
+        let list = _orderForms.filter(f => fStatus === 'ALL' || f.status === fStatus); list.sort((a,b) => b.createdAtLocal - a.createdAtLocal);
         list.forEach(f => tbody.innerHTML += `<tr><td><input type="checkbox" class="cb-form-history-gudang" value="${f.id}"></td><td>${f.formNo}</td><td>${f.mitraName}</td><td>${formatDateDisplay(f.date)}</td><td>${(f.items||[]).length} baris</td><td>${f.status === 'void' ? '<span class="status-void">Dibatalkan</span>' : '<span class="status-issued">Diterbitkan</span>'}</td><td><button class="btn-primary btn-small" onclick="generateOrderFormPDF(_orderForms.find(x=>x.id==='${f.id}'))">📄 PDF</button> ${f.status === 'issued' ? `<button class="btn-danger btn-small" onclick="voidOrderForm('${f.id}')">Batalkan</button>` : ''}</td></tr>`);
     }
 
@@ -1823,12 +1918,6 @@
         if(!confirm(`Batalkan Form Order ${f.formNo}? \n\nQty akan ditarik kembali dari mitra ini dan menjadi "Belum Dialokasikan" (Sisa Stok Gudang) di dashboard Sales.`)) return;
 
         let itemsByItemId = {}; (f.items || []).forEach(it => { if(!itemsByItemId[it.itemId]) itemsByItemId[it.itemId] = []; itemsByItemId[it.itemId].push(it); });
-
-        // PEMBARUAN: update stok tiap item + perubahan status form jadi 'void' sekarang digabung dalam
-        // SATU batch atomik. Sebelumnya ini beberapa .update() terpisah — kalau salah satu gagal di tengah
-        // jalan (mis. koneksi putus), bisa terjadi stok sudah dikembalikan tapi status form masih 'issued',
-        // atau sebaliknya. Dengan batch, semuanya berhasil bersamaan atau gagal bersamaan (tidak ada setengah-jalan).
-        const batch = db.batch();
         Object.keys(itemsByItemId).forEach(itemId => {
             const inv = _inventory.find(i => i.id === itemId); if(!inv) return;
             let nDetails = JSON.parse(JSON.stringify(inv.details));
@@ -1838,19 +1927,40 @@
                 if(d.allocated && typeof d.allocated.mitra === 'object') d.allocated.mitra[f.mitraId] = Math.max(0, (parseInt(d.allocated.mitra[f.mitraId]) || 0) - it.qty);
                 if(getDetailAllocatedTotal(d) === 0) d.allocationStatus = 'none';
             });
-            batch.update(db.collection("inventory").doc(itemId), { details: nDetails });
+            db.collection("inventory").doc(itemId).update({ details: nDetails });
         });
-        batch.update(db.collection("orderforms").doc(formId), { status: 'void', voidedBy: currentUser || 'Guest', voidedAtLocal: Date.now() });
-
-        batch.commit().catch(err => {
-            console.error(err);
-            alert('Gagal membatalkan form: ' + err.message + '\nSilakan coba lagi.');
-        });
+        db.collection("orderforms").doc(formId).update({ status: 'void', voidedBy: currentUser || 'Guest', voidedAtLocal: Date.now() });
     }
 
     // ================= BAGIAN SALES =================
     
-    // PEMBARUAN: Logika 60% pemerataan mitra telah dikembalikan
+    function switchSalesTab(tab) {
+        activeSalesTab = tab;
+        document.getElementById('tab-sales-belum').classList.toggle('active', tab === 'belum'); 
+        document.getElementById('tab-sales-pending').classList.toggle('active', tab === 'pending'); 
+        document.getElementById('tab-sales-sudah').classList.toggle('active', tab === 'sudah'); 
+        document.getElementById('tab-sales-mitra').classList.toggle('active', tab === 'mitra');
+        document.getElementById('tab-sales-request').classList.toggle('active', tab === 'request');
+
+        document.getElementById('sales-view-data').classList.add('hidden');
+        document.getElementById('sales-view-mitra').classList.add('hidden');
+        document.getElementById('sales-view-request').classList.add('hidden');
+
+        if (tab === 'mitra') { 
+            document.getElementById('sales-view-mitra').classList.remove('hidden'); loadMitraData(); 
+        } else if (tab === 'request') {
+            document.getElementById('sales-view-request').classList.remove('hidden'); 
+            populateReqItemSelect();
+            loadSalesRequestData();
+        } else { 
+            document.getElementById('sales-view-data').classList.remove('hidden'); 
+            loadSalesData(); 
+            let btnEx = document.getElementById('btn-export-sales');
+            btnEx.innerText = tab === 'belum' ? "📥 Download Laporan Sisa Stok" : (tab === 'pending' ? "📥 Download Ajuan Pending" : "📥 Download Laporan Alokasi Approved"); 
+            btnEx.onclick = () => exportExcel(tab === 'belum' ? 'sales_belum' : (tab === 'pending' ? 'sales_pending' : 'alokasi')); 
+        }
+    }
+
     function loadSalesData() {
         const fName = document.getElementById('sales-filter-nama').value.toLowerCase();
         const tbody = document.querySelector('#sales-table tbody'); tbody.innerHTML = '';
@@ -1926,7 +2036,6 @@
                 let vT = a.tiktok||''; let vS = a.shopee||''; let vW = a.web||''; let vB = a.butik||''; let vF = a.foc||'';
                 let sum = (parseInt(vT)||0) + (parseInt(vS)||0) + (parseInt(vW)||0) + (parseInt(vB)||0) + (parseInt(vF)||0);
 
-                // --- LOGIKA PEMBAGIAN MITRA OTOMATIS (RESTORED) ---
                 let suggestedMitraVal = 0; let remainder = 0;
                 if(activeSalesTab === 'belum' && itemMitras.length > 0) {
                     let suggestTotal = Math.floor(d.totalQty * 0.6); 
@@ -1941,16 +2050,27 @@
                     itemMitras.forEach((m, idx) => { 
                         let vM = '';
                         if(activeSalesTab === 'belum') {
-                            vM = suggestedMitraVal + (idx < remainder ? 1 : 0); 
-                            if(vM === 0) vM = '';
+                            let reqKhusus = (d.requested && d.requested.mitra && d.requested.mitra[m.id]) ? d.requested.mitra[m.id] : 0;
+                            if(reqKhusus > 0) {
+                                vM = reqKhusus; 
+                            } else {
+                                vM = suggestedMitraVal + (idx < remainder ? 1 : 0); 
+                                if(vM === 0) vM = '';
+                            }
                         } else { 
                             vM = (a.mitra && a.mitra[m.id]) ? a.mitra[m.id] : ''; 
                         }
                         sum += (parseInt(vM)||0); 
-                        mitraInputsHtml += `<div><label title="${m.name}">${m.name}</label><input type="number" id="m-${item.id}-${sid}-${m.id}" value="${vM}" ${ro} oninput="calcSisa('${item.id}', '${sid}', ${d.totalQty})"></div>`; 
+                        
+                        let reqBadge = '';
+                        if(activeSalesTab === 'belum' || activeSalesTab === 'pending') {
+                           let rq = (d.requested && d.requested.mitra && d.requested.mitra[m.id]) ? d.requested.mitra[m.id] : 0;
+                           if(rq > 0) reqBadge = `<span style="font-size:0.65em; color:var(--secondary); display:block;">(Req: ${rq})</span>`;
+                        }
+
+                        mitraInputsHtml += `<div><label title="${m.name}">${m.name} ${reqBadge}</label><input type="number" id="m-${item.id}-${sid}-${m.id}" value="${vM}" ${ro} oninput="calcSisa('${item.id}', '${sid}', ${d.totalQty})"></div>`; 
                     });
                 }
-                // ----------------------------------------------------
 
                 let s = d.totalQty - sum;
                 let sisaColor = s < 0 ? 'red' : (s === 0 ? 'green' : 'blue');
@@ -1987,15 +2107,7 @@
             tbody.innerHTML += trStr;
         });
 
-        if(!renderedAny) tbody.innerHTML = `<tr><td colspan="5" class="notif-empty">Tidak ada data stok.</td></tr>`;
-    }
-
-    function switchSalesTab(tab) {
-        activeSalesTab = tab;
-        document.getElementById('tab-sales-belum').classList.toggle('active', tab === 'belum'); document.getElementById('tab-sales-pending').classList.toggle('active', tab === 'pending'); document.getElementById('tab-sales-sudah').classList.toggle('active', tab === 'sudah'); document.getElementById('tab-sales-mitra').classList.toggle('active', tab === 'mitra');
-        let btnEx = document.getElementById('btn-export-sales');
-        if (tab === 'mitra') { document.getElementById('sales-view-data').classList.add('hidden'); document.getElementById('sales-view-mitra').classList.remove('hidden'); loadMitraData(); } 
-        else { document.getElementById('sales-view-mitra').classList.add('hidden'); document.getElementById('sales-view-data').classList.remove('hidden'); loadSalesData(); btnEx.innerText = tab === 'belum' ? "📥 Download Laporan Sisa Stok" : (tab === 'pending' ? "📥 Download Ajuan Pending" : "📥 Download Laporan Alokasi Approved"); btnEx.onclick = () => exportExcel(tab === 'belum' ? 'sales_belum' : (tab === 'pending' ? 'sales_pending' : 'alokasi')); }
+        if(!renderedAny) tbody.innerHTML = `<tr><td colspan="5" class="notif-empty">Tidak ada data stok yang sesuai kriteria.</td></tr>`;
     }
 
     function saveMitra() {
@@ -2034,14 +2146,150 @@
 
     function resetAllocation(itemId) { if(confirm('Tolak / Hapus semua alokasi ini?')) { let item = JSON.parse(JSON.stringify(_inventory.find(i => i.id === itemId))); item.details.forEach(d => { d.allocated = { mitra: {}, tiktok: 0, shopee: 0, web: 0, butik: 0, foc: 0 }; d.allocationStatus = 'none'; }); db.collection("inventory").doc(itemId).update({ details: item.details }); } }
 
+    // ================= FUNGSI PERMINTAAN KHUSUS MITRA =================
+    
+    function populateReqItemSelect() {
+        const select = document.getElementById('req-item-select');
+        if(!select) return;
+        let currentVal = select.value;
+        select.innerHTML = '<option value="">-- Pilih Artikel --</option>' + 
+            _inventory.map(i => `<option value="${i.id}">${i.name} (${i.brand})</option>`).join('');
+        if([...select.options].some(o => o.value === currentVal)) select.value = currentVal;
+    }
+
+    function onReqItemChange() {
+        const itemId = document.getElementById('req-item-select').value;
+        const container = document.getElementById('req-size-container');
+        container.innerHTML = '';
+        if(!itemId) { container.innerHTML = '<div class="notif-empty" style="grid-column: 1/-1;">Pilih artikel terlebih dahulu.</div>'; return; }
+        
+        const item = _inventory.find(i => i.id === itemId);
+        if(!item) return;
+        
+        item.details.forEach(d => {
+            container.innerHTML += `<div class="size-item" style="padding:15px;"><label style="font-size:1em;">Size ${d.size}</label><input type="number" id="req-input-${safeId(d.size)}" min="0" placeholder="Qty"></div>`;
+        });
+    }
+
+    function saveMitraRequest() {
+        const itemId = document.getElementById('req-item-select').value;
+        const mitraId = document.getElementById('req-mitra-select').value;
+        if(!itemId || !mitraId) return alert('Pilih Artikel dan Mitra terlebih dahulu!');
+        
+        let item = JSON.parse(JSON.stringify(_inventory.find(i => i.id === itemId)));
+        let hasInput = false;
+        
+        item.details.forEach(d => {
+            const sid = safeId(d.size);
+            const inputEl = document.getElementById(`req-input-${sid}`);
+            
+            // PEMBARUAN: Kini bisa input 0 untuk menghapus request
+            if(inputEl && inputEl.value !== "") {
+                const val = parseInt(inputEl.value) || 0;
+                if(!d.requested) d.requested = { mitra: {} };
+                if(!d.requested.mitra) d.requested.mitra = {};
+                d.requested.mitra[mitraId] = val; 
+                hasInput = true;
+            }
+        });
+        
+        if(!hasInput) return alert('Masukkan minimal 1 kuantitas permintaan (isi 0 untuk membatalkan permintaan).');
+        
+        db.collection("inventory").doc(itemId).update({ details: item.details }).then(() => {
+            logActivity('Input Permintaan Mitra', `Merubah permintaan khusus mitra pada artikel ${item.name}`);
+            alert('Permintaan berhasil disimpan!');
+            document.getElementById('req-item-select').value = '';
+            document.getElementById('req-mitra-select').value = '';
+            document.getElementById('req-size-container').innerHTML = '<div class="notif-empty" style="grid-column: 1/-1;">Pilih artikel terlebih dahulu.</div>';
+        });
+    }
+
+    function loadSalesRequestData() {
+        const fName = document.getElementById('req-filter-nama').value.toLowerCase();
+        const fMitra = document.getElementById('req-filter-mitra').value;
+        const tbody = document.querySelector('#sales-request-table tbody'); 
+        if(!tbody) return;
+        tbody.innerHTML = '';
+        
+        let rendered = 0;
+        
+        _inventory.forEach(item => {
+            if(fName && !item.name.toLowerCase().includes(fName)) return;
+            
+            let requestsByMitra = {};
+            
+            item.details.forEach(d => {
+                if(d.requested && d.requested.mitra) {
+                    Object.entries(d.requested.mitra).forEach(([mId, reqQty]) => {
+                        if(fMitra !== 'ALL' && mId !== fMitra) return;
+                        if(reqQty > 0) {
+                            if(!requestsByMitra[mId]) requestsByMitra[mId] = [];
+                            
+                            let allocQty = (d.allocated && d.allocated.mitra && d.allocated.mitra[mId]) ? d.allocated.mitra[mId] : 0;
+                            let pct = Math.round((allocQty / reqQty) * 100);
+                            let statusStr = '';
+                            if(allocQty > 0) {
+                                statusStr = d.allocationStatus === 'approved' ? `<span class="status-approved">APPROVED</span>` : `<span class="status-pending">PENDING</span>`;
+                            } else {
+                                statusStr = `<span class="badge" style="background:#e2e8f0; color:#334155;">BELUM DIALOKASI</span>`;
+                            }
+                            
+                            let color = pct >= 100 ? 'var(--success)' : (pct > 0 ? 'var(--warning)' : 'var(--danger)');
+                            
+                            requestsByMitra[mId].push(`<div style="border-bottom:1px dashed #ccc; padding:6px 0; font-size:0.85em;">
+                                <strong>Size ${d.size}</strong>: Diminta <b style="color:var(--primary)">${reqQty}</b> ➔ Diberikan <b>${allocQty}</b> ${statusStr} (Terpenuhi: <b style="color:${color}">${pct}%</b>)
+                            </div>`);
+                        }
+                    });
+                }
+            });
+            
+            Object.entries(requestsByMitra).forEach(([mId, reqHtmlList]) => {
+                rendered++;
+                const mitra = _mitras.find(m => m.id === mId);
+                const mName = mitra ? `${mitra.name} <br><small>(${mitra.loc})</small>` : 'Mitra Terhapus';
+                
+                tbody.innerHTML += `<tr>
+                    <td><strong>${item.name}</strong><br>${getBadge(item.brand, 'brand')}</td>
+                    <td>${mName}</td>
+                    <td>${reqHtmlList.join('')}</td>
+                    <td><button class="btn-danger btn-small" onclick="deleteMitraRequest('${item.id}', '${mId}')">Hapus Request</button></td>
+                </tr>`;
+            });
+        });
+        
+        if(rendered === 0) tbody.innerHTML = `<tr><td colspan="4" class="notif-empty">Belum ada data permintaan khusus.</td></tr>`;
+    }
+
+    function deleteMitraRequest(itemId, mitraId) {
+        if(!confirm('Hapus seluruh permintaan dari mitra ini untuk artikel terpilih?')) return;
+        let item = JSON.parse(JSON.stringify(_inventory.find(i => i.id === itemId)));
+        item.details.forEach(d => {
+            if(d.requested && d.requested.mitra && d.requested.mitra[mitraId]) {
+                delete d.requested.mitra[mitraId];
+            }
+        });
+        db.collection("inventory").doc(itemId).update({ details: item.details }).then(() => {
+            logActivity('Hapus Permintaan Mitra', `Menghapus request mitra pada artikel: ${item.name}`);
+        });
+    }
+
     // ================= EXPORT EXCEL & REPORT =================
     function exportExcel(type) {
         let tableHtml = ""; let filename = "";
-        const thStyle = "background-color:#0f172a; color:#ffffff; font-weight:bold; padding:10px; border:1px solid #000; text-align:center; vertical-align:middle;"; const thStyleMitra = "background-color:#4338ca; color:#ffffff; font-weight:bold; padding:10px; border:1px solid #000; text-align:center; vertical-align:middle;"; const thStyleTotal = "background-color:#047857; color:#ffffff; font-weight:bold; padding:10px; border:1px solid #000; text-align:center; vertical-align:middle;"; const tdText = "padding:8px; border:1px solid #000; vertical-align: middle; text-align:left;"; const tdNum = "padding:8px; border:1px solid #000; vertical-align: middle; text-align:center; mso-number-format:'0';"; const tdBold = "padding:8px; border:1px solid #000; vertical-align: middle; text-align:center; font-weight:bold; background-color:#f1f5f9; mso-number-format:'0';";
+        const thStyle = "background-color:#0f172a; color:#ffffff; font-weight:bold; padding:10px; border:1px solid #000; text-align:center; vertical-align:middle;"; 
+        const thStyleMitra = "background-color:#4338ca; color:#ffffff; font-weight:bold; padding:10px; border:1px solid #000; text-align:center; vertical-align:middle;"; 
+        const thStyleTotal = "background-color:#047857; color:#ffffff; font-weight:bold; padding:10px; border:1px solid #000; text-align:center; vertical-align:middle;"; 
+        const tdText = "padding:8px; border:1px solid #000; vertical-align: middle; text-align:left;"; 
+        const tdNum = "padding:8px; border:1px solid #000; vertical-align: middle; text-align:center; mso-number-format:'0';"; 
+        const tdBold = "padding:8px; border:1px solid #000; vertical-align: middle; text-align:center; font-weight:bold; background-color:#f1f5f9; mso-number-format:'0';";
+        
+        // PEMBARUAN: Format khusus untuk Persentase (Excel membaca string, bukan desimal)
+        const tdPct = "padding:8px; border:1px solid #000; vertical-align: middle; text-align:center; font-weight:bold; mso-number-format:'\\@';";
 
         if(type === 'gudang_input') {
             filename = "Laporan_Stok_Gudang"; tableHtml = `<tr><th style="${thStyle}">Semua Tanggal Masuk</th><th style="${thStyle}">Nama Artikel</th><th style="${thStyle}">Brand</th><th style="${thStyle}">Kondisi</th><th style="${thStyle}">Target Produksi</th><th style="${thStyle}">Total Masuk Gudang</th><th style="${thStyle}">Progress (%)</th><th style="${thStyle}">Rincian Size & Qty Masuk</th></tr>`;
-            _inventory.forEach(item => { let total = item.details.reduce((sum, d) => sum + d.totalQty, 0); tableHtml += `<tr><td style="${tdText}">${getRawDates(item)}</td><td style="${tdText}">${item.name}</td><td style="${tdText}">${item.brand}</td><td style="${tdText}">${item.condition}</td><td style="${tdNum}">${item.qtyProduksi}</td><td style="${tdBold}">${total}</td><td style="${tdNum}">${item.qtyProduksi > 0 ? ((total/item.qtyProduksi)*100).toFixed(1) : 0}%</td><td style="${tdText}">${item.details.map(d => `${d.size}: ${d.totalQty}`).join(', ')}</td></tr>`; });
+            _inventory.forEach(item => { let total = item.details.reduce((sum, d) => sum + d.totalQty, 0); tableHtml += `<tr><td style="${tdText}">${getRawDates(item)}</td><td style="${tdText}">${item.name}</td><td style="${tdText}">${item.brand}</td><td style="${tdText}">${item.condition}</td><td style="${tdNum}">${item.qtyProduksi}</td><td style="${tdBold}">${total}</td><td style="${tdPct}">${item.qtyProduksi > 0 ? ((total/item.qtyProduksi)*100).toFixed(1) : 0}%</td><td style="${tdText}">${item.details.map(d => `${d.size}: ${d.totalQty}`).join(', ')}</td></tr>`; });
         } 
         else if (type === 'alokasi' || type === 'sales_pending') {
             let statusFilter = type === 'alokasi' ? 'approved' : 'pending'; filename = type === 'alokasi' ? "Laporan_Alokasi_Sales_Approved" : "Laporan_Ajuan_Pending_Sales";
@@ -2051,6 +2299,28 @@
         else if (type === 'sales_belum') {
             filename = "Laporan_Sisa_Stok_Gudang"; tableHtml = `<tr><th style="${thStyle}">Tanggal Masuk (List)</th><th style="${thStyle}">Nama Artikel</th><th style="${thStyle}">Brand</th><th style="${thStyle}">Size</th><th style="${thStyle}">Total Qty (Gudang)</th><th style="${thStyle}">Status Alokasi</th><th style="${thStyle}">Qty Telah Dialokasikan</th><th style="${thStyle}">Sisa Stok Belum Dialokasikan</th></tr>`;
             _inventory.forEach(item => { item.details.forEach(d => { let a = d.allocated; let mitraTotal = 0; if(typeof a.mitra === 'object') { Object.values(a.mitra).forEach(v => mitraTotal += (parseInt(v)||0)); } let totalAlloc = a.tiktok + a.shopee + a.web + (a.butik||0) + (a.foc||0) + mitraTotal; if(d.allocationStatus === 'none' || !d.allocationStatus) { tableHtml += `<tr><td style="${tdText}">${getRawDates(item)}</td><td style="${tdText}">${item.name}</td><td style="${tdText}">${item.brand}</td><td style="${tdText}">${d.size}</td><td style="${tdBold}">${d.totalQty}</td><td style="${tdText}">BELUM</td><td style="${tdBold}">${totalAlloc}</td><td style="${tdBold}; color:red;">${d.totalQty - totalAlloc}</td></tr>`; } }); });
+        }
+        else if (type === 'sales_request') {
+            filename = "Laporan_Permintaan_Khusus_Mitra";
+            tableHtml = `<tr><th style="${thStyle}">Nama Artikel</th><th style="${thStyle}">Brand</th><th style="${thStyle}">Nama Mitra</th><th style="${thStyle}">Size</th><th style="${thStyle}">Qty Diminta</th><th style="${thStyle}">Qty Dialokasikan</th><th style="${thStyle}">Status Alokasi</th><th style="${thStyle}">Persentase Terpenuhi</th></tr>`;
+            
+            _inventory.forEach(item => {
+                item.details.forEach(d => {
+                    if(d.requested && d.requested.mitra) {
+                        Object.entries(d.requested.mitra).forEach(([mId, reqQty]) => {
+                            if(reqQty > 0) {
+                                let mitra = _mitras.find(m => m.id === mId);
+                                let mName = mitra ? mitra.name : 'Mitra Terhapus';
+                                let allocQty = (d.allocated && d.allocated.mitra && d.allocated.mitra[mId]) ? d.allocated.mitra[mId] : 0;
+                                let pct = Math.round((allocQty / reqQty) * 100);
+                                let status = allocQty > 0 ? (d.allocationStatus||'').toUpperCase() : 'BELUM DIALOKASI';
+                                
+                                tableHtml += `<tr><td style="${tdText}">${item.name}</td><td style="${tdText}">${item.brand}</td><td style="${tdText}">${mName}</td><td style="${tdText}">${d.size}</td><td style="${tdBold}">${reqQty}</td><td style="${tdBold}">${allocQty}</td><td style="${tdText}">${status}</td><td style="${tdPct}">${pct}%</td></tr>`;
+                            }
+                        });
+                    }
+                });
+            });
         }
         
         let fullHtml = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="UTF-8"><style>table{border-collapse:collapse;font-family:sans-serif;}</style></head><body><table>${tableHtml}</table></body></html>`;
