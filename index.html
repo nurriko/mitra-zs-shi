@@ -123,13 +123,23 @@
         .parent-row { cursor: pointer; transition: background 0.2s; } .parent-row:hover { background-color: #f8fafc; }
         .child-row { background-color: #f8fafc; box-shadow: inset 0 3px 5px rgba(0,0,0,0.02); }
         
-        .size-alloc-card { background: white; border: 1px solid var(--border); border-radius: 8px; padding: 15px; margin-bottom: 15px; }
-        .alloc-grid-inputs { display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 10px; margin-top:10px; }
-        .alloc-grid-inputs label { font-size: 0.75em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 4px; line-height: 1.2; }
-        .alloc-grid-inputs input { width: 100%; padding: 8px; font-size: 0.95em; text-align: center; }
-        
         .alloc-badge { background: #e2e8f0; color: #334155; padding: 4px 8px; border-radius: 4px; font-size: 0.85em; margin-right: 5px; display: inline-block; font-weight: 600; margin-bottom: 5px; }
         .alloc-badge-mitra { background: #dbeafe; color: #1e40af; border: 1px solid #bfdbfe; }
+        
+        /* ================= DESAIN UI ALOKASI SALES BARU (ANTI PUSING) ================= */
+        .alloc-panel { border: 1px solid #cbd5e1; border-radius: 8px; margin-bottom: 15px; background: white; overflow: hidden; box-shadow: 0 2px 5px rgba(0,0,0,0.03); }
+        .alloc-panel-header { background: #f8fafc; padding: 12px 15px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #cbd5e1; }
+        .alloc-panel-body { padding: 15px; }
+        .alloc-two-col { display: flex; gap: 20px; flex-wrap: wrap; }
+        .alloc-col-box { flex: 1; min-width: 250px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 15px; }
+        .alloc-col-title { font-size: 0.85em; font-weight: 700; text-transform: uppercase; color: var(--primary); margin-bottom: 12px; border-bottom: 2px solid #e2e8f0; padding-bottom: 8px; display:flex; align-items:center; gap:6px;}
+        
+        /* Baris Input yang Rapi */
+        .compact-input-group { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; font-size: 0.85em; border-bottom: 1px dashed #e2e8f0; padding-bottom: 6px; }
+        .compact-input-group:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+        .compact-input-group label { margin: 0; font-weight: 600; color: #334155; }
+        .compact-input-group input { width: 75px; padding: 6px; text-align: center; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 1.05em; font-weight: 600; color: var(--primary); }
+        .compact-input-group input:focus { border-color: var(--secondary); outline: none; box-shadow: 0 0 0 3px rgba(59,130,246,0.15); }
         
         .paste-zone { border: 2px dashed #cbd5e1; background: #f8fafc; padding: 15px; text-align: center; color: var(--text-muted); font-size: 0.85em; border-radius: 8px; cursor: pointer; outline: none; margin-bottom: 15px; transition: 0.2s; }
         .paste-zone:focus { border-color: var(--secondary); background: #eff6ff; }
@@ -157,17 +167,6 @@
         .notif-title { font-weight: 600; color: var(--primary); }
         .notif-sub { color: var(--text-muted); margin-top: 2px; }
 
-        /* ================= FILTER & SORT ================= */
-        .filter-bar select, .filter-bar input { max-width: 220px; }
-        .sort-select { background: white; }
-        .table-row-warn { background-color: #fffbeb !important; }
-        .table-row-danger { background-color: #fef2f2 !important; }
-        .table-row-danger td { box-shadow: inset 3px 0 0 var(--danger); }
-        .table-row-warn td { box-shadow: inset 3px 0 0 var(--warning); }
-        .mini-tag { font-size: 0.7em; font-weight: 700; padding: 2px 6px; border-radius: 4px; display: inline-block; margin-left: 6px; vertical-align: middle; }
-        .mini-tag-danger { background: #fee2e2; color: #b91c1c; }
-        .mini-tag-warn { background: #fef3c7; color: #b45309; }
-
         /* ================= FORM ORDER MITRA ================= */
         .order-select-table th, .order-select-table td { padding: 8px 10px; font-size: 0.85em; }
         .order-select-table input[type="number"] { width: 80px; padding: 6px; text-align: center; }
@@ -189,9 +188,6 @@
         .stat-label { font-size: 0.8em; color: var(--text-muted); margin-top: 4px; }
         .size-chip { display: inline-flex; align-items: center; gap: 6px; background: #e2e8f0; color: #334155; padding: 5px 10px; border-radius: 20px; font-size: 0.85em; font-weight: 600; }
         .size-chip-remove { cursor: pointer; color: var(--danger); font-weight: 800; }
-
-        /* CHECKBOX BARIS TABEL */
-        .cb-row { width: 18px; height: 18px; cursor: pointer; }
 
         /* TIMELINE HISTORY PER ITEM */
         .tl-item { border-left: 2px solid var(--secondary); padding-left: 15px; position: relative; margin-bottom: 20px; }
@@ -646,7 +642,7 @@
                     </div>
                     <button class="btn-success" id="btn-export-sales" onclick="exportExcel('sales_belum')">📥 Download Laporan Excel</button>
                 </div>
-                <p id="sales-void-notif" style="font-size:0.85em; color:var(--danger); font-weight:600; margin:5px 0;">*Catatan: Barang dari Form Order yang dibatalkan oleh Gudang akan otomatis kembali ke tab "Daftar Stok" ini sebagai Sisa Stok yang siap dialokasikan ulang.</p>
+                <p id="sales-void-notif" style="font-size:0.85em; color:var(--danger); font-weight:600; margin:5px 0;">*Catatan: Barang dari Form Order yang dibatalkan Gudang akan otomatis kembali ke tab "Daftar Stok" ini.</p>
                 
                 <div class="table-container">
                     <table id="sales-table">
@@ -1185,8 +1181,8 @@
         if(!item.history) return '-';
         let dates = [...new Set(item.history.map(h => h.date))].sort();
         let displayStr = dates.map(d => formatDateDisplay(d)).join(', ');
-        // Jika digrup (Gudang table) kita matikan klik agar tidak tabrakan dengan tombol Riwayat Lengkap.
-        if (role === 'gudang') return displayStr;
+        // Jika digrup (Gudang/Sales) matikan popup history per-item untuk mencegah bentrok
+        if (role === 'gudang' || role === 'sales') return displayStr;
         return `<span class="clickable-dates" style="font-weight:600; text-decoration: underline; color:var(--secondary);" onclick="openHistoryModal('${item.id}', '${role}'); event.stopPropagation();" title="Detail Size Masuk">${displayStr}</span>`;
     }
 
@@ -1621,7 +1617,6 @@
 
         let list = Object.values(grouped);
         
-        // Sorting logic
         let sortVal = document.getElementById('gudang-sort').value;
         if(sortVal === 'stok_desc') {
             list.sort((a,b) => (b.totalOke + b.totalDefect) - (a.totalOke + a.totalDefect));
@@ -2238,6 +2233,7 @@
         }
     }
 
+    // LOGIKA BARU: Tampilan Data Sales Digabung per Nama + Desain 2 Kolom
     function loadSalesData() {
         const fName = document.getElementById('sales-filter-nama').value.toLowerCase();
         const tbody = document.querySelector('#sales-table tbody'); tbody.innerHTML = '';
@@ -2249,148 +2245,206 @@
             return true;
         });
         
-        list.sort((a,b) => document.getElementById('sales-sort').value === 'sisa_desc' ? getItemAvailableStock(b)-getItemAvailableStock(a) : (getItemLatestDate(b)||'').localeCompare(getItemLatestDate(a)||''));
+        let grouped = {};
+        list.forEach(item => {
+            let key = safeId(item.name) + '_' + item.brand;
+            if(!grouped[key]) {
+                grouped[key] = {
+                    key: key, name: item.name, brand: item.brand, image: item.image,
+                    items: [], totalStock: 0, totalAlloc: 0, dates: new Set()
+                };
+            }
+            grouped[key].items.push(item);
+            (item.history || []).forEach(h => grouped[key].dates.add(h.date));
+        });
+
+        let groupedArr = Object.values(grouped);
+        
+        // Sorting
+        let sortVal = document.getElementById('sales-sort').value;
+        groupedArr.forEach(g => {
+            g.totalGroupStock = 0; g.totalGroupAlloc = 0;
+            g.items.forEach(i => {
+                i.details.forEach(d => {
+                    g.totalGroupStock += d.totalQty;
+                    g.totalGroupAlloc += getDetailAllocatedTotal(d);
+                });
+            });
+        });
+
+        if(sortVal === 'sisa_desc') {
+            groupedArr.sort((a,b) => (b.totalGroupStock - b.totalGroupAlloc) - (a.totalGroupStock - a.totalGroupAlloc));
+        } else {
+            groupedArr.sort((a,b) => {
+                let dateA = [...a.dates].sort().pop() || ''; let dateB = [...b.dates].sort().pop() || '';
+                return dateB.localeCompare(dateA);
+            });
+        }
         
         let renderedAny = false;
 
-        list.forEach(item => {
-            let totalStock = 0; let totalAlloc = 0; let sizesToRender = [];
-            let itemMitras = _mitras.filter(m => m.brand === item.brand || m.brand === 'BOTH');
+        groupedArr.forEach(g => {
+            let groupTotalStock = 0; let groupTotalAlloc = 0;
+            let htmlContent = '';
             
-            item.details.forEach(d => {
-                let a = d.allocated; let mitraTotal = 0; 
-                if(typeof a.mitra === 'object') {
-                    Object.values(a.mitra).forEach(v => mitraTotal += (parseInt(v)||0));
-                }
-                let sizeAllocTotal = (a.tiktok + a.shopee + a.web + (a.butik||0) + (a.foc||0) + mitraTotal);
-                totalStock += d.totalQty; 
-                totalAlloc += sizeAllocTotal;
+            g.items.forEach(item => {
+                let sizesToRender = [];
+                let itemTotalStock = 0; let itemTotalAlloc = 0;
+                let itemMitras = _mitras.filter(m => m.brand === item.brand || m.brand === 'BOTH');
                 
-                let status = d.allocationStatus || 'none';
-                if(activeSalesTab === 'belum' && status !== 'none') return; 
-                if(activeSalesTab === 'pending' && status !== 'pending') return; 
-                if(activeSalesTab === 'sudah' && status !== 'approved') return; 
-                sizesToRender.push(d);
+                item.details.forEach(d => {
+                    let a = d.allocated; let mitraTotal = 0; 
+                    if(typeof a.mitra === 'object') Object.values(a.mitra).forEach(v => mitraTotal += (parseInt(v)||0));
+                    let sizeAllocTotal = (a.tiktok + a.shopee + a.web + (a.butik||0) + (a.foc||0) + mitraTotal);
+                    itemTotalStock += d.totalQty; 
+                    itemTotalAlloc += sizeAllocTotal;
+                    
+                    let status = d.allocationStatus || 'none';
+                    if(activeSalesTab === 'belum' && status !== 'none') return; 
+                    if(activeSalesTab === 'pending' && status !== 'pending') return; 
+                    if(activeSalesTab === 'sudah' && status !== 'approved') return; 
+                    sizesToRender.push(d);
+                });
+                
+                groupTotalStock += itemTotalStock;
+                groupTotalAlloc += itemTotalAlloc;
+
+                if(sizesToRender.length === 0) return; // Lewati jika barang ini tidak punya size yg cocok di tab ini
+                
+                let isStaff = currentUserRole && currentUserRole.startsWith('sales_staff');
+                let conditionBadge = getBadge(item.condition, 'cond');
+                htmlContent += `<div style="margin-bottom:20px; border:1px solid #ccc; padding:15px; border-radius:8px; background:#fff; box-shadow: 0 4px 6px rgba(0,0,0,0.02);">
+                    <h4 style="margin-top:0; display:flex; justify-content:space-between; align-items:center;">
+                        <span>Alokasi Stok ${conditionBadge}</span>
+                        <span style="font-size:0.85em; color:var(--text-muted); font-weight:normal;">Total Qty Kondisi Ini: ${itemTotalStock} pcs</span>
+                    </h4>`;
+
+                if (activeSalesTab === 'sudah') {
+                    let summaryHtml = '';
+                    sizesToRender.forEach(d => {
+                        let a = d.allocated; let badges = [];
+                        if(a.tiktok) badges.push(`<span class="alloc-badge">Tiktok: ${a.tiktok}</span>`); 
+                        if(a.shopee) badges.push(`<span class="alloc-badge">Shopee: ${a.shopee}</span>`); 
+                        if(a.web) badges.push(`<span class="alloc-badge">Web: ${a.web}</span>`); 
+                        if(a.butik) badges.push(`<span class="alloc-badge">Butik: ${a.butik}</span>`); 
+                        if(a.foc) badges.push(`<span class="alloc-badge">FOC: ${a.foc}</span>`);
+                        if(typeof a.mitra === 'object') { 
+                            for(let mid in a.mitra) { 
+                                if(a.mitra[mid] > 0) { 
+                                    let mObj = _mitras.find(x => x.id == mid); 
+                                    badges.push(`<span class="alloc-badge alloc-badge-mitra">${mObj?mObj.name:'Mitra'}: ${a.mitra[mid]}</span>`); 
+                                } 
+                            } 
+                        }
+                        if(badges.length > 0) summaryHtml += `<div style="margin-bottom:8px; padding-bottom:8px; border-bottom:1px solid #eee;"><span style="display:inline-block; width:60px; font-weight:bold; color:var(--primary);">Size ${d.size}</span> ${badges.join(' ')}</div>`;
+                    });
+                    htmlContent += `<div id="summary-${item.id}"><div style="background:#f8fafc; border:1px solid var(--border); border-radius:8px; padding:15px; margin-bottom:15px;"><h5 style="margin-top:0;">Ringkasan Alokasi: <span class="status-approved">APPROVED</span></h5>${summaryHtml}</div>${(currentUserRole === 'sales_leader' || currentUserRole === 'admin') ? `<div style="text-align:right; margin-bottom:10px;"><button class="btn-danger" style="margin-right:10px;" onclick="resetAllocation('${item.id}')">Hapus (Reset) Semua</button><button class="btn-warning" onclick="toggleEditAlloc('${item.id}')">Edit Mode ➔</button></div>` : ''}</div>`;
+                }
+
+                htmlContent += `<div id="form-${item.id}" class="${activeSalesTab === 'sudah' ? 'hidden' : ''}">`;
+                htmlContent += `<div class="paste-zone" tabindex="0" onpaste="handleImagePaste(event, '${item.id}')">📸 Paste (Ctrl+V) Screenshot Foto di sini</div>`;
+                
+                sizesToRender.forEach(d => {
+                    let sid = safeId(d.size); let a = d.allocated; 
+                    let ro = (activeSalesTab === 'sudah' && isStaff) ? 'readonly' : '';
+                    let statusBadge = d.allocationStatus === 'pending' ? `<span class="status-pending">PENDING</span>` : (d.allocationStatus === 'approved' ? `<span class="status-approved">APPROVED</span>` : '');
+                    
+                    let vT = a.tiktok||''; let vS = a.shopee||''; let vW = a.web||''; let vB = a.butik||''; let vF = a.foc||'';
+                    let sum = (parseInt(vT)||0) + (parseInt(vS)||0) + (parseInt(vW)||0) + (parseInt(vB)||0) + (parseInt(vF)||0);
+
+                    let suggestedMitraVal = 0; let remainder = 0;
+                    if(activeSalesTab === 'belum' && itemMitras.length > 0) {
+                        let suggestTotal = Math.floor(d.totalQty * 0.6); 
+                        suggestedMitraVal = Math.floor(suggestTotal / itemMitras.length);
+                        remainder = suggestTotal % itemMitras.length;
+                    }
+
+                    let mitraInputsHtml = '';
+                    if(itemMitras.length === 0) {
+                        mitraInputsHtml = `<div style="font-size:0.8em; color:var(--danger); padding:10px;">Belum ada Mitra terdaftar untuk brand ini.</div>`;
+                    } else {
+                        itemMitras.forEach((m, idx) => { 
+                            let vM = '';
+                            if(activeSalesTab === 'belum') {
+                                let reqKhusus = (d.requested && d.requested.mitra && d.requested.mitra[m.id]) ? d.requested.mitra[m.id] : 0;
+                                if(reqKhusus > 0) {
+                                    vM = reqKhusus; 
+                                } else {
+                                    vM = suggestedMitraVal + (idx < remainder ? 1 : 0); 
+                                    if(vM === 0) vM = '';
+                                }
+                            } else { 
+                                vM = (a.mitra && a.mitra[m.id]) ? a.mitra[m.id] : ''; 
+                            }
+                            sum += (parseInt(vM)||0); 
+                            
+                            let reqBadge = '';
+                            if(activeSalesTab === 'belum' || activeSalesTab === 'pending') {
+                               let rq = (d.requested && d.requested.mitra && d.requested.mitra[m.id]) ? d.requested.mitra[m.id] : 0;
+                               if(rq > 0) reqBadge = `<span style="font-size:0.75em; color:var(--secondary); margin-left:5px;">(Req: ${rq})</span>`;
+                            }
+
+                            mitraInputsHtml += `<div class="compact-input-group"><label title="${m.name}">${m.name} ${reqBadge}</label><input type="number" id="m-${item.id}-${sid}-${m.id}" value="${vM}" ${ro} oninput="calcSisa('${item.id}', '${sid}', ${d.totalQty})"></div>`; 
+                        });
+                    }
+
+                    let s = d.totalQty - sum;
+                    let sisaColor = s < 0 ? 'red' : (s === 0 ? 'green' : 'blue');
+                    
+                    // DESAIN UI 2 KOLOM RAPI
+                    htmlContent += `
+                    <div class="alloc-panel">
+                        <div class="alloc-panel-header">
+                            <span>Size: <b style="color:var(--primary); font-size:1.1em;">${d.size}</b> ${statusBadge}</span>
+                            <span>Sisa Stok: <b id="sisa-${item.id}-${sid}" style="color:${sisaColor}; font-size:1.2em;">${s}</b> / ${d.totalQty}</span>
+                        </div>
+                        <div class="alloc-panel-body alloc-two-col">
+                            <div class="alloc-col-box">
+                                <div class="alloc-col-title">🛒 Internal & Store</div>
+                                <div class="compact-input-group"><label>Tiktok</label><input type="number" id="t-${item.id}-${sid}" value="${vT}" ${ro} oninput="calcSisa('${item.id}', '${sid}', ${d.totalQty})"></div>
+                                <div class="compact-input-group"><label>Shopee</label><input type="number" id="s-${item.id}-${sid}" value="${vS}" ${ro} oninput="calcSisa('${item.id}', '${sid}', ${d.totalQty})"></div>
+                                <div class="compact-input-group"><label>Web</label><input type="number" id="w-${item.id}-${sid}" value="${vW}" ${ro} oninput="calcSisa('${item.id}', '${sid}', ${d.totalQty})"></div>
+                                <div class="compact-input-group"><label>Butik</label><input type="number" id="b-${item.id}-${sid}" value="${vB}" ${ro} oninput="calcSisa('${item.id}', '${sid}', ${d.totalQty})"></div>
+                                <div class="compact-input-group"><label>FOC</label><input type="number" id="f-${item.id}-${sid}" value="${vF}" ${ro} oninput="calcSisa('${item.id}', '${sid}', ${d.totalQty})"></div>
+                            </div>
+                            <div class="alloc-col-box">
+                                <div class="alloc-col-title">🤝 Distribusi Mitra</div>
+                                ${mitraInputsHtml}
+                            </div>
+                        </div>
+                    </div>`;
+                });
+                htmlContent += `</div>`;
+
+                let actionBtns = '';
+                if(activeSalesTab === 'belum') { 
+                    actionBtns = `<button class="btn-success" onclick="saveAllocation('${item.id}', 'add', '${isStaff?'pending':'approved'}')">Simpan & ${isStaff?'Request Approval':'Approve Otomatis'} (${item.condition})</button>`; 
+                } else if(activeSalesTab === 'pending') { 
+                    actionBtns = isStaff ? `<button class="btn-success" onclick="saveAllocation('${item.id}', 'update', 'pending')">Update Ajuan (${item.condition})</button>` : `<button class="btn-danger" style="margin-right:10px;" onclick="resetAllocation('${item.id}')">Tolak/Reset (${item.condition})</button> <button class="btn-success" onclick="saveAllocation('${item.id}', 'update', 'approved')">Simpan & APPROVE (${item.condition})</button>`; 
+                } else if (activeSalesTab === 'sudah' && !isStaff) { 
+                    actionBtns = `<button class="btn-dark" style="margin-right:10px;" onclick="toggleEditAlloc('${item.id}')">Batal Edit</button><button class="btn-success" onclick="saveAllocation('${item.id}', 'update', 'approved')">Simpan Perubahan (${item.condition})</button>`; 
+                }
+                htmlContent += `<div style="text-align:right;">${actionBtns}</div></div>`;
             });
 
-            if(sizesToRender.length === 0) return; 
-            renderedAny = true;
+            if (htmlContent === '') return;
 
-            let sisaGudang = totalStock - totalAlloc;
+            renderedAny = true;
+            let sisaGudang = groupTotalStock - groupTotalAlloc;
             let btnText = (activeSalesTab === 'belum' || activeSalesTab === 'pending') ? 'Alokasi/Edit ▼' : 'Lihat Detail ▼';
+            let datesDisp = [...g.dates].sort().map(d => formatDateDisplay(d)).join(', ');
             
-            let trStr = `<tr class="parent-row" onclick="toggleAccordion('${item.id}')">
-                <td><strong>${item.name}</strong><br><small>Tgl: ${getDatesDisplay(item, 'sales')}</small><br>${getBadge(item.brand, 'brand')}</td>
-                <td>${item.image ? `<img src="${item.image}" class="item-image-preview">` : `-`}</td> 
-                <td>${getBadge(item.condition, 'cond')}</td>
-                <td><b>${sisaGudang}</b> / ${totalStock}</td> 
+            tbody.innerHTML += `
+            <tr class="parent-row" onclick="toggleAccordion('${g.key}')">
+                <td><strong>${g.name}</strong><br><small>Tgl Masuk: ${datesDisp || '-'}</small><br>${getBadge(g.brand, 'brand')}</td>
+                <td>${g.image ? `<img src="${g.image}" class="item-image-preview">` : `-`}</td> 
+                <td><span style="font-size:0.85em; font-weight:bold; color:var(--text-muted); background:#e2e8f0; padding:2px 6px; border-radius:4px;">Gabungan OKE & DEFECT</span></td>
+                <td><b>${sisaGudang}</b> / ${groupTotalStock}</td> 
                 <td><button class="btn-primary btn-small">${btnText}</button></td>
             </tr>
-            <tr id="acc-${item.id}" class="hidden child-row"><td colspan="5" style="padding:15px;">`;
-
-            if (activeSalesTab === 'sudah') {
-                let summaryHtml = '';
-                sizesToRender.forEach(d => {
-                    let a = d.allocated; let badges = [];
-                    if(a.tiktok) badges.push(`<span class="alloc-badge">Tiktok: ${a.tiktok}</span>`); 
-                    if(a.shopee) badges.push(`<span class="alloc-badge">Shopee: ${a.shopee}</span>`); 
-                    if(a.web) badges.push(`<span class="alloc-badge">Web: ${a.web}</span>`); 
-                    if(a.butik) badges.push(`<span class="alloc-badge">Butik: ${a.butik}</span>`); 
-                    if(a.foc) badges.push(`<span class="alloc-badge">FOC: ${a.foc}</span>`);
-                    if(typeof a.mitra === 'object') { 
-                        for(let mid in a.mitra) { 
-                            if(a.mitra[mid] > 0) { 
-                                let mObj = _mitras.find(x => x.id == mid); 
-                                badges.push(`<span class="alloc-badge alloc-badge-mitra">${mObj?mObj.name:'Mitra'}: ${a.mitra[mid]}</span>`); 
-                            } 
-                        } 
-                    }
-                    if(badges.length > 0) summaryHtml += `<div style="margin-bottom:8px; padding-bottom:8px; border-bottom:1px solid #eee;"><span style="display:inline-block; width:60px; font-weight:bold; color:var(--primary);">Size ${d.size}</span> ${badges.join(' ')}</div>`;
-                });
-                trStr += `<div id="summary-${item.id}"><div style="background:#fff; border:1px solid var(--border); border-radius:8px; padding:15px; margin-bottom:15px;"><h4 style="margin-top:0;">Ringkasan Alokasi: <span class="status-approved">APPROVED</span></h4>${summaryHtml}</div>${(currentUserRole === 'sales_leader' || currentUserRole === 'admin') ? `<div style="text-align:right;"><button class="btn-danger" style="margin-right:10px;" onclick="resetAllocation('${item.id}')">Hapus (Reset) Semua</button><button class="btn-warning" onclick="toggleEditAlloc('${item.id}')">Edit Mode ➔</button></div>` : ''}</div>`;
-            }
-
-            trStr += `<div id="form-${item.id}" class="${activeSalesTab === 'sudah' ? 'hidden' : ''}"><div class="paste-zone" tabindex="0" onpaste="handleImagePaste(event, '${item.id}')">📸 Paste (Ctrl+V) Screenshot Foto di sini</div>`;
-            
-            let isStaff = currentUserRole && currentUserRole.startsWith('sales_staff');
-
-            sizesToRender.forEach(d => {
-                let sid = safeId(d.size); let a = d.allocated; 
-                let ro = (activeSalesTab === 'sudah' && isStaff) ? 'readonly' : '';
-                let statusBadge = d.allocationStatus === 'pending' ? `<span class="status-pending">PENDING</span>` : (d.allocationStatus === 'approved' ? `<span class="status-approved">APPROVED</span>` : '');
-                
-                let vT = a.tiktok||''; let vS = a.shopee||''; let vW = a.web||''; let vB = a.butik||''; let vF = a.foc||'';
-                let sum = (parseInt(vT)||0) + (parseInt(vS)||0) + (parseInt(vW)||0) + (parseInt(vB)||0) + (parseInt(vF)||0);
-
-                let suggestedMitraVal = 0; let remainder = 0;
-                if(activeSalesTab === 'belum' && itemMitras.length > 0) {
-                    let suggestTotal = Math.floor(d.totalQty * 0.6); 
-                    suggestedMitraVal = Math.floor(suggestTotal / itemMitras.length);
-                    remainder = suggestTotal % itemMitras.length;
-                }
-
-                let mitraInputsHtml = '';
-                if(itemMitras.length === 0) {
-                    mitraInputsHtml = `<div style="grid-column: 1/-1; font-size:0.8em; color:var(--danger);">Belum ada Mitra terdaftar untuk brand ini.</div>`;
-                } else {
-                    itemMitras.forEach((m, idx) => { 
-                        let vM = '';
-                        if(activeSalesTab === 'belum') {
-                            let reqKhusus = (d.requested && d.requested.mitra && d.requested.mitra[m.id]) ? d.requested.mitra[m.id] : 0;
-                            if(reqKhusus > 0) {
-                                vM = reqKhusus; 
-                            } else {
-                                vM = suggestedMitraVal + (idx < remainder ? 1 : 0); 
-                                if(vM === 0) vM = '';
-                            }
-                        } else { 
-                            vM = (a.mitra && a.mitra[m.id]) ? a.mitra[m.id] : ''; 
-                        }
-                        sum += (parseInt(vM)||0); 
-                        
-                        let reqBadge = '';
-                        if(activeSalesTab === 'belum' || activeSalesTab === 'pending') {
-                           let rq = (d.requested && d.requested.mitra && d.requested.mitra[m.id]) ? d.requested.mitra[m.id] : 0;
-                           if(rq > 0) reqBadge = `<span style="font-size:0.65em; color:var(--secondary); display:block;">(Req: ${rq})</span>`;
-                        }
-
-                        mitraInputsHtml += `<div><label title="${m.name}">${m.name} ${reqBadge}</label><input type="number" id="m-${item.id}-${sid}-${m.id}" value="${vM}" ${ro} oninput="calcSisa('${item.id}', '${sid}', ${d.totalQty})"></div>`; 
-                    });
-                }
-
-                let s = d.totalQty - sum;
-                let sisaColor = s < 0 ? 'red' : (s === 0 ? 'green' : 'blue');
-                
-                trStr += `<div class="size-alloc-card">
-                    <div style="display:flex; justify-content:space-between; border-bottom:1px solid #eee; padding-bottom:8px; margin-bottom:12px;">
-                        <span>Size: <b>${d.size}</b></span> 
-                        <span style="font-size:0.9em;">Sisa Stok: <b id="sisa-${item.id}-${sid}" style="color:${sisaColor}; font-size:1.5em; margin:0 8px;">${s}</b> ${statusBadge}</span>
-                    </div>
-                    <div class="alloc-grid-inputs">
-                        <div><label>Tiktok</label><input type="number" id="t-${item.id}-${sid}" value="${vT}" ${ro} oninput="calcSisa('${item.id}', '${sid}', ${d.totalQty})"></div>
-                        <div><label>Shopee</label><input type="number" id="s-${item.id}-${sid}" value="${vS}" ${ro} oninput="calcSisa('${item.id}', '${sid}', ${d.totalQty})"></div>
-                        <div><label>Web</label><input type="number" id="w-${item.id}-${sid}" value="${vW}" ${ro} oninput="calcSisa('${item.id}', '${sid}', ${d.totalQty})"></div>
-                        <div><label>Butik</label><input type="number" id="b-${item.id}-${sid}" value="${vB}" ${ro} oninput="calcSisa('${item.id}', '${sid}', ${d.totalQty})"></div>
-                        <div><label>FOC</label><input type="number" id="f-${item.id}-${sid}" value="${vF}" ${ro} oninput="calcSisa('${item.id}', '${sid}', ${d.totalQty})"></div>
-                    </div>
-                    <div style="margin-top:10px; padding-top:10px; border-top:1px dashed #ccc;">
-                        <div style="font-size:0.8em; font-weight:bold;">MITRA:</div>
-                        <div class="alloc-grid-inputs">${mitraInputsHtml}</div>
-                    </div>
-                </div>`;
-            });
-
-            let actionBtns = '';
-            if(activeSalesTab === 'belum') { 
-                actionBtns = `<button class="btn-success" onclick="saveAllocation('${item.id}', 'add', '${isStaff?'pending':'approved'}')">Simpan & ${isStaff?'Request Approval':'Approve Otomatis'}</button>`; 
-            } else if(activeSalesTab === 'pending') { 
-                actionBtns = isStaff ? `<button class="btn-success" onclick="saveAllocation('${item.id}', 'update', 'pending')">Update Ajuan</button>` : `<button class="btn-danger" style="margin-right:10px;" onclick="resetAllocation('${item.id}')">Tolak (Reset)</button> <button class="btn-success" onclick="saveAllocation('${item.id}', 'update', 'approved')">Simpan & APPROVE</button>`; 
-            } else if (activeSalesTab === 'sudah' && !isStaff) { 
-                actionBtns = `<button class="btn-dark" style="margin-right:10px;" onclick="toggleEditAlloc('${item.id}')">Batal Edit</button><button class="btn-success" onclick="saveAllocation('${item.id}', 'update', 'approved')">Simpan Perubahan</button>`; 
-            }
-            
-            trStr += `<div style="margin-top:10px; text-align:right;">${actionBtns}</div></div></td></tr>`;
-            tbody.innerHTML += trStr;
+            <tr id="acc-${g.key}" class="hidden child-row"><td colspan="5" style="padding:15px; background:#f1f5f9; box-shadow: inset 0 3px 5px rgba(0,0,0,0.05);">
+                ${htmlContent}
+            </td></tr>`;
         });
 
         if(!renderedAny) tbody.innerHTML = `<tr><td colspan="5" class="notif-empty">Tidak ada data stok yang sesuai kriteria.</td></tr>`;
@@ -2413,7 +2467,7 @@
     function saveEditMitra() { db.collection("mitras").doc(document.getElementById('edit-mitra-id').value).update({ name: document.getElementById('edit-mitra-name').value, loc: document.getElementById('edit-mitra-loc').value, brand: document.getElementById('edit-mitra-brand').value }).then(() => closeEditMitraModal()); }
 
     function toggleEditAlloc(id) { document.getElementById(`summary-${id}`).classList.toggle('hidden'); document.getElementById(`form-${id}`).classList.toggle('hidden'); }
-    function toggleAccordion(itemId) { const r = document.getElementById(`acc-${itemId}`); if(r) r.classList.toggle('hidden'); }
+    function toggleAccordion(key) { const r = document.getElementById(`acc-${key}`); if(r) r.classList.toggle('hidden'); }
 
     function saveAllocation(itemId, mode, targetStatus) {
         let item = JSON.parse(JSON.stringify(_inventory.find(i => i.id === itemId))); let itemMitras = _mitras.filter(m => m.brand === item.brand || m.brand === 'BOTH'); let hasError = false;
