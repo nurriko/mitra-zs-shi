@@ -607,7 +607,7 @@
                 </div>
                 <div class="table-container">
                     <table id="gudang-request-table">
-                        <thead><tr><th>Artikel</th><th>Mitra</th><th>Rincian Permintaan & Pemenuhan</th></tr></thead>
+                        <thead><tr><th>Artikel & Kondisi</th><th>Mitra</th><th>Rincian Permintaan & Pemenuhan</th></tr></thead>
                         <tbody></tbody>
                     </table>
                 </div>
@@ -658,7 +658,7 @@
                     <h3 style="margin-bottom: 15px; font-size:1.1em;">Input Permintaan Khusus Mitra</h3>
                     <div class="form-row">
                         <div class="form-group">
-                            <label>Pilih Artikel</label>
+                            <label>Pilih Artikel & Kondisi</label>
                             <select id="req-item-select" onchange="onReqItemChange()"><option value="">-- Pilih Artikel --</option></select>
                         </div>
                         <div class="form-group">
@@ -683,7 +683,7 @@
                 
                 <div class="table-container">
                     <table id="sales-request-table">
-                        <thead><tr><th>Artikel</th><th>Mitra</th><th>Rincian Permintaan & Pemenuhan</th><th>Aksi</th></tr></thead>
+                        <thead><tr><th>Artikel & Kondisi</th><th>Mitra</th><th>Rincian Permintaan & Pemenuhan</th><th>Aksi</th></tr></thead>
                         <tbody></tbody>
                     </table>
                 </div>
@@ -1854,7 +1854,7 @@
                 const mName = mitra ? `${mitra.name} <br><small>(${mitra.loc})</small>` : 'Mitra Terhapus';
                 
                 tbody.innerHTML += `<tr>
-                    <td><strong>${item.name}</strong><br>${getBadge(item.brand, 'brand')}</td>
+                    <td><strong>${item.name}</strong><br>${getBadge(item.brand, 'brand')} ${getBadge(item.condition, 'cond')}</td>
                     <td>${mName}</td>
                     <td>${reqHtmlList.join('')}</td>
                 </tr>`;
@@ -2498,7 +2498,7 @@
                 if(currentUserRole === 'sales_staff_zs' && i.brand !== 'ZS') return false;
                 if(currentUserRole === 'sales_staff_shi' && i.brand !== 'SHI') return false;
                 return true;
-            }).map(i => `<option value="${i.id}">${i.name} (${i.brand})</option>`).join('');
+            }).map(i => `<option value="${i.id}">${i.name} (${i.brand}) - ${i.condition.toUpperCase()}</option>`).join('');
             
         if([...select.options].some(o => o.value === currentVal)) select.value = currentVal;
     }
@@ -2597,7 +2597,7 @@
                 const mName = mitra ? `${mitra.name} <br><small>(${mitra.loc})</small>` : 'Mitra Terhapus';
                 
                 tbody.innerHTML += `<tr>
-                    <td><strong>${item.name}</strong><br>${getBadge(item.brand, 'brand')}</td>
+                    <td><strong>${item.name}</strong><br>${getBadge(item.brand, 'brand')} ${getBadge(item.condition, 'cond')}</td>
                     <td>${mName}</td>
                     <td>${reqHtmlList.join('')}</td>
                     <td><button class="btn-danger btn-small" onclick="deleteMitraRequest('${item.id}', '${mId}')">Hapus Request</button></td>
@@ -2659,7 +2659,7 @@
         }
         else if (type === 'sales_request') {
             filename = "Laporan_Permintaan_Khusus_Mitra";
-            tableHtml = `<tr><th style="${thStyle}">Nama Artikel</th><th style="${thStyle}">Brand</th><th style="${thStyle}">Nama Mitra</th><th style="${thStyle}">Size</th><th style="${thStyle}">Qty Diminta</th><th style="${thStyle}">Qty Dialokasikan</th><th style="${thStyle}">Status Alokasi</th><th style="${thStyle}">Persentase Terpenuhi</th></tr>`;
+            tableHtml = `<tr><th style="${thStyle}">Nama Artikel</th><th style="${thStyle}">Brand</th><th style="${thStyle}">Kondisi</th><th style="${thStyle}">Nama Mitra</th><th style="${thStyle}">Size</th><th style="${thStyle}">Qty Diminta</th><th style="${thStyle}">Qty Dialokasikan</th><th style="${thStyle}">Status Alokasi</th><th style="${thStyle}">Persentase Terpenuhi</th></tr>`;
             
             _inventory.forEach(item => {
                 if(currentUserRole && currentUserRole.startsWith('sales_staff_')) {
@@ -2676,7 +2676,7 @@
                                 let pct = Math.round((allocQty / reqQty) * 100);
                                 let status = allocQty > 0 ? (d.allocationStatus||'').toUpperCase() : 'BELUM DIALOKASI';
                                 
-                                tableHtml += `<tr><td style="${tdText}">${item.name}</td><td style="${tdText}">${item.brand}</td><td style="${tdText}">${mName}</td><td style="${tdText}">${d.size}</td><td style="${tdBold}">${reqQty}</td><td style="${tdBold}">${allocQty}</td><td style="${tdText}">${status}</td><td style="${tdPct}">${pct}%</td></tr>`;
+                                tableHtml += `<tr><td style="${tdText}">${item.name}</td><td style="${tdText}">${item.brand}</td><td style="${tdText}">${item.condition}</td><td style="${tdText}">${mName}</td><td style="${tdText}">${d.size}</td><td style="${tdBold}">${reqQty}</td><td style="${tdBold}">${allocQty}</td><td style="${tdText}">${status}</td><td style="${tdPct}">${pct}%</td></tr>`;
                             }
                         });
                     }
