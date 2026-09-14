@@ -501,7 +501,12 @@
             <div id="gudang-view-input">
                 <h3 style="font-size: 1.1em; color: var(--text-muted); border-top: 1px solid #eee; padding-top:15px;">Input Barang Masuk</h3>
                 <div class="form-row">
-                    <div class="form-group"><label>Nama Baju / Artikel</label><input type="text" id="itemName"></div>
+                    <div class="form-group">
+                        <label>Nama Baju / Artikel</label>
+                        <!-- AUTOFILL DATALIST -->
+                        <input type="text" id="itemName" list="list-artikel" oninput="autoFillItemInfo()">
+                        <datalist id="list-artikel"></datalist>
+                    </div>
                     <div class="form-group"><label>Target Qty Produksi</label><input type="number" id="itemQtyProduksi" min="1"></div>
                     <div class="form-group"><label>Tgl Masuk Gudang</label><input type="date" id="itemDate"></div>
                 </div>
@@ -531,7 +536,7 @@
                 </div>
                 <div class="table-container">
                     <table id="gudang-table">
-                        <thead><tr><th>Artikel & Info Masuk</th><th>Foto</th><th>Total Masuk (All)</th><th>Aksi</th></tr></thead>
+                        <thead><tr><th>Artikel & Info Masuk</th><th>Foto</th><th>Total Masuk (Oke & Defect)</th><th>Aksi</th></tr></thead>
                         <tbody></tbody>
                     </table>
                 </div>
@@ -711,7 +716,7 @@
         </div>
     </div>
 
-    <!-- ================= MODAL GLOBAL (DIGUNAKAN BERSAMA OLEH SEMUA ROLE) ================= -->
+    <!-- ================= MODAL GLOBAL ================= -->
     
     <!-- MODAL EDIT MITRA -->
     <div id="modal-edit-mitra" class="modal-overlay hidden">
@@ -785,6 +790,72 @@
         </div>
     </div>
 
+    <!-- ================= MODAL TAMBAHAN UNTUK GUDANG ================= -->
+    <!-- MODAL EDIT INFO UTAMA (GUDANG) -->
+    <div id="modal-edit-info" class="modal-overlay hidden">
+        <div class="modal-content fade-in" style="max-width: 400px;">
+            <h3>Edit Info Utama Artikel</h3>
+            <p style="font-size:0.85em; color:var(--text-muted); margin-top:-10px;">Perubahan ini akan otomatis mengubah nama/brand/qty untuk barang Oke dan Defect yang tergabung dalam 1 grup ini.</p>
+            <input type="hidden" id="edit-info-ids">
+            <div class="form-group"><label>Nama Baju</label><input type="text" id="edit-info-name"></div>
+            <div class="form-group"><label>Target Qty</label><input type="number" id="edit-info-qty"></div>
+            <div class="form-group">
+                <label>Brand</label>
+                <select id="edit-info-brand">
+                    <option value="ZS">Zaskia Sungkar (ZS)</option>
+                    <option value="SHI">Shi By Shireen (SHI)</option>
+                </select>
+            </div>
+            <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
+                <button class="btn-dark" onclick="closeEditInfoModal()">Batal</button>
+                <button class="btn-success" onclick="saveEditInfoGrouped()">Simpan</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL RIWAYAT LENGKAP -->
+    <div id="modal-item-history-full" class="modal-overlay hidden">
+        <div class="modal-content fade-in" style="max-width: 600px;">
+            <div class="flex-header" style="margin-bottom:15px;">
+                <h3 id="item-history-full-title" style="margin:0;">Riwayat Lengkap</h3>
+                <button class="btn-dark btn-small" onclick="closeItemHistoryFullModal()">Tutup</button>
+            </div>
+            <div id="item-history-timeline" style="max-height:60vh; overflow-y:auto; padding-right:10px;"></div>
+        </div>
+    </div>
+    
+    <!-- MODAL RIWAYAT INPUT (EDIT TRANSAKSI PER BATCH) -->
+    <div id="modal-history" class="modal-overlay hidden">
+        <div class="modal-content fade-in" style="max-width: 500px;">
+            <div class="flex-header" style="margin-bottom:15px;">
+                <h3 id="history-title" style="margin:0;">Riwayat Masuk</h3>
+                <button class="btn-dark btn-small" onclick="closeHistoryModal()">Tutup</button>
+            </div>
+            <table id="history-table" style="width:100%">
+                <thead><tr><th>Tanggal</th><th>Rincian Size & Qty</th><th id="history-action-th">Aksi</th></tr></thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- MODAL EDIT BATCH -->
+    <div id="modal-edit-batch" class="modal-overlay hidden">
+        <div class="modal-content fade-in" style="max-width: 500px;">
+            <h3>Edit Riwayat Masuk (Transaksi Khusus Ini)</h3>
+            <input type="hidden" id="edit-batch-itemId">
+            <input type="hidden" id="edit-batch-entryId">
+            <div class="form-group"><label>Tanggal Masuk</label><input type="date" id="edit-batch-date"></div>
+            <div id="edit-batch-size-container" class="size-grid"></div>
+            <div class="custom-size-box">
+                <input type="text" id="edit-batch-custom-size-input" placeholder="Ketik size lain">
+                <button class="btn-primary btn-small" onclick="addCustomSize('edit')">+ Tambah</button>
+            </div>
+            <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
+                <button class="btn-dark" onclick="closeEditBatchModal()">Batal</button>
+                <button class="btn-success" onclick="saveEditBatch()">Simpan Perubahan</button>
+            </div>
+        </div>
+    </div>
 </div>
 
 <!-- SCRIPT UTAMA PENGENDALI APLIKASI -->
@@ -851,9 +922,17 @@
         updateOnlineStatusUI();
     }, err => { document.getElementById('server-status').innerText = "🔴 Offline"; document.getElementById('server-status').style.backgroundColor = "var(--danger)"; });
 
+    function updateDatalist() {
+        let dl = document.getElementById('list-artikel');
+        if(!dl) return;
+        let names = [...new Set(_inventory.map(i => i.name))];
+        dl.innerHTML = names.map(n => `<option value="${n}">`).join('');
+    }
+
     db.collection("inventory").onSnapshot(snap => {
         _inventory = []; snap.forEach(doc => { let d = doc.data(); d.id = doc.id; _inventory.push(d); });
-        
+        updateDatalist();
+
         if(!document.getElementById('gudang-section').classList.contains('hidden')) {
             if(!document.getElementById('gudang-view-input').classList.contains('hidden')) loadGudangData();
             else if(!document.getElementById('gudang-view-alokasi').classList.contains('hidden')) loadGudangAlokasiData();
@@ -1106,6 +1185,8 @@
         if(!item.history) return '-';
         let dates = [...new Set(item.history.map(h => h.date))].sort();
         let displayStr = dates.map(d => formatDateDisplay(d)).join(', ');
+        // Jika digrup (Gudang table) kita matikan klik agar tidak tabrakan dengan tombol Riwayat Lengkap.
+        if (role === 'gudang') return displayStr;
         return `<span class="clickable-dates" style="font-weight:600; text-decoration: underline; color:var(--secondary);" onclick="openHistoryModal('${item.id}', '${role}'); event.stopPropagation();" title="Detail Size Masuk">${displayStr}</span>`;
     }
 
@@ -1449,6 +1530,17 @@
     }
 
     // ================= BAGIAN GUDANG =================
+    
+    // Fitur AutoFill Nama Baju (Untuk Gudang)
+    function autoFillItemInfo() {
+        let name = document.getElementById('itemName').value.trim().toLowerCase();
+        let existing = _inventory.find(i => i.name.toLowerCase() === name);
+        if(existing) {
+            document.getElementById('itemQtyProduksi').value = existing.qtyProduksi;
+            document.getElementById('itemBrand').value = existing.brand;
+        }
+    }
+
     function switchGudangTab(tab) {
         document.getElementById('tab-gudang-input').classList.toggle('active', tab === 'input');
         document.getElementById('tab-gudang-alokasi').classList.toggle('active', tab === 'alokasi');
@@ -1497,27 +1589,208 @@
         document.getElementById('itemName').value = ''; document.getElementById('itemQtyProduksi').value = ''; renderSizeCheckboxes('size-container', ''); 
     }
 
+    // LOGIKA BARU: Menggabungkan Tampilan Tabel Gudang (Group by Nama & Brand)
     function loadGudangData() {
         const tbody = document.querySelector('#gudang-table tbody'); tbody.innerHTML = '';
         const fName = document.getElementById('gudang-filter-nama').value.toLowerCase();
-        let list = _inventory.filter(item => fName === '' || item.name.toLowerCase().includes(fName));
         
-        list.forEach(item => {
-            let totalMasuk = getItemTotalMasuk(item);
-            let percent = item.qtyProduksi > 0 ? ((totalMasuk / item.qtyProduksi) * 100).toFixed(1) : 0;
-            let imgStr = item.image ? `<img src="${item.image}" class="item-image-preview">` : `<span style="font-size:0.8em; color:#999;">No Image</span>`;
-            let detStr = item.details.map(d => `<span style="background:#f1f5f9; padding:2px 6px; border-radius:4px; font-size:0.9em; margin-right:5px; margin-bottom:5px; display:inline-block;"><b>${d.size}</b>: ${d.totalQty}</span>`).join(' ');
+        let grouped = {};
+        _inventory.forEach(item => {
+            if (fName !== '' && !item.name.toLowerCase().includes(fName)) return;
+            let key = item.name.toLowerCase() + '_' + item.brand;
+            if(!grouped[key]) {
+                grouped[key] = {
+                    name: item.name, brand: item.brand, qtyProduksi: item.qtyProduksi, image: item.image,
+                    ids: [], dates: new Set(),
+                    okeDetails: [], defectDetails: [],
+                    totalOke: 0, totalDefect: 0
+                };
+            }
+            grouped[key].ids.push(item.id);
+            if(item.history) item.history.forEach(h => grouped[key].dates.add(h.date));
             
+            let tMasuk = getItemTotalMasuk(item);
+            if(item.condition === 'Oke') {
+                grouped[key].totalOke += tMasuk;
+                grouped[key].okeDetails.push(...item.details);
+            } else {
+                grouped[key].totalDefect += tMasuk;
+                grouped[key].defectDetails.push(...item.details);
+            }
+        });
+
+        let list = Object.values(grouped);
+        
+        // Sorting logic
+        let sortVal = document.getElementById('gudang-sort').value;
+        if(sortVal === 'stok_desc') {
+            list.sort((a,b) => (b.totalOke + b.totalDefect) - (a.totalOke + a.totalDefect));
+        } else {
+            list.sort((a,b) => {
+                let dateA = [...a.dates].sort().pop() || '';
+                let dateB = [...b.dates].sort().pop() || '';
+                return dateB.localeCompare(dateA);
+            });
+        }
+
+        list.forEach(g => {
+            let totalMasuk = g.totalOke + g.totalDefect;
+            let percent = g.qtyProduksi > 0 ? ((totalMasuk / g.qtyProduksi) * 100).toFixed(1) : 0;
+            let imgStr = g.image ? `<img src="${g.image}" class="item-image-preview">` : `<span style="font-size:0.8em; color:#999;">No Image</span>`;
+            
+            // Rekap Size Oke
+            let sizeMapOke = {}; 
+            g.okeDetails.forEach(d => { sizeMapOke[d.size] = (sizeMapOke[d.size]||0) + d.totalQty; });
+            let okeStr = Object.entries(sizeMapOke).map(([s,q]) => `<span style="background:#d1fae5; color:#047857; padding:2px 6px; border-radius:4px; font-size:0.85em; margin-right:5px; margin-bottom:5px; display:inline-block; border:1px solid #a7f3d0;"><b>${s}</b>: ${q}</span>`).join('');
+            
+            // Rekap Size Defect
+            let sizeMapDefect = {}; 
+            g.defectDetails.forEach(d => { sizeMapDefect[d.size] = (sizeMapDefect[d.size]||0) + d.totalQty; });
+            let defectStr = Object.entries(sizeMapDefect).map(([s,q]) => `<span style="background:#fee2e2; color:#b91c1c; padding:2px 6px; border-radius:4px; font-size:0.85em; margin-right:5px; margin-bottom:5px; display:inline-block; border:1px solid #fecaca;"><b>${s}</b>: ${q}</span>`).join('');
+            
+            let detStr = `<div style="margin-bottom:8px;"><strong>Oke (${g.totalOke}):</strong><br>${okeStr || '<span style="font-size:0.8em; color:#999;">Tidak ada</span>'}</div>
+                          <div><strong>Defect (${g.totalDefect}):</strong><br>${defectStr || '<span style="font-size:0.8em; color:#999;">Tidak ada</span>'}</div>`;
+            
+            let datesDisp = [...g.dates].sort().map(d => formatDateDisplay(d)).join(', ');
+            let idsStr = g.ids.join(',');
+
             tbody.innerHTML += `<tr>
-                <td><strong>${item.name}</strong> <br><small>Tgl: ${getDatesDisplay(item, 'gudang')}</small><br>${getBadge(item.brand,'brand')} ${getBadge(item.condition,'cond')}<br><span class="progress-text">Progress: ${totalMasuk} / ${item.qtyProduksi} pcs (${percent}%)</span></td>
+                <td><strong>${g.name}</strong> <br><small>Tgl Masuk: ${datesDisp || '-'}</small><br>${getBadge(g.brand,'brand')}<br><span class="progress-text">Progress: ${totalMasuk} / ${g.qtyProduksi} pcs (${percent}%)</span></td>
                 <td>${imgStr}</td><td>${detStr}</td>
                 <td>
-                    <button class="btn-primary btn-small" onclick="openItemHistoryFullModal('${item.id}')">Riwayat Lengkap</button> <br>
-                    <button class="btn-warning btn-small" style="margin-top:5px;" onclick="openEditInfoModal('${item.id}')">Edit Info Utama</button> <br>
-                    <button class="btn-danger btn-small" style="margin-top:5px;" onclick="deleteGudangItem('${item.id}')">Hapus Permanen</button>
+                    <button class="btn-primary btn-small" onclick="openItemHistoryFullModalGrouped('${idsStr}')">Riwayat Lengkap</button> <br>
+                    <button class="btn-warning btn-small" style="margin-top:5px;" onclick="openEditInfoModalGrouped('${idsStr}')">Edit Info Utama</button> <br>
+                    <button class="btn-danger btn-small" style="margin-top:5px;" onclick="deleteGudangItemGrouped('${idsStr}')">Hapus Permanen</button>
                 </td>
             </tr>`;
         });
+        
+        if (list.length === 0) tbody.innerHTML = `<tr><td colspan="4" class="notif-empty">Belum ada barang masuk di Gudang.</td></tr>`;
+    }
+
+    // Fungsi Update untuk Grouped Modal
+    function openEditInfoModalGrouped(idsStr) {
+        let ids = idsStr.split(',');
+        let item = _inventory.find(i => i.id === ids[0]);
+        if(!item) return;
+        document.getElementById('edit-info-ids').value = idsStr; 
+        document.getElementById('edit-info-name').value = item.name; 
+        document.getElementById('edit-info-qty').value = item.qtyProduksi || 0; 
+        document.getElementById('edit-info-brand').value = item.brand; 
+        document.getElementById('modal-edit-info').classList.remove('hidden');
+    }
+    
+    function closeEditInfoModal() { document.getElementById('modal-edit-info').classList.add('hidden'); }
+    
+    function saveEditInfoGrouped() {
+        const ids = document.getElementById('edit-info-ids').value.split(',');
+        const newName = document.getElementById('edit-info-name').value.trim();
+        const newQty = parseInt(document.getElementById('edit-info-qty').value) || 0;
+        const newBrand = document.getElementById('edit-info-brand').value;
+
+        let promises = ids.map(id => {
+            return db.collection("inventory").doc(id).update({
+                name: newName, qtyProduksi: newQty, brand: newBrand
+            });
+        });
+
+        Promise.all(promises).then(() => {
+            closeEditInfoModal();
+            alert('Info Utama Berhasil Diupdate untuk semua stok (Oke & Defect)!');
+        });
+    }
+
+    function deleteGudangItemGrouped(idsStr) {
+        if(!confirm('Hapus Hapus artikel ini beserta seluruh stok (Oke & Defect) secara permanen?')) return;
+        let ids = idsStr.split(',');
+        let promises = ids.map(id => db.collection("inventory").doc(id).delete());
+        Promise.all(promises).then(() => alert('Artikel berhasil dihapus.'));
+    }
+    
+    function openItemHistoryFullModalGrouped(idsStr) {
+        let ids = idsStr.split(',');
+        let items = ids.map(id => _inventory.find(i => i.id === id)).filter(i => i);
+        if(items.length === 0) return;
+        
+        document.getElementById('item-history-full-title').innerText = `Riwayat: ${items[0].name} (${items[0].brand})`;
+        let timeline = [];
+        
+        items.forEach(item => {
+            (item.history || []).forEach(h => {
+                let desc = h.added.map(a => `${a.size}: ${a.qty}`).join(', ');
+                timeline.push({ 
+                    type: `Masuk Gudang (${item.condition})`, 
+                    date: h.date, ts: new Date(h.date).getTime(), 
+                    desc: desc, 
+                    color: item.condition === 'Oke' ? 'var(--success)' : 'var(--danger)',
+                    rawHtml: `<button class="btn-warning btn-small" style="font-size:0.7em; padding:2px 5px; margin-top:5px;" onclick="openEditBatchModal('${item.id}', ${h.entryId})">Edit Transaksi Ini</button>`
+                });
+            });
+
+            _orderForms.forEach(f => {
+                let formsItem = (f.items || []).filter(it => it.itemId === item.id);
+                if(formsItem.length > 0) {
+                    let desc = formsItem.map(it => `${it.size}: ${it.qty}`).join(', ');
+                    timeline.push({ 
+                        type: f.status === 'void' ? `Dibatalkan (Void) - ${item.condition}` : `Form Diterbitkan - ${item.condition}`, 
+                        date: f.date, ts: f.createdAtLocal || new Date(f.date).getTime(), 
+                        desc: `Ke Mitra ${f.mitraName} (Form: ${f.formNo}) - ${desc}`, 
+                        color: f.status === 'void' ? 'var(--danger)' : 'var(--secondary)',
+                        rawHtml: ''
+                    });
+                }
+            });
+        });
+        
+        timeline.sort((a,b) => b.ts - a.ts);
+        let html = '';
+        if(timeline.length === 0) html = '<div class="notif-empty">Belum ada riwayat.</div>';
+        else {
+            timeline.forEach(t => { 
+                html += `<div class="tl-item" style="border-left-color:${t.color};"><div class="tl-date">${formatDateDisplay(t.date)}</div><div class="tl-content"><strong style="color:${t.color}">${t.type}</strong><br>${t.desc}<br>${t.rawHtml}</div></div>`; 
+            });
+        }
+        document.getElementById('item-history-timeline').innerHTML = html;
+        document.getElementById('modal-item-history-full').classList.remove('hidden');
+    }
+    
+    function closeItemHistoryFullModal() { document.getElementById('modal-item-history-full').classList.add('hidden'); }
+
+    // Fitur Edit Riwayat Masuk (Per Transaksi/Batch)
+    function openEditBatchModal(itemId, entryId) {
+        closeItemHistoryFullModal();
+        let item = _inventory.find(i => i.id === itemId); let entry = item.history.find(e => e.entryId === entryId);
+        document.getElementById('edit-batch-itemId').value = itemId; document.getElementById('edit-batch-entryId').value = entryId;
+        document.getElementById('edit-batch-date').value = entry.date;
+        entry.added.forEach(a => { if(!globalSizes.includes(a.size)) globalSizes.push(a.size); }); renderSizeCheckboxes('edit-batch-size-container', 'edit-batch-');
+        entry.added.forEach(a => { const sid = safeId(a.size); document.getElementById(`edit-batch-chk-${sid}`).checked = true; document.getElementById(`edit-batch-qty-${sid}`).classList.remove('hidden'); document.getElementById(`edit-batch-qty-${sid}`).value = a.qty; });
+        document.getElementById('modal-edit-batch').classList.remove('hidden');
+    }
+    function closeEditBatchModal() { document.getElementById('modal-edit-batch').classList.add('hidden'); }
+    function closeHistoryModal() { document.getElementById('modal-history').classList.add('hidden'); }
+    
+    function saveEditBatch() {
+        const itemId = document.getElementById('edit-batch-itemId').value; const entryId = parseInt(document.getElementById('edit-batch-entryId').value);
+        let item = JSON.parse(JSON.stringify(_inventory.find(i => i.id === itemId))); let entry = item.history.find(e => e.entryId === entryId);
+        let newAdded = []; let hasError = false;
+
+        globalSizes.forEach(size => {
+            const sid = safeId(size); const chk = document.getElementById(`edit-batch-chk-${sid}`);
+            let newQty = 0; if(chk && chk.checked) newQty = parseInt(document.getElementById(`edit-batch-qty-${sid}`).value) || 0;
+            let oldRecord = entry.added.find(a => a.size === size); let oldQty = oldRecord ? oldRecord.qty : 0;
+            let detail = item.details.find(d => d.size === size);
+            if(detail) {
+                let a = detail.allocated; let mitraTotal = 0; if(typeof a.mitra === 'object') Object.values(a.mitra).forEach(v => mitraTotal += (parseInt(v)||0));
+                let totalAllocated = a.tiktok + a.shopee + a.web + (a.butik||0) + (a.foc||0) + mitraTotal;
+                if(detail.totalQty + (newQty - oldQty) < totalAllocated) { alert(`Gagal! Qty akhir < Alokasi.`); hasError = true; }
+            }
+            if(newQty > 0) newAdded.push({size, qty: newQty});
+        });
+        if(hasError || newAdded.length === 0) return;
+        entry.added.forEach(a => { let d = item.details.find(x => x.size === a.size); if(d) d.totalQty -= a.qty; });
+        newAdded.forEach(a => { let d = item.details.find(x => x.size === a.size); if(d) d.totalQty += a.qty; else item.details.push({ size: a.size, totalQty: a.qty, allocationStatus: 'none', allocated: {mitra:{}, tiktok:0, shopee:0, web:0, butik:0, foc:0} }); });
+        entry.date = document.getElementById('edit-batch-date').value; entry.added = newAdded;
+        db.collection("inventory").doc(itemId).update({ history: item.history, details: item.details }).then(() => closeEditBatchModal());
     }
 
     function loadGudangAlokasiData() {
@@ -1594,108 +1867,6 @@
         });
         
         if(rendered === 0) tbody.innerHTML = `<tr><td colspan="3" class="notif-empty">Belum ada data permintaan khusus yang diinput Sales.</td></tr>`;
-    }
-
-    function deleteGudangItem(id) { if(confirm('Hapus barang ini sepenuhnya?')) db.collection("inventory").doc(id).delete(); }
-
-    function openEditInfoModal(id) {
-        let item = _inventory.find(i => i.id === id);
-        if(!item) return;
-        document.getElementById('edit-info-id').value = id; 
-        document.getElementById('edit-info-name').value = item.name; 
-        document.getElementById('edit-info-qty').value = item.qtyProduksi || 0; 
-        document.getElementById('edit-info-brand').value = item.brand; 
-        document.getElementById('edit-info-condition').value = item.condition;
-        document.getElementById('modal-edit-info').classList.remove('hidden');
-    }
-    function closeEditInfoModal() { document.getElementById('modal-edit-info').classList.add('hidden'); }
-    function saveEditInfo() {
-        const id = document.getElementById('edit-info-id').value; 
-        db.collection("inventory").doc(id).update({ 
-            name: document.getElementById('edit-info-name').value, 
-            qtyProduksi: parseInt(document.getElementById('edit-info-qty').value)||0,
-            brand: document.getElementById('edit-info-brand').value,
-            condition: document.getElementById('edit-info-condition').value
-        }).then(() => closeEditInfoModal());
-    }
-
-    function openHistoryModal(itemId, role) {
-        let item = _inventory.find(i => i.id === itemId);
-        document.getElementById('history-title').innerText = `Riwayat Masuk: ${item.name}`;
-        document.getElementById('history-action-th').classList.toggle('hidden', role !== 'gudang');
-        const tbody = document.querySelector('#history-table tbody'); tbody.innerHTML = '';
-        if(item.history) {
-            item.history.forEach(entry => {
-                let sizeStr = entry.added.map(a => `<span style="background:#e2e8f0; padding:2px 5px; border-radius:3px; margin-right:4px;"><b>${a.size}</b>: ${a.qty}</span>`).join(' ');
-                let actionStr = role === 'gudang' ? `<td><button class="btn-warning btn-small" onclick="openEditBatchModal('${item.id}', ${entry.entryId})">Edit</button></td>` : '';
-                tbody.innerHTML += `<tr><td>${formatDateDisplay(entry.date)}</td><td>${sizeStr}</td>${actionStr}</tr>`;
-            });
-        }
-        document.getElementById('modal-history').classList.remove('hidden');
-    }
-    function closeHistoryModal() { document.getElementById('modal-history').classList.add('hidden'); }
-
-    function openItemHistoryFullModal(itemId) {
-        const item = _inventory.find(i => i.id === itemId); if(!item) return;
-        document.getElementById('item-history-full-title').innerText = `Riwayat: ${item.name} (${item.brand})`;
-        
-        let timeline = [];
-        (item.history || []).forEach(h => {
-            let desc = h.added.map(a => `${a.size}: ${a.qty}`).join(', ');
-            timeline.push({ type: 'Masuk Gudang', date: h.date, ts: new Date(h.date).getTime(), desc: desc, color: 'var(--success)' });
-        });
-
-        _orderForms.forEach(f => {
-            let formsItem = (f.items || []).filter(it => it.itemId === itemId);
-            if(formsItem.length > 0) {
-                let desc = formsItem.map(it => `${it.size}: ${it.qty}`).join(', ');
-                timeline.push({ type: f.status === 'void' ? 'Dibatalkan (Void)' : 'Form Diterbitkan', date: f.date, ts: f.createdAtLocal || new Date(f.date).getTime(), desc: `Ke Mitra ${f.mitraName} (Form: ${f.formNo}) - ${desc}`, color: f.status === 'void' ? 'var(--danger)' : 'var(--secondary)' });
-            }
-        });
-        timeline.sort((a,b) => b.ts - a.ts);
-        
-        let html = '';
-        if(timeline.length === 0) html = '<div class="notif-empty">Belum ada riwayat.</div>';
-        else {
-            timeline.forEach(t => { html += `<div class="tl-item" style="border-left-color:${t.color};"><div class="tl-date">${formatDateDisplay(t.date)}</div><div class="tl-content"><strong style="color:${t.color}">${t.type}</strong><br>${t.desc}</div></div>`; });
-        }
-        document.getElementById('item-history-timeline').innerHTML = html;
-        document.getElementById('modal-item-history-full').classList.remove('hidden');
-    }
-    function closeItemHistoryFullModal() { document.getElementById('modal-item-history-full').classList.add('hidden'); }
-
-    function openEditBatchModal(itemId, entryId) {
-        closeHistoryModal();
-        let item = _inventory.find(i => i.id === itemId); let entry = item.history.find(e => e.entryId === entryId);
-        document.getElementById('edit-batch-itemId').value = itemId; document.getElementById('edit-batch-entryId').value = entryId;
-        document.getElementById('edit-batch-date').value = entry.date;
-        entry.added.forEach(a => { if(!globalSizes.includes(a.size)) globalSizes.push(a.size); }); renderSizeCheckboxes('edit-batch-size-container', 'edit-batch-');
-        entry.added.forEach(a => { const sid = safeId(a.size); document.getElementById(`edit-batch-chk-${sid}`).checked = true; document.getElementById(`edit-batch-qty-${sid}`).classList.remove('hidden'); document.getElementById(`edit-batch-qty-${sid}`).value = a.qty; });
-        document.getElementById('modal-edit-batch').classList.remove('hidden');
-    }
-    function closeEditBatchModal() { document.getElementById('modal-edit-batch').classList.add('hidden'); }
-    function saveEditBatch() {
-        const itemId = document.getElementById('edit-batch-itemId').value; const entryId = parseInt(document.getElementById('edit-batch-entryId').value);
-        let item = JSON.parse(JSON.stringify(_inventory.find(i => i.id === itemId))); let entry = item.history.find(e => e.entryId === entryId);
-        let newAdded = []; let hasError = false;
-
-        globalSizes.forEach(size => {
-            const sid = safeId(size); const chk = document.getElementById(`edit-batch-chk-${sid}`);
-            let newQty = 0; if(chk && chk.checked) newQty = parseInt(document.getElementById(`edit-batch-qty-${sid}`).value) || 0;
-            let oldRecord = entry.added.find(a => a.size === size); let oldQty = oldRecord ? oldRecord.qty : 0;
-            let detail = item.details.find(d => d.size === size);
-            if(detail) {
-                let a = detail.allocated; let mitraTotal = 0; if(typeof a.mitra === 'object') Object.values(a.mitra).forEach(v => mitraTotal += (parseInt(v)||0));
-                let totalAllocated = a.tiktok + a.shopee + a.web + (a.butik||0) + (a.foc||0) + mitraTotal;
-                if(detail.totalQty + (newQty - oldQty) < totalAllocated) { alert(`Gagal! Qty akhir < Alokasi.`); hasError = true; }
-            }
-            if(newQty > 0) newAdded.push({size, qty: newQty});
-        });
-        if(hasError || newAdded.length === 0) return;
-        entry.added.forEach(a => { let d = item.details.find(x => x.size === a.size); if(d) d.totalQty -= a.qty; });
-        newAdded.forEach(a => { let d = item.details.find(x => x.size === a.size); if(d) d.totalQty += a.qty; else item.details.push({ size: a.size, totalQty: a.qty, allocationStatus: 'none', allocated: {mitra:{}, tiktok:0, shopee:0, web:0, butik:0, foc:0} }); });
-        entry.date = document.getElementById('edit-batch-date').value; entry.added = newAdded;
-        db.collection("inventory").doc(itemId).update({ history: item.history, details: item.details }).then(() => closeEditBatchModal());
     }
 
     // ================= FUNGSI SISA STOK REAL-TIME =================
