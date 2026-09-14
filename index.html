@@ -212,16 +212,19 @@
     </div>
     
     <div class="top-nav-actions">
+        <!-- GLOBAL SEARCH -->
         <div class="global-search-wrapper" id="nav-search-wrap" style="display:none;">
             <input type="text" class="global-search-input" id="global-search" placeholder="🔍 Cari Artikel / Mitra / Form..." oninput="performGlobalSearch()">
             <div class="gs-results hidden" id="global-search-results"></div>
         </div>
 
+        <!-- ONLINE INDICATOR & CHAT BADGE -->
         <div class="online-indicator" id="nav-online-wrap" style="display:none;" onclick="showOnlineUsers()">
             <span class="online-dot"></span> <span id="online-count-text">1 Online</span>
             <div id="chat-unread-badge" class="chat-badge hidden">0</div>
         </div>
 
+        <!-- NOTIFICATION BELL -->
         <div class="notif-wrapper" id="nav-notif-wrap" style="display:none;">
             <button class="notif-bell" onclick="toggleNotifPanel('global')" title="Notifikasi Stok">🔔<span class="notif-count hidden" id="notif-count-global">0</span></button>
             <div class="notif-panel hidden" id="notif-panel-global">
@@ -246,6 +249,7 @@
         <button onclick="sendChatMessage()">➤</button>
     </div>
 </div>
+
 
 <div class="container">
     
@@ -707,7 +711,7 @@
         </div>
     </div>
 
-    <!-- ================= MODAL BERSAMA (GLOBAL) ================= -->
+    <!-- ================= MODAL GLOBAL (DIGUNAKAN BERSAMA OLEH SEMUA ROLE) ================= -->
     
     <!-- MODAL EDIT MITRA -->
     <div id="modal-edit-mitra" class="modal-overlay hidden">
@@ -730,7 +734,7 @@
         </div>
     </div>
 
-    <!-- MODAL EDIT ROLE -->
+    <!-- MODAL EDIT ROLE USER (ADMIN ONLY) -->
     <div id="modal-edit-role" class="modal-overlay hidden">
         <div class="modal-content fade-in" style="max-width: 420px;">
             <h3>Ubah Role User</h3><input type="hidden" id="edit-role-username">
@@ -783,7 +787,7 @@
 
 </div>
 
-<!-- SCRIPT UTAMA -->
+<!-- SCRIPT UTAMA PENGENDALI APLIKASI -->
 <script>
     // ==========================================
     // KONFIGURASI FIREBASE ANDA
@@ -826,8 +830,7 @@
 
     function toggleAdminNewUserSalesLevel() {
         let r = document.getElementById('admin-new-role').value;
-        if(r === 'sales') document.getElementById('admin-new-sales-level-group').classList.remove('hidden');
-        else document.getElementById('admin-new-sales-level-group').classList.add('hidden');
+        document.getElementById('admin-new-sales-level-group').classList.toggle('hidden', r !== 'sales');
     }
 
     // ==========================================
@@ -1508,7 +1511,11 @@
             tbody.innerHTML += `<tr>
                 <td><strong>${item.name}</strong> <br><small>Tgl: ${getDatesDisplay(item, 'gudang')}</small><br>${getBadge(item.brand,'brand')} ${getBadge(item.condition,'cond')}<br><span class="progress-text">Progress: ${totalMasuk} / ${item.qtyProduksi} pcs (${percent}%)</span></td>
                 <td>${imgStr}</td><td>${detStr}</td>
-                <td><button class="btn-primary btn-small" onclick="openItemHistoryFullModal('${item.id}')">Riwayat Lengkap</button> <br><button class="btn-warning btn-small" style="margin-top:5px;" onclick="openEditInfoModal('${item.id}')">Edit Info Utama</button> <br><button class="btn-danger btn-small" style="margin-top:5px;" onclick="deleteGudangItem('${item.id}')">Hapus Permanen</button></td>
+                <td>
+                    <button class="btn-primary btn-small" onclick="openItemHistoryFullModal('${item.id}')">Riwayat Lengkap</button> <br>
+                    <button class="btn-warning btn-small" style="margin-top:5px;" onclick="openEditInfoModal('${item.id}')">Edit Info Utama</button> <br>
+                    <button class="btn-danger btn-small" style="margin-top:5px;" onclick="deleteGudangItem('${item.id}')">Hapus Permanen</button>
+                </td>
             </tr>`;
         });
     }
@@ -1533,7 +1540,6 @@
         if(rendered === 0) tbody.innerHTML = `<tr><td colspan="3" class="notif-empty">Kosong</td></tr>`;
     }
 
-    // FUNGSI LOAD DATA PERMINTAAN (GUDANG ONLY VIEW)
     function loadGudangRequestData() {
         const fName = document.getElementById('gudang-req-filter-nama').value.toLowerCase();
         const fMitra = document.getElementById('gudang-req-filter-mitra').value;
@@ -1594,13 +1600,23 @@
 
     function openEditInfoModal(id) {
         let item = _inventory.find(i => i.id === id);
-        document.getElementById('edit-info-id').value = id; document.getElementById('edit-info-name').value = item.name; 
-        document.getElementById('edit-info-qty').value = item.qtyProduksi || 0; document.getElementById('modal-edit-info').classList.remove('hidden');
+        if(!item) return;
+        document.getElementById('edit-info-id').value = id; 
+        document.getElementById('edit-info-name').value = item.name; 
+        document.getElementById('edit-info-qty').value = item.qtyProduksi || 0; 
+        document.getElementById('edit-info-brand').value = item.brand; 
+        document.getElementById('edit-info-condition').value = item.condition;
+        document.getElementById('modal-edit-info').classList.remove('hidden');
     }
     function closeEditInfoModal() { document.getElementById('modal-edit-info').classList.add('hidden'); }
     function saveEditInfo() {
         const id = document.getElementById('edit-info-id').value; 
-        db.collection("inventory").doc(id).update({ name: document.getElementById('edit-info-name').value, qtyProduksi: parseInt(document.getElementById('edit-info-qty').value)||0 }).then(() => closeEditInfoModal());
+        db.collection("inventory").doc(id).update({ 
+            name: document.getElementById('edit-info-name').value, 
+            qtyProduksi: parseInt(document.getElementById('edit-info-qty').value)||0,
+            brand: document.getElementById('edit-info-brand').value,
+            condition: document.getElementById('edit-info-condition').value
+        }).then(() => closeEditInfoModal());
     }
 
     function openHistoryModal(itemId, role) {
@@ -1709,7 +1725,6 @@
 
     // ================= FORM ORDER MITRA (GUDANG / ADMIN) =================
     
-    // PEMBARUAN: Fungsi Delete Khusus Superadmin (Hapus Multi Form)
     function deleteSelectedFormsAdmin() {
         const cbs = document.querySelectorAll('.cb-form-history-admin:checked');
         if(cbs.length === 0) return alert('Centang minimal satu form order untuk dihapus.');
@@ -1723,7 +1738,6 @@
             const f = _orderForms.find(x => x.id === formId);
             if(!f) return;
 
-            // Restock (Void) logic jika form masih issued
             if(f.status === 'issued') {
                 (f.items || []).forEach(it => {
                     const itemId = it.itemId;
@@ -1731,7 +1745,6 @@
                         const inv = _inventory.find(i => i.id === itemId);
                         if(inv) itemUpdates[itemId] = JSON.parse(JSON.stringify(inv.details));
                     }
-                    
                     if(itemUpdates[itemId]) {
                         let d = itemUpdates[itemId].find(x => x.size === it.size);
                         if(d) {
@@ -1744,26 +1757,19 @@
             }
         });
 
-        // Eksekusi Update Stok Gabungan (agar tidak race condition)
         Object.keys(itemUpdates).forEach(itemId => {
             deletePromises.push(db.collection("inventory").doc(itemId).update({ details: itemUpdates[itemId] }));
         });
         
-        // Eksekusi Hapus Form
-        cbs.forEach(cb => {
-            deletePromises.push(db.collection("orderforms").doc(cb.value).delete());
-        });
+        cbs.forEach(cb => { deletePromises.push(db.collection("orderforms").doc(cb.value).delete()); });
 
         Promise.all(deletePromises).then(() => {
             logActivity('Admin Hapus Form Batch', `Superadmin menghapus permanen ${cbs.length} Form Order.`);
             alert(`${cbs.length} Form berhasil dihapus permanen.`);
             document.getElementById('admin-cb-all-forms').checked = false;
-        }).catch(err => {
-            alert('Beberapa data mungkin gagal dihapus: ' + err.message);
-        });
+        }).catch(err => alert('Gagal menghapus form: ' + err.message));
     }
 
-    // PEMBARUAN: Fungsi Delete Khusus Superadmin (Hapus Single Form)
     function deleteOrderFormAdmin(formId) {
         const f = _orderForms.find(x => x.id === formId); if(!f) return;
         
@@ -1835,7 +1841,7 @@
                 downloadMultiOrderFormExcelXML(formsToIssue);
             } catch(fileErr) {
                 console.error("Error generating files: ", fileErr);
-                alert("Gagal mengunduh file PDF/Excel (Abaikan jika tetap ingin menyimpan ke riwayat): " + fileErr.message);
+                alert("Gagal mengunduh file PDF/Excel: " + fileErr.message);
             }
 
             Promise.all(formsToIssue.map(fd => db.collection("orderforms").add(fd))).then(() => {
@@ -1853,15 +1859,9 @@
                 document.querySelectorAll('#order-mitra-checklist input[type="checkbox"]').forEach(cb => cb.checked = false); 
                 onFormOrderMitraChange();
                 alert(`${formsToIssue.length} Form Order berhasil diterbitkan.\nFile PDF/Excel otomatis terunduh.`);
-            }).catch(dbErr => {
-                console.error(dbErr);
-                alert("Gagal menyimpan form ke database Firebase. Error: " + dbErr.message);
-            });
+            }).catch(dbErr => alert("Gagal menyimpan form ke database Firebase. Error: " + dbErr.message));
 
-        } catch (globalErr) {
-            console.error(globalErr);
-            alert("Terjadi kesalahan pada sistem: " + globalErr.message);
-        }
+        } catch (globalErr) { alert("Terjadi kesalahan pada sistem: " + globalErr.message); }
     }
 
     function populateMitraSelects() {
@@ -1940,7 +1940,6 @@
         document.getElementById('order-no-preview').innerText = itemCount > 0 ? `Siap diterbitkan: ${mitraCount} mitra, ${itemCount} baris item, total ${totalQty} pcs.` : `Belum ada item terpilih.`;
     }
 
-    // PDF JS
     function truncatePdfText(doc, text, maxWidth) { text = String(text == null ? '' : text); if(doc.getTextWidth(text) <= maxWidth) return text; while(text.length > 1 && doc.getTextWidth(text + '…') > maxWidth) text = text.slice(0, -1); return text + '…'; }
     function drawOrderFormPage(doc, f) {
         const pageWidth = doc.internal.pageSize.getWidth(); const marginX = 15; let y = 18;
@@ -1975,7 +1974,6 @@
         const { jsPDF } = window.jspdf; const doc = new jsPDF({ unit: 'mm', format: 'a4' }); forms.forEach((f, idx) => { if(idx > 0) doc.addPage(); drawOrderFormPage(doc, f); }); doc.save(`FormOrder-${forms.length === 1 ? forms[0].formNo : `Batch-${Date.now()}`}.pdf`); 
     }
 
-    // EXCEL (MULTI-SHEET, XML BORDERS)
     function downloadMultiOrderFormExcelXML(forms) {
         if(!forms || forms.length === 0) return;
         let xml = `<?xml version="1.0"?><?mso-application progid="Excel.Sheet"?><Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"><Styles><Style ss:ID="Bold"><Font ss:Bold="1"/></Style><Style ss:ID="Border"><Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1"/><Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1"/><Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1"/><Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1"/></Borders><Alignment ss:Horizontal="Center" ss:Vertical="Center"/></Style><Style ss:ID="BorderLeft"><Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1"/><Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1"/><Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1"/><Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1"/></Borders><Alignment ss:Horizontal="Left" ss:Vertical="Center"/></Style><Style ss:ID="Header"><Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1"/><Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1"/><Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1"/><Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1"/></Borders><Font ss:Bold="1" ss:Color="#FFFFFF"/><Interior ss:Color="#0f172a" ss:Pattern="Solid"/><Alignment ss:Horizontal="Center" ss:Vertical="Center"/></Style></Styles>`;
@@ -1992,11 +1990,33 @@
     }
 
     function toggleAllForms(role) { document.querySelectorAll(`.cb-form-history-${role}`).forEach(cb => cb.checked = document.getElementById(`${role}-cb-all-forms`).checked); }
-    
     function downloadSelectedForms(role) {
         const cbs = document.querySelectorAll(`.cb-form-history-${role}:checked`); if(cbs.length === 0) return alert('Centang minimal satu form.');
         let forms = []; cbs.forEach(cb => { const f = _orderForms.find(x => x.id === cb.value); if(f) forms.push(f); });
         if(forms.length === 1) { generateOrderFormPDF(forms[0]); downloadMultiOrderFormExcelXML(forms); } else { generateMultiOrderFormPDF(forms); downloadMultiOrderFormExcelXML(forms); }
+    }
+
+    function loadAdminOrderFormData() {
+        const tbody = document.querySelector('#admin-orderform-table tbody'); tbody.innerHTML = '';
+        const fStatus = document.getElementById('admin-orderform-filter-status').value;
+        let list = _orderForms.filter(f => fStatus === 'ALL' || f.status === fStatus); list.sort((a,b) => document.getElementById('admin-orderform-sort').value === 'terlama' ? a.createdAtLocal - b.createdAtLocal : b.createdAtLocal - a.createdAtLocal);
+        list.forEach(f => tbody.innerHTML += `<tr>
+            <td><input type="checkbox" class="cb-form-history-admin" value="${f.id}"></td>
+            <td>${f.formNo}</td><td>${f.mitraName}</td><td>${formatDateDisplay(f.date)}</td><td>${f.gudangName || '-'}</td><td>${(f.items||[]).length} baris</td>
+            <td>${f.status === 'void' ? '<span class="status-void">Dibatalkan</span>' : '<span class="status-issued">Diterbitkan</span>'}</td>
+            <td style="white-space:nowrap;">
+                <button class="btn-primary btn-small" onclick="generateOrderFormPDF(_orderForms.find(x=>x.id==='${f.id}'))" title="Download PDF">📄</button> 
+                ${f.status === 'issued' ? `<button class="btn-warning btn-small" onclick="voidOrderForm('${f.id}')" title="Batalkan Form">Batal</button>` : ''}
+                <button class="btn-danger btn-small" onclick="deleteOrderFormAdmin('${f.id}')" title="Hapus Permanen">🗑️</button>
+            </td>
+        </tr>`);
+    }
+
+    function loadOrderFormHistory() {
+        const tbody = document.querySelector('#orderform-table tbody'); tbody.innerHTML = '';
+        const fStatus = document.getElementById('orderform-filter-status').value;
+        let list = _orderForms.filter(f => fStatus === 'ALL' || f.status === fStatus); list.sort((a,b) => b.createdAtLocal - a.createdAtLocal);
+        list.forEach(f => tbody.innerHTML += `<tr><td><input type="checkbox" class="cb-form-history-gudang" value="${f.id}"></td><td>${f.formNo}</td><td>${f.mitraName}</td><td>${formatDateDisplay(f.date)}</td><td>${(f.items||[]).length} baris</td><td>${f.status === 'void' ? '<span class="status-void">Dibatalkan</span>' : '<span class="status-issued">Diterbitkan</span>'}</td><td><button class="btn-primary btn-small" onclick="generateOrderFormPDF(_orderForms.find(x=>x.id==='${f.id}'))">📄 PDF</button> ${f.status === 'issued' ? `<button class="btn-danger btn-small" onclick="voidOrderForm('${f.id}')">Batalkan</button>` : ''}</td></tr>`);
     }
 
     function voidOrderForm(formId) {
