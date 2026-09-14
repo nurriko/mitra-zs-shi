@@ -398,7 +398,7 @@
 
             <!-- VIEW: FORM ORDER MITRA (OVERSIGHT) -->
             <div id="admin-view-orderform" class="hidden">
-                <p style="font-size:0.85em; color:var(--text-muted); margin:8px 0;">Pilih satu atau beberapa Form Order lalu klik tombol Download di atas tabel untuk mengunduh ulang.</p>
+                <p style="font-size:0.85em; color:var(--text-muted); margin:8px 0;">Pilih satu atau beberapa Form Order lalu klik tombol aksi di atas tabel.</p>
                 <div class="header-actions">
                     <div class="filter-bar">
                         <input type="text" id="admin-orderform-filter-cari" placeholder="Cari No. Form / Nama Mitra..." oninput="loadAdminOrderFormData()">
@@ -408,7 +408,10 @@
                             <option value="terlama">Urutkan: Terlama</option>
                         </select>
                     </div>
-                    <button class="btn-success" onclick="downloadSelectedForms('admin')">📥 Download Form Terpilih</button>
+                    <div style="display:flex; gap:10px;">
+                        <button class="btn-success" onclick="downloadSelectedForms('admin')">📥 Download Form Terpilih</button>
+                        <button class="btn-danger" onclick="deleteSelectedFormsAdmin()">🗑️ Hapus Form Terpilih</button>
+                    </div>
                 </div>
                 <div class="table-container">
                     <table id="admin-orderform-table">
@@ -939,7 +942,6 @@
         if(!document.getElementById('admin-view-logs').classList.contains('hidden')) loadAdminLogs();
     });
 
-
     // --- FUNGSI LOGGING & HELPER ---
     function logActivity(action, details) {
         db.collection("logs").add({ 
@@ -961,7 +963,7 @@
         return (val === 'Oke' ? `<span class="badge badge-oke">Oke</span>` : `<span class="badge badge-defect">Defect</span>`); 
     }
     
-    // PEMBARUAN: getRawDates (Ditaruh Global)
+    // PEMBARUAN: getRawDates (Ditaruh Global agar Laporan 1-Klik / Download Excel Gudang aman)
     function formatDateDisplay(dateStr) { return dateStr ? dateStr.split('-').reverse().join('-') : '-'; }
     function getRawDates(item) {
         if(!item.history) return '-';
@@ -1123,6 +1125,14 @@
     }
     function isNearTargetItem(item) {
         let pct = getItemProgressPercent(item); return item.qtyProduksi > 0 && pct >= _settings.nearTargetPercent && pct < 100;
+    }
+    function getItemEarliestDate(item) {
+        if(!item.history || item.history.length === 0) return item.date || '';
+        return item.history.map(h => h.date).sort()[0];
+    }
+    function getItemLatestDate(item) {
+        if(!item.history || item.history.length === 0) return item.date || '';
+        return item.history.map(h => h.date).sort().slice(-1)[0];
     }
     function getDatesDisplay(item, role) {
         if(!item.history) return '-';
@@ -1402,7 +1412,7 @@
         _logs.slice().reverse().forEach(l => { tbody.innerHTML += `<tr><td style="font-size:0.85em; color:var(--text-muted);">${l.time}</td><td><strong>${l.user}</strong> <br><small style="color:var(--secondary)">[${l.role}]</small></td><td><span class="badge" style="background:#e2e8f0; color:#334155;">${l.action}</span></td><td>${l.details}</td></tr>`; });
     }
 
-    // PEMBARUAN: Fitur Clear All Logs (Superadmin)
+    // PEMBARUAN: Fitur Clear All Logs (Superadmin) dengan aman via Promise.all
     function clearAllLogs() {
         if(!confirm('Peringatan: Anda akan menghapus SEMUA riwayat log aktivitas sistem secara permanen. Data tidak dapat dikembalikan. Lanjutkan?')) return;
         let p = prompt('Ketik "HAPUS" (tanpa tanda kutip) untuk konfirmasi:');
@@ -1414,17 +1424,26 @@
         db.collection("logs").get().then(snap => {
             let batch = db.batch();
             let count = 0;
+            let batchPromises = [];
+            
             snap.forEach(doc => {
                 batch.delete(doc.ref);
                 count++;
-                if(count === 400) { batch.commit(); batch = db.batch(); count = 0; }
+                if(count === 400) { 
+                    batchPromises.push(batch.commit()); 
+                    batch = db.batch(); 
+                    count = 0; 
+                }
             });
-            batch.commit().then(() => {
+            if(count > 0) batchPromises.push(batch.commit());
+
+            Promise.all(batchPromises).then(() => {
                 alert('Seluruh log aktivitas berhasil dibersihkan.');
                 logActivity('Clear Log', 'Superadmin membersihkan seluruh riwayat log aktivitas sistem.');
-            });
+            }).catch(err => alert('Gagal memproses batch: ' + err.message));
+            
         }).catch(err => {
-            alert('Gagal membersihkan log: ' + err.message);
+            alert('Gagal mengambil data log: ' + err.message + '\n\n*Penting: Pastikan Anda telah mengubah Firebase Rules bagian /logs menjadi "allow read, write: if true;"');
         });
     }
 
@@ -1538,7 +1557,6 @@
         if(rendered === 0) tbody.innerHTML = `<tr><td colspan="3" class="notif-empty">Kosong</td></tr>`;
     }
 
-    // FUNGSI LOAD DATA PERMINTAAN (GUDANG ONLY VIEW)
     function loadGudangRequestData() {
         const fName = document.getElementById('gudang-req-filter-nama').value.toLowerCase();
         const fMitra = document.getElementById('gudang-req-filter-mitra').value;
@@ -1714,14 +1732,67 @@
 
     // ================= FORM ORDER MITRA (GUDANG / ADMIN) =================
     
-    // PEMBARUAN: Fungsi Delete Khusus Superadmin (Hapus Permanen + Kembalikan Stok)
+    // PEMBARUAN: Fungsi Delete Khusus Superadmin (Hapus Multi Form)
+    function deleteSelectedFormsAdmin() {
+        const cbs = document.querySelectorAll('.cb-form-history-admin:checked');
+        if(cbs.length === 0) return alert('Centang minimal satu form order untuk dihapus.');
+        if(!confirm(`Hapus permanen ${cbs.length} form terpilih?\n\nJika ada form yang masih berstatus "Diterbitkan", sistem akan otomatis menarik kembali barang ke stok gudang terlebih dahulu.`)) return;
+
+        let deletePromises = [];
+        let itemUpdates = {}; 
+
+        cbs.forEach(cb => {
+            const formId = cb.value;
+            const f = _orderForms.find(x => x.id === formId);
+            if(!f) return;
+
+            // Restock (Void) logic jika form masih issued
+            if(f.status === 'issued') {
+                (f.items || []).forEach(it => {
+                    const itemId = it.itemId;
+                    if(!itemUpdates[itemId]) {
+                        const inv = _inventory.find(i => i.id === itemId);
+                        if(inv) itemUpdates[itemId] = JSON.parse(JSON.stringify(inv.details));
+                    }
+                    
+                    if(itemUpdates[itemId]) {
+                        let d = itemUpdates[itemId].find(x => x.size === it.size);
+                        if(d) {
+                            if(d.issued && d.issued.mitra) d.issued.mitra[f.mitraId] = Math.max(0, (parseInt(d.issued.mitra[f.mitraId]) || 0) - it.qty);
+                            if(d.allocated && typeof d.allocated.mitra === 'object') d.allocated.mitra[f.mitraId] = Math.max(0, (parseInt(d.allocated.mitra[f.mitraId]) || 0) - it.qty);
+                            if(getDetailAllocatedTotal(d) === 0) d.allocationStatus = 'none';
+                        }
+                    }
+                });
+            }
+        });
+
+        // Eksekusi Update Stok Gabungan (agar tidak race condition)
+        Object.keys(itemUpdates).forEach(itemId => {
+            deletePromises.push(db.collection("inventory").doc(itemId).update({ details: itemUpdates[itemId] }));
+        });
+        
+        // Eksekusi Hapus Form
+        cbs.forEach(cb => {
+            deletePromises.push(db.collection("orderforms").doc(cb.value).delete());
+        });
+
+        Promise.all(deletePromises).then(() => {
+            logActivity('Admin Hapus Form Batch', `Superadmin menghapus permanen ${cbs.length} Form Order.`);
+            alert(`${cbs.length} Form berhasil dihapus permanen.`);
+            document.getElementById('admin-cb-all-forms').checked = false;
+        }).catch(err => {
+            alert('Beberapa data mungkin gagal dihapus: ' + err.message);
+        });
+    }
+
+    // PEMBARUAN: Fungsi Delete Khusus Superadmin (Hapus Single Form)
     function deleteOrderFormAdmin(formId) {
         const f = _orderForms.find(x => x.id === formId); if(!f) return;
         
         if(f.status === 'issued') {
             if(!confirm(`Form ${f.formNo} masih aktif (Diterbitkan). \n\nJika dihapus, barang akan DITARIK KEMBALI dan masuk ke Sisa Stok Gudang. Yakin ingin menghapus permanen?`)) return;
             
-            // Void otomatis (Kembalikan stok)
             let itemsByItemId = {}; (f.items || []).forEach(it => { if(!itemsByItemId[it.itemId]) itemsByItemId[it.itemId] = []; itemsByItemId[it.itemId].push(it); });
             Object.keys(itemsByItemId).forEach(itemId => {
                 const inv = _inventory.find(i => i.id === itemId); if(!inv) return;
@@ -1740,7 +1811,6 @@
 
         db.collection("orderforms").doc(formId).delete().then(() => {
             logActivity('Admin Hapus Form', `Superadmin menghapus permanen Form Order ${f.formNo}`);
-            alert('Form berhasil dihapus permanen.');
         });
     }
 
@@ -1945,33 +2015,11 @@
     }
 
     function toggleAllForms(role) { document.querySelectorAll(`.cb-form-history-${role}`).forEach(cb => cb.checked = document.getElementById(`${role}-cb-all-forms`).checked); }
+    
     function downloadSelectedForms(role) {
         const cbs = document.querySelectorAll(`.cb-form-history-${role}:checked`); if(cbs.length === 0) return alert('Centang minimal satu form.');
         let forms = []; cbs.forEach(cb => { const f = _orderForms.find(x => x.id === cb.value); if(f) forms.push(f); });
         if(forms.length === 1) { generateOrderFormPDF(forms[0]); downloadMultiOrderFormExcelXML(forms); } else { generateMultiOrderFormPDF(forms); downloadMultiOrderFormExcelXML(forms); }
-    }
-
-    function loadAdminOrderFormData() {
-        const tbody = document.querySelector('#admin-orderform-table tbody'); tbody.innerHTML = '';
-        const fStatus = document.getElementById('admin-orderform-filter-status').value;
-        let list = _orderForms.filter(f => fStatus === 'ALL' || f.status === fStatus); list.sort((a,b) => document.getElementById('admin-orderform-sort').value === 'terlama' ? a.createdAtLocal - b.createdAtLocal : b.createdAtLocal - a.createdAtLocal);
-        list.forEach(f => tbody.innerHTML += `<tr>
-            <td><input type="checkbox" class="cb-form-history-admin" value="${f.id}"></td>
-            <td>${f.formNo}</td><td>${f.mitraName}</td><td>${formatDateDisplay(f.date)}</td><td>${f.gudangName || '-'}</td><td>${(f.items||[]).length} baris</td>
-            <td>${f.status === 'void' ? '<span class="status-void">Dibatalkan</span>' : '<span class="status-issued">Diterbitkan</span>'}</td>
-            <td style="white-space:nowrap;">
-                <button class="btn-primary btn-small" onclick="generateOrderFormPDF(_orderForms.find(x=>x.id==='${f.id}'))" title="Download PDF">📄</button> 
-                ${f.status === 'issued' ? `<button class="btn-warning btn-small" onclick="voidOrderForm('${f.id}')" title="Batalkan Form">Batal</button>` : ''}
-                <button class="btn-danger btn-small" onclick="deleteOrderFormAdmin('${f.id}')" title="Hapus Permanen">🗑️</button>
-            </td>
-        </tr>`);
-    }
-
-    function loadOrderFormHistory() {
-        const tbody = document.querySelector('#orderform-table tbody'); tbody.innerHTML = '';
-        const fStatus = document.getElementById('orderform-filter-status').value;
-        let list = _orderForms.filter(f => fStatus === 'ALL' || f.status === fStatus); list.sort((a,b) => b.createdAtLocal - a.createdAtLocal);
-        list.forEach(f => tbody.innerHTML += `<tr><td><input type="checkbox" class="cb-form-history-gudang" value="${f.id}"></td><td>${f.formNo}</td><td>${f.mitraName}</td><td>${formatDateDisplay(f.date)}</td><td>${(f.items||[]).length} baris</td><td>${f.status === 'void' ? '<span class="status-void">Dibatalkan</span>' : '<span class="status-issued">Diterbitkan</span>'}</td><td><button class="btn-primary btn-small" onclick="generateOrderFormPDF(_orderForms.find(x=>x.id==='${f.id}'))">📄 PDF</button> ${f.status === 'issued' ? `<button class="btn-danger btn-small" onclick="voidOrderForm('${f.id}')">Batalkan</button>` : ''}</td></tr>`);
     }
 
     function voidOrderForm(formId) {
