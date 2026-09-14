@@ -963,7 +963,7 @@
         return (val === 'Oke' ? `<span class="badge badge-oke">Oke</span>` : `<span class="badge badge-defect">Defect</span>`); 
     }
     
-    // PEMBARUAN: getRawDates (Ditaruh Global agar Laporan 1-Klik / Download Excel Gudang aman)
+    // PEMBARUAN: getRawDates (Ditaruh Global)
     function formatDateDisplay(dateStr) { return dateStr ? dateStr.split('-').reverse().join('-') : '-'; }
     function getRawDates(item) {
         if(!item.history) return '-';
@@ -1557,6 +1557,7 @@
         if(rendered === 0) tbody.innerHTML = `<tr><td colspan="3" class="notif-empty">Kosong</td></tr>`;
     }
 
+    // FUNGSI LOAD DATA PERMINTAAN (GUDANG ONLY VIEW)
     function loadGudangRequestData() {
         const fName = document.getElementById('gudang-req-filter-nama').value.toLowerCase();
         const fMitra = document.getElementById('gudang-req-filter-mitra').value;
@@ -1888,15 +1889,18 @@
     }
 
     function populateMitraSelects() {
+        // Dropdown di tab Gudang
         const alokasiSelect = document.getElementById('gudang-alokasi-filter-mitra');
         if(alokasiSelect) { let cur = alokasiSelect.value; alokasiSelect.innerHTML = `<option value="ALL">Semua Mitra</option>` + _mitras.map(m => `<option value="${m.id}">${m.name} (${m.loc})</option>`).join(''); if([...alokasiSelect.options].some(o => o.value === cur)) alokasiSelect.value = cur; }
         
+        // Checklist Form Order Gudang
         const checklist = document.getElementById('order-mitra-checklist');
         if(checklist) {
             const checkedIds = new Set([...checklist.querySelectorAll('input[type="checkbox"]:checked')].map(cb => cb.value));
             checklist.innerHTML = _mitras.length === 0 ? `<span style="font-size:0.85em; color:var(--text-muted);">Belum ada data mitra.</span>` : _mitras.map(m => `<label class="order-mitra-check-item"><input type="checkbox" value="${m.id}" ${checkedIds.has(m.id) ? 'checked' : ''} onchange="onFormOrderMitraChange()"><span><strong>${m.name}</strong> <small style="color:var(--text-muted);">(${m.loc}) - ${m.brand}</small></span></label>`).join('');
         }
 
+        // Dropdown Permintaan Khusus Mitra (Sales)
         const reqSelect = document.getElementById('req-mitra-select');
         if(reqSelect) {
             let cur = reqSelect.value;
@@ -2012,33 +2016,6 @@
         });
         xml += `</Workbook>`;
         let blob = new Blob([xml], { type: 'application/vnd.ms-excel' }); let url = URL.createObjectURL(blob); let a = document.createElement('a'); a.href = url; a.download = `FormOrder_${forms.length===1?forms[0].formNo:Date.now()}.xls`; document.body.appendChild(a); a.click(); document.body.removeChild(a);
-    }
-
-    function toggleAllForms(role) { document.querySelectorAll(`.cb-form-history-${role}`).forEach(cb => cb.checked = document.getElementById(`${role}-cb-all-forms`).checked); }
-    
-    function downloadSelectedForms(role) {
-        const cbs = document.querySelectorAll(`.cb-form-history-${role}:checked`); if(cbs.length === 0) return alert('Centang minimal satu form.');
-        let forms = []; cbs.forEach(cb => { const f = _orderForms.find(x => x.id === cb.value); if(f) forms.push(f); });
-        if(forms.length === 1) { generateOrderFormPDF(forms[0]); downloadMultiOrderFormExcelXML(forms); } else { generateMultiOrderFormPDF(forms); downloadMultiOrderFormExcelXML(forms); }
-    }
-
-    function voidOrderForm(formId) {
-        const f = _orderForms.find(x => x.id === formId); if(!f || f.status !== 'issued') return;
-        if(!confirm(`Batalkan Form Order ${f.formNo}? \n\nQty akan ditarik kembali dari mitra ini dan menjadi "Belum Dialokasikan" (Sisa Stok Gudang) di dashboard Sales.`)) return;
-
-        let itemsByItemId = {}; (f.items || []).forEach(it => { if(!itemsByItemId[it.itemId]) itemsByItemId[it.itemId] = []; itemsByItemId[it.itemId].push(it); });
-        Object.keys(itemsByItemId).forEach(itemId => {
-            const inv = _inventory.find(i => i.id === itemId); if(!inv) return;
-            let nDetails = JSON.parse(JSON.stringify(inv.details));
-            itemsByItemId[itemId].forEach(it => {
-                let d = nDetails.find(x => x.size === it.size); if(!d) return;
-                if(d.issued && d.issued.mitra) d.issued.mitra[f.mitraId] = Math.max(0, (parseInt(d.issued.mitra[f.mitraId]) || 0) - it.qty);
-                if(d.allocated && typeof d.allocated.mitra === 'object') d.allocated.mitra[f.mitraId] = Math.max(0, (parseInt(d.allocated.mitra[f.mitraId]) || 0) - it.qty);
-                if(getDetailAllocatedTotal(d) === 0) d.allocationStatus = 'none';
-            });
-            db.collection("inventory").doc(itemId).update({ details: nDetails });
-        });
-        db.collection("orderforms").doc(formId).update({ status: 'void', voidedBy: currentUser || 'Guest', voidedAtLocal: Date.now() });
     }
 
     // ================= BAGIAN SALES =================
