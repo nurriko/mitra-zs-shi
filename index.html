@@ -462,6 +462,10 @@
 
             <!-- VIEW: LOG AKTIVITAS -->
             <div id="admin-view-logs" class="hidden">
+                <div class="header-actions" style="justify-content: space-between; margin-bottom:15px;">
+                    <p style="margin:0; font-size:0.9em; color:var(--text-muted);">Seluruh aktivitas user tercatat di sini.</p>
+                    <button class="btn-danger btn-small" onclick="clearAllLogs()">🗑️ Bersihkan Semua Log</button>
+                </div>
                 <div class="table-container">
                     <table id="admin-logs-table">
                         <thead><tr><th>Waktu</th><th>User</th><th>Aksi</th><th>Detail Keterangan</th></tr></thead>
@@ -619,6 +623,7 @@
         </div>
     </div>
 
+    <!-- MODAL BARU: RIWAYAT LENGKAP PER-ARTIKEL -->
     <div id="modal-item-history-full" class="modal-overlay hidden">
         <div class="modal-content fade-in" style="max-width: 700px;">
             <div class="flex-header" style="margin-bottom:15px;">
@@ -710,7 +715,7 @@
                             <select id="req-mitra-select"><option value="">-- Pilih Mitra --</option></select>
                         </div>
                     </div>
-                    <label>Masukkan Qty Permintaan per Size <span style="font-weight:normal; color:#888;">(Isi 0 untuk membatalkan request sebelumnya)</span>:</label>
+                    <label>Masukkan Qty Permintaan per Size <span style="font-weight:normal; color:#888;">(Isi 0 untuk membatalkan request)</span>:</label>
                     <div class="size-grid" id="req-size-container" style="margin-top:10px;">
                         <div class="notif-empty" style="grid-column: 1/-1;">Pilih artikel terlebih dahulu.</div>
                     </div>
@@ -934,6 +939,7 @@
         if(!document.getElementById('admin-view-logs').classList.contains('hidden')) loadAdminLogs();
     });
 
+
     // --- FUNGSI LOGGING & HELPER ---
     function logActivity(action, details) {
         db.collection("logs").add({ 
@@ -955,7 +961,7 @@
         return (val === 'Oke' ? `<span class="badge badge-oke">Oke</span>` : `<span class="badge badge-defect">Defect</span>`); 
     }
     
-    // PEMBARUAN: getRawDates (Solusi Export Laporan)
+    // PEMBARUAN: getRawDates (Ditaruh Global)
     function formatDateDisplay(dateStr) { return dateStr ? dateStr.split('-').reverse().join('-') : '-'; }
     function getRawDates(item) {
         if(!item.history) return '-';
@@ -1117,14 +1123,6 @@
     }
     function isNearTargetItem(item) {
         let pct = getItemProgressPercent(item); return item.qtyProduksi > 0 && pct >= _settings.nearTargetPercent && pct < 100;
-    }
-    function getItemEarliestDate(item) {
-        if(!item.history || item.history.length === 0) return item.date || '';
-        return item.history.map(h => h.date).sort()[0];
-    }
-    function getItemLatestDate(item) {
-        if(!item.history || item.history.length === 0) return item.date || '';
-        return item.history.map(h => h.date).sort().slice(-1)[0];
     }
     function getDatesDisplay(item, role) {
         if(!item.history) return '-';
@@ -1398,9 +1396,36 @@
     function removeSizeSetting(size) {
         if(confirm(`Hapus ${size}?`)) db.collection("settings").doc("general").set({ sizes: _settings.sizes.filter(s => s !== size) }, { merge: true });
     }
+    
     function loadAdminLogs() {
         const tbody = document.querySelector('#admin-logs-table tbody'); tbody.innerHTML = '';
         _logs.slice().reverse().forEach(l => { tbody.innerHTML += `<tr><td style="font-size:0.85em; color:var(--text-muted);">${l.time}</td><td><strong>${l.user}</strong> <br><small style="color:var(--secondary)">[${l.role}]</small></td><td><span class="badge" style="background:#e2e8f0; color:#334155;">${l.action}</span></td><td>${l.details}</td></tr>`; });
+    }
+
+    // PEMBARUAN: Fitur Clear All Logs (Superadmin)
+    function clearAllLogs() {
+        if(!confirm('Peringatan: Anda akan menghapus SEMUA riwayat log aktivitas sistem secara permanen. Data tidak dapat dikembalikan. Lanjutkan?')) return;
+        let p = prompt('Ketik "HAPUS" (tanpa tanda kutip) untuk konfirmasi:');
+        if(p !== 'HAPUS') {
+            if(p !== null) alert('Konfirmasi salah. Batal membersihkan log.');
+            return;
+        }
+        
+        db.collection("logs").get().then(snap => {
+            let batch = db.batch();
+            let count = 0;
+            snap.forEach(doc => {
+                batch.delete(doc.ref);
+                count++;
+                if(count === 400) { batch.commit(); batch = db.batch(); count = 0; }
+            });
+            batch.commit().then(() => {
+                alert('Seluruh log aktivitas berhasil dibersihkan.');
+                logActivity('Clear Log', 'Superadmin membersihkan seluruh riwayat log aktivitas sistem.');
+            });
+        }).catch(err => {
+            alert('Gagal membersihkan log: ' + err.message);
+        });
     }
 
     // --- IMAGE PASTE ---
@@ -1689,6 +1714,36 @@
 
     // ================= FORM ORDER MITRA (GUDANG / ADMIN) =================
     
+    // PEMBARUAN: Fungsi Delete Khusus Superadmin (Hapus Permanen + Kembalikan Stok)
+    function deleteOrderFormAdmin(formId) {
+        const f = _orderForms.find(x => x.id === formId); if(!f) return;
+        
+        if(f.status === 'issued') {
+            if(!confirm(`Form ${f.formNo} masih aktif (Diterbitkan). \n\nJika dihapus, barang akan DITARIK KEMBALI dan masuk ke Sisa Stok Gudang. Yakin ingin menghapus permanen?`)) return;
+            
+            // Void otomatis (Kembalikan stok)
+            let itemsByItemId = {}; (f.items || []).forEach(it => { if(!itemsByItemId[it.itemId]) itemsByItemId[it.itemId] = []; itemsByItemId[it.itemId].push(it); });
+            Object.keys(itemsByItemId).forEach(itemId => {
+                const inv = _inventory.find(i => i.id === itemId); if(!inv) return;
+                let nDetails = JSON.parse(JSON.stringify(inv.details));
+                itemsByItemId[itemId].forEach(it => {
+                    let d = nDetails.find(x => x.size === it.size); if(!d) return;
+                    if(d.issued && d.issued.mitra) d.issued.mitra[f.mitraId] = Math.max(0, (parseInt(d.issued.mitra[f.mitraId]) || 0) - it.qty);
+                    if(d.allocated && typeof d.allocated.mitra === 'object') d.allocated.mitra[f.mitraId] = Math.max(0, (parseInt(d.allocated.mitra[f.mitraId]) || 0) - it.qty);
+                    if(getDetailAllocatedTotal(d) === 0) d.allocationStatus = 'none';
+                });
+                db.collection("inventory").doc(itemId).update({ details: nDetails });
+            });
+        } else {
+            if(!confirm(`Hapus permanen Form Order ${f.formNo} (Status: Dibatalkan)? \n\nRiwayat form ini akan hilang selamanya.`)) return;
+        }
+
+        db.collection("orderforms").doc(formId).delete().then(() => {
+            logActivity('Admin Hapus Form', `Superadmin menghapus permanen Form Order ${f.formNo}`);
+            alert('Form berhasil dihapus permanen.');
+        });
+    }
+
     function terbitkanFormOrder() {
         try {
             const checkedBoxes = [...document.querySelectorAll('#order-mitra-checklist input[type="checkbox"]:checked')];
@@ -1763,18 +1818,15 @@
     }
 
     function populateMitraSelects() {
-        // Dropdown di tab Gudang
         const alokasiSelect = document.getElementById('gudang-alokasi-filter-mitra');
         if(alokasiSelect) { let cur = alokasiSelect.value; alokasiSelect.innerHTML = `<option value="ALL">Semua Mitra</option>` + _mitras.map(m => `<option value="${m.id}">${m.name} (${m.loc})</option>`).join(''); if([...alokasiSelect.options].some(o => o.value === cur)) alokasiSelect.value = cur; }
         
-        // Checklist Form Order Gudang
         const checklist = document.getElementById('order-mitra-checklist');
         if(checklist) {
             const checkedIds = new Set([...checklist.querySelectorAll('input[type="checkbox"]:checked')].map(cb => cb.value));
             checklist.innerHTML = _mitras.length === 0 ? `<span style="font-size:0.85em; color:var(--text-muted);">Belum ada data mitra.</span>` : _mitras.map(m => `<label class="order-mitra-check-item"><input type="checkbox" value="${m.id}" ${checkedIds.has(m.id) ? 'checked' : ''} onchange="onFormOrderMitraChange()"><span><strong>${m.name}</strong> <small style="color:var(--text-muted);">(${m.loc}) - ${m.brand}</small></span></label>`).join('');
         }
 
-        // Dropdown Permintaan Khusus Mitra (Sales)
         const reqSelect = document.getElementById('req-mitra-select');
         if(reqSelect) {
             let cur = reqSelect.value;
@@ -1903,7 +1955,16 @@
         const tbody = document.querySelector('#admin-orderform-table tbody'); tbody.innerHTML = '';
         const fStatus = document.getElementById('admin-orderform-filter-status').value;
         let list = _orderForms.filter(f => fStatus === 'ALL' || f.status === fStatus); list.sort((a,b) => document.getElementById('admin-orderform-sort').value === 'terlama' ? a.createdAtLocal - b.createdAtLocal : b.createdAtLocal - a.createdAtLocal);
-        list.forEach(f => tbody.innerHTML += `<tr><td><input type="checkbox" class="cb-form-history-admin" value="${f.id}"></td><td>${f.formNo}</td><td>${f.mitraName}</td><td>${formatDateDisplay(f.date)}</td><td>${f.gudangName || '-'}</td><td>${(f.items||[]).length} baris</td><td>${f.status === 'void' ? '<span class="status-void">Dibatalkan</span>' : '<span class="status-issued">Diterbitkan</span>'}</td><td><button class="btn-primary btn-small" onclick="generateOrderFormPDF(_orderForms.find(x=>x.id==='${f.id}'))">📄 PDF</button> ${f.status === 'issued' ? `<button class="btn-danger btn-small" onclick="voidOrderForm('${f.id}')">Batalkan</button>` : ''}</td></tr>`);
+        list.forEach(f => tbody.innerHTML += `<tr>
+            <td><input type="checkbox" class="cb-form-history-admin" value="${f.id}"></td>
+            <td>${f.formNo}</td><td>${f.mitraName}</td><td>${formatDateDisplay(f.date)}</td><td>${f.gudangName || '-'}</td><td>${(f.items||[]).length} baris</td>
+            <td>${f.status === 'void' ? '<span class="status-void">Dibatalkan</span>' : '<span class="status-issued">Diterbitkan</span>'}</td>
+            <td style="white-space:nowrap;">
+                <button class="btn-primary btn-small" onclick="generateOrderFormPDF(_orderForms.find(x=>x.id==='${f.id}'))" title="Download PDF">📄</button> 
+                ${f.status === 'issued' ? `<button class="btn-warning btn-small" onclick="voidOrderForm('${f.id}')" title="Batalkan Form">Batal</button>` : ''}
+                <button class="btn-danger btn-small" onclick="deleteOrderFormAdmin('${f.id}')" title="Hapus Permanen">🗑️</button>
+            </td>
+        </tr>`);
     }
 
     function loadOrderFormHistory() {
@@ -2183,7 +2244,6 @@
             const sid = safeId(d.size);
             const inputEl = document.getElementById(`req-input-${sid}`);
             
-            // PEMBARUAN: Kini bisa input 0 untuk menghapus request
             if(inputEl && inputEl.value !== "") {
                 const val = parseInt(inputEl.value) || 0;
                 if(!d.requested) d.requested = { mitra: {} };
@@ -2283,8 +2343,6 @@
         const tdText = "padding:8px; border:1px solid #000; vertical-align: middle; text-align:left;"; 
         const tdNum = "padding:8px; border:1px solid #000; vertical-align: middle; text-align:center; mso-number-format:'0';"; 
         const tdBold = "padding:8px; border:1px solid #000; vertical-align: middle; text-align:center; font-weight:bold; background-color:#f1f5f9; mso-number-format:'0';";
-        
-        // PEMBARUAN: Format khusus untuk Persentase (Excel membaca string, bukan desimal)
         const tdPct = "padding:8px; border:1px solid #000; vertical-align: middle; text-align:center; font-weight:bold; mso-number-format:'\\@';";
 
         if(type === 'gudang_input') {
