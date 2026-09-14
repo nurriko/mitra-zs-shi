@@ -212,19 +212,16 @@
     </div>
     
     <div class="top-nav-actions">
-        <!-- GLOBAL SEARCH -->
         <div class="global-search-wrapper" id="nav-search-wrap" style="display:none;">
             <input type="text" class="global-search-input" id="global-search" placeholder="🔍 Cari Artikel / Mitra / Form..." oninput="performGlobalSearch()">
             <div class="gs-results hidden" id="global-search-results"></div>
         </div>
 
-        <!-- ONLINE INDICATOR & CHAT BADGE -->
         <div class="online-indicator" id="nav-online-wrap" style="display:none;" onclick="showOnlineUsers()">
             <span class="online-dot"></span> <span id="online-count-text">1 Online</span>
             <div id="chat-unread-badge" class="chat-badge hidden">0</div>
         </div>
 
-        <!-- NOTIFICATION BELL -->
         <div class="notif-wrapper" id="nav-notif-wrap" style="display:none;">
             <button class="notif-bell" onclick="toggleNotifPanel('global')" title="Notifikasi Stok">🔔<span class="notif-count hidden" id="notif-count-global">0</span></button>
             <div class="notif-panel hidden" id="notif-panel-global">
@@ -249,7 +246,6 @@
         <button onclick="sendChatMessage()">➤</button>
     </div>
 </div>
-
 
 <div class="container">
     
@@ -614,63 +610,6 @@
         </div>
     </div>
 
-    <!-- MODALS GUDANG & RIWAYAT -->
-    <div id="modal-history" class="modal-overlay hidden">
-        <div class="modal-content fade-in">
-            <div class="flex-header">
-                <h3 id="history-title">Riwayat Detail Masuk</h3>
-                <button class="btn-dark btn-small" onclick="closeHistoryModal()">Tutup</button>
-            </div>
-            <div class="table-container">
-                <table id="history-table">
-                    <thead><tr><th>Tanggal Masuk</th><th>Rincian Size & Qty</th><th id="history-action-th">Aksi</th></tr></thead>
-                    <tbody></tbody>
-                </table>
-            </div>
-        </div>
-    </div>
-
-    <!-- MODAL BARU: RIWAYAT LENGKAP PER-ARTIKEL -->
-    <div id="modal-item-history-full" class="modal-overlay hidden">
-        <div class="modal-content fade-in" style="max-width: 700px;">
-            <div class="flex-header" style="margin-bottom:15px;">
-                <h3 id="item-history-full-title" style="margin:0;">Riwayat Perjalanan Artikel</h3>
-                <button class="btn-dark btn-small" onclick="closeItemHistoryFullModal()">Tutup</button>
-            </div>
-            <div id="item-history-timeline" style="padding: 10px 5px;"></div>
-        </div>
-    </div>
-
-    <div id="modal-edit-batch" class="modal-overlay hidden">
-        <div class="modal-content fade-in">
-            <h3>Edit Stok (Berdasarkan Tgl Masuk)</h3>
-            <input type="hidden" id="edit-batch-itemId">
-            <input type="hidden" id="edit-batch-entryId">
-            <div class="form-row">
-                <div class="form-group"><label>Ubah Tanggal Masuk</label><input type="date" id="edit-batch-date"></div>
-            </div>
-            <label>Update Qty Masuk Pada Tanggal Ini:</label>
-            <div class="size-grid" id="edit-batch-size-container"></div>
-            <div style="margin-top: 25px; display: flex; gap: 10px; justify-content: flex-end;">
-                <button class="btn-dark" onclick="closeEditBatchModal()">Batal</button>
-                <button class="btn-success" onclick="saveEditBatch()">Simpan Perubahan Qty</button>
-            </div>
-        </div>
-    </div>
-
-    <div id="modal-edit-info" class="modal-overlay hidden">
-        <div class="modal-content fade-in" style="max-width: 600px;">
-            <h3>Edit Info Utama Barang</h3><input type="hidden" id="edit-info-id">
-            <div class="form-row">
-                <div class="form-group"><label>Nama Baju</label><input type="text" id="edit-info-name"></div>
-                <div class="form-group"><label>Target Qty Produksi</label><input type="number" id="edit-info-qty" min="1"></div>
-            </div>
-            <div style="margin-top: 25px; display: flex; gap: 10px; justify-content: flex-end;">
-                <button class="btn-dark" onclick="closeEditInfoModal()">Batal</button><button class="btn-success" onclick="saveEditInfo()">Simpan Info</button>
-            </div>
-        </div>
-    </div>
-
     <!-- ================= HALAMAN SALES ================= -->
     <div id="sales-section" class="hidden fade-in">
         <div class="card">
@@ -768,12 +707,22 @@
         </div>
     </div>
 
-    <!-- MODAL EDIT MITRA & ROLE -->
+    <!-- ================= MODAL BERSAMA (GLOBAL) ================= -->
+    
+    <!-- MODAL EDIT MITRA -->
     <div id="modal-edit-mitra" class="modal-overlay hidden">
         <div class="modal-content fade-in" style="max-width: 500px;">
             <h3>Edit Mitra</h3><input type="hidden" id="edit-mitra-id">
             <div class="form-group"><label>Nama Mitra</label><input type="text" id="edit-mitra-name"></div>
             <div class="form-group"><label>Lokasi / Kota</label><input type="text" id="edit-mitra-loc"></div>
+            <div class="form-group">
+                <label>Brand Mitra</label>
+                <select id="edit-mitra-brand">
+                    <option value="ZS">Zaskia Sungkar (ZS)</option>
+                    <option value="SHI">Shi By Shireen (SHI)</option>
+                    <option value="BOTH">Keduanya (ZS & SHI)</option>
+                </select>
+            </div>
             <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
                 <button class="btn-dark" onclick="closeEditMitraModal()">Batal</button>
                 <button class="btn-success" onclick="saveEditMitra()">Simpan Perubahan</button>
@@ -781,6 +730,7 @@
         </div>
     </div>
 
+    <!-- MODAL EDIT ROLE -->
     <div id="modal-edit-role" class="modal-overlay hidden">
         <div class="modal-content fade-in" style="max-width: 420px;">
             <h3>Ubah Role User</h3><input type="hidden" id="edit-role-username">
@@ -809,6 +759,7 @@
         </div>
     </div>
 
+    <!-- MODAL DASHBOARD DETAIL -->
     <div id="modal-dashboard-detail" class="modal-overlay hidden">
         <div class="modal-content fade-in" style="max-width: 720px;">
             <div class="flex-header" style="margin-bottom:15px;">
@@ -832,6 +783,7 @@
 
 </div>
 
+<!-- SCRIPT UTAMA -->
 <script>
     // ==========================================
     // KONFIGURASI FIREBASE ANDA
@@ -1581,6 +1533,7 @@
         if(rendered === 0) tbody.innerHTML = `<tr><td colspan="3" class="notif-empty">Kosong</td></tr>`;
     }
 
+    // FUNGSI LOAD DATA PERMINTAAN (GUDANG ONLY VIEW)
     function loadGudangRequestData() {
         const fName = document.getElementById('gudang-req-filter-nama').value.toLowerCase();
         const fMitra = document.getElementById('gudang-req-filter-mitra').value;
@@ -1592,6 +1545,7 @@
         
         _inventory.forEach(item => {
             if(fName && !item.name.toLowerCase().includes(fName)) return;
+            
             let requestsByMitra = {};
             
             item.details.forEach(d => {
@@ -1600,6 +1554,7 @@
                         if(fMitra !== 'ALL' && mId !== fMitra) return;
                         if(reqQty > 0) {
                             if(!requestsByMitra[mId]) requestsByMitra[mId] = [];
+                            
                             let allocQty = (d.allocated && d.allocated.mitra && d.allocated.mitra[mId]) ? d.allocated.mitra[mId] : 0;
                             let pct = Math.round((allocQty / reqQty) * 100);
                             let statusStr = '';
@@ -1608,6 +1563,7 @@
                             } else {
                                 statusStr = `<span class="badge" style="background:#e2e8f0; color:#334155;">BELUM DIALOKASI</span>`;
                             }
+                            
                             let color = pct >= 100 ? 'var(--success)' : (pct > 0 ? 'var(--warning)' : 'var(--danger)');
                             
                             requestsByMitra[mId].push(`<div style="border-bottom:1px dashed #ccc; padding:6px 0; font-size:0.85em;">
@@ -1726,6 +1682,7 @@
         db.collection("inventory").doc(itemId).update({ history: item.history, details: item.details }).then(() => closeEditBatchModal());
     }
 
+    // ================= FUNGSI SISA STOK REAL-TIME =================
     function calcSisa(itemId, sid, totalQty) {
         let totalInput = (parseInt(document.getElementById(`t-${itemId}-${sid}`).value)||0) + (parseInt(document.getElementById(`s-${itemId}-${sid}`).value)||0) + (parseInt(document.getElementById(`w-${itemId}-${sid}`).value)||0) + (parseInt(document.getElementById(`b-${itemId}-${sid}`).value)||0) + (parseInt(document.getElementById(`f-${itemId}-${sid}`).value)||0);
         document.querySelectorAll(`input[id^="m-${itemId}-${sid}-"]`).forEach(i => totalInput += parseInt(i.value) || 0);
@@ -1733,6 +1690,7 @@
         if(sisaEl) { let s = totalQty - totalInput; sisaEl.innerText = s; sisaEl.style.color = s < 0 ? 'var(--danger)' : (s === 0 ? 'var(--success)' : 'var(--primary)'); }
     }
 
+    // ================= NOTIFIKASI STOK =================
     function computeNotifications() {
         let entries = [];
         _inventory.forEach(item => {
@@ -1749,8 +1707,90 @@
         const wrap = document.getElementById('nav-notif-wrap'); if(wrap && !wrap.contains(e.target)) { let p = document.getElementById('notif-panel-global'); if(p) p.classList.add('hidden'); }
     });
 
-    // ================= FORM ORDER MITRA (GUDANG) =================
+    // ================= FORM ORDER MITRA (GUDANG / ADMIN) =================
     
+    // PEMBARUAN: Fungsi Delete Khusus Superadmin (Hapus Multi Form)
+    function deleteSelectedFormsAdmin() {
+        const cbs = document.querySelectorAll('.cb-form-history-admin:checked');
+        if(cbs.length === 0) return alert('Centang minimal satu form order untuk dihapus.');
+        if(!confirm(`Hapus permanen ${cbs.length} form terpilih?\n\nJika ada form yang masih berstatus "Diterbitkan", sistem akan otomatis menarik kembali barang ke stok gudang terlebih dahulu.`)) return;
+
+        let deletePromises = [];
+        let itemUpdates = {}; 
+
+        cbs.forEach(cb => {
+            const formId = cb.value;
+            const f = _orderForms.find(x => x.id === formId);
+            if(!f) return;
+
+            // Restock (Void) logic jika form masih issued
+            if(f.status === 'issued') {
+                (f.items || []).forEach(it => {
+                    const itemId = it.itemId;
+                    if(!itemUpdates[itemId]) {
+                        const inv = _inventory.find(i => i.id === itemId);
+                        if(inv) itemUpdates[itemId] = JSON.parse(JSON.stringify(inv.details));
+                    }
+                    
+                    if(itemUpdates[itemId]) {
+                        let d = itemUpdates[itemId].find(x => x.size === it.size);
+                        if(d) {
+                            if(d.issued && d.issued.mitra) d.issued.mitra[f.mitraId] = Math.max(0, (parseInt(d.issued.mitra[f.mitraId]) || 0) - it.qty);
+                            if(d.allocated && typeof d.allocated.mitra === 'object') d.allocated.mitra[f.mitraId] = Math.max(0, (parseInt(d.allocated.mitra[f.mitraId]) || 0) - it.qty);
+                            if(getDetailAllocatedTotal(d) === 0) d.allocationStatus = 'none';
+                        }
+                    }
+                });
+            }
+        });
+
+        // Eksekusi Update Stok Gabungan (agar tidak race condition)
+        Object.keys(itemUpdates).forEach(itemId => {
+            deletePromises.push(db.collection("inventory").doc(itemId).update({ details: itemUpdates[itemId] }));
+        });
+        
+        // Eksekusi Hapus Form
+        cbs.forEach(cb => {
+            deletePromises.push(db.collection("orderforms").doc(cb.value).delete());
+        });
+
+        Promise.all(deletePromises).then(() => {
+            logActivity('Admin Hapus Form Batch', `Superadmin menghapus permanen ${cbs.length} Form Order.`);
+            alert(`${cbs.length} Form berhasil dihapus permanen.`);
+            document.getElementById('admin-cb-all-forms').checked = false;
+        }).catch(err => {
+            alert('Beberapa data mungkin gagal dihapus: ' + err.message);
+        });
+    }
+
+    // PEMBARUAN: Fungsi Delete Khusus Superadmin (Hapus Single Form)
+    function deleteOrderFormAdmin(formId) {
+        const f = _orderForms.find(x => x.id === formId); if(!f) return;
+        
+        if(f.status === 'issued') {
+            if(!confirm(`Form ${f.formNo} masih aktif (Diterbitkan). \n\nJika dihapus, barang akan DITARIK KEMBALI dan masuk ke Sisa Stok Gudang. Yakin ingin menghapus permanen?`)) return;
+            
+            let itemsByItemId = {}; (f.items || []).forEach(it => { if(!itemsByItemId[it.itemId]) itemsByItemId[it.itemId] = []; itemsByItemId[it.itemId].push(it); });
+            Object.keys(itemsByItemId).forEach(itemId => {
+                const inv = _inventory.find(i => i.id === itemId); if(!inv) return;
+                let nDetails = JSON.parse(JSON.stringify(inv.details));
+                itemsByItemId[itemId].forEach(it => {
+                    let d = nDetails.find(x => x.size === it.size); if(!d) return;
+                    if(d.issued && d.issued.mitra) d.issued.mitra[f.mitraId] = Math.max(0, (parseInt(d.issued.mitra[f.mitraId]) || 0) - it.qty);
+                    if(d.allocated && typeof d.allocated.mitra === 'object') d.allocated.mitra[f.mitraId] = Math.max(0, (parseInt(d.allocated.mitra[f.mitraId]) || 0) - it.qty);
+                    if(getDetailAllocatedTotal(d) === 0) d.allocationStatus = 'none';
+                });
+                db.collection("inventory").doc(itemId).update({ details: nDetails });
+            });
+        } else {
+            if(!confirm(`Hapus permanen Form Order ${f.formNo} (Status: Dibatalkan)? \n\nRiwayat form ini akan hilang selamanya.`)) return;
+        }
+
+        db.collection("orderforms").doc(formId).delete().then(() => {
+            logActivity('Admin Hapus Form', `Superadmin menghapus permanen Form Order ${f.formNo}`);
+        });
+    }
+
     function terbitkanFormOrder() {
         try {
             const checkedBoxes = [...document.querySelectorAll('#order-mitra-checklist input[type="checkbox"]:checked')];
@@ -1795,7 +1835,7 @@
                 downloadMultiOrderFormExcelXML(formsToIssue);
             } catch(fileErr) {
                 console.error("Error generating files: ", fileErr);
-                alert("Gagal mengunduh file PDF/Excel: " + fileErr.message);
+                alert("Gagal mengunduh file PDF/Excel (Abaikan jika tetap ingin menyimpan ke riwayat): " + fileErr.message);
             }
 
             Promise.all(formsToIssue.map(fd => db.collection("orderforms").add(fd))).then(() => {
@@ -1900,6 +1940,7 @@
         document.getElementById('order-no-preview').innerText = itemCount > 0 ? `Siap diterbitkan: ${mitraCount} mitra, ${itemCount} baris item, total ${totalQty} pcs.` : `Belum ada item terpilih.`;
     }
 
+    // PDF JS
     function truncatePdfText(doc, text, maxWidth) { text = String(text == null ? '' : text); if(doc.getTextWidth(text) <= maxWidth) return text; while(text.length > 1 && doc.getTextWidth(text + '…') > maxWidth) text = text.slice(0, -1); return text + '…'; }
     function drawOrderFormPage(doc, f) {
         const pageWidth = doc.internal.pageSize.getWidth(); const marginX = 15; let y = 18;
@@ -1934,6 +1975,7 @@
         const { jsPDF } = window.jspdf; const doc = new jsPDF({ unit: 'mm', format: 'a4' }); forms.forEach((f, idx) => { if(idx > 0) doc.addPage(); drawOrderFormPage(doc, f); }); doc.save(`FormOrder-${forms.length === 1 ? forms[0].formNo : `Batch-${Date.now()}`}.pdf`); 
     }
 
+    // EXCEL (MULTI-SHEET, XML BORDERS)
     function downloadMultiOrderFormExcelXML(forms) {
         if(!forms || forms.length === 0) return;
         let xml = `<?xml version="1.0"?><?mso-application progid="Excel.Sheet"?><Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"><Styles><Style ss:ID="Bold"><Font ss:Bold="1"/></Style><Style ss:ID="Border"><Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1"/><Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1"/><Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1"/><Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1"/></Borders><Alignment ss:Horizontal="Center" ss:Vertical="Center"/></Style><Style ss:ID="BorderLeft"><Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1"/><Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1"/><Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1"/><Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1"/></Borders><Alignment ss:Horizontal="Left" ss:Vertical="Center"/></Style><Style ss:ID="Header"><Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1"/><Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1"/><Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1"/><Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1"/></Borders><Font ss:Bold="1" ss:Color="#FFFFFF"/><Interior ss:Color="#0f172a" ss:Pattern="Solid"/><Alignment ss:Horizontal="Center" ss:Vertical="Center"/></Style></Styles>`;
@@ -1947,6 +1989,33 @@
         });
         xml += `</Workbook>`;
         let blob = new Blob([xml], { type: 'application/vnd.ms-excel' }); let url = URL.createObjectURL(blob); let a = document.createElement('a'); a.href = url; a.download = `FormOrder_${forms.length===1?forms[0].formNo:Date.now()}.xls`; document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    }
+
+    function toggleAllForms(role) { document.querySelectorAll(`.cb-form-history-${role}`).forEach(cb => cb.checked = document.getElementById(`${role}-cb-all-forms`).checked); }
+    
+    function downloadSelectedForms(role) {
+        const cbs = document.querySelectorAll(`.cb-form-history-${role}:checked`); if(cbs.length === 0) return alert('Centang minimal satu form.');
+        let forms = []; cbs.forEach(cb => { const f = _orderForms.find(x => x.id === cb.value); if(f) forms.push(f); });
+        if(forms.length === 1) { generateOrderFormPDF(forms[0]); downloadMultiOrderFormExcelXML(forms); } else { generateMultiOrderFormPDF(forms); downloadMultiOrderFormExcelXML(forms); }
+    }
+
+    function voidOrderForm(formId) {
+        const f = _orderForms.find(x => x.id === formId); if(!f || f.status !== 'issued') return;
+        if(!confirm(`Batalkan Form Order ${f.formNo}? \n\nQty akan ditarik kembali dari mitra ini dan menjadi "Belum Dialokasikan" (Sisa Stok Gudang) di dashboard Sales.`)) return;
+
+        let itemsByItemId = {}; (f.items || []).forEach(it => { if(!itemsByItemId[it.itemId]) itemsByItemId[it.itemId] = []; itemsByItemId[it.itemId].push(it); });
+        Object.keys(itemsByItemId).forEach(itemId => {
+            const inv = _inventory.find(i => i.id === itemId); if(!inv) return;
+            let nDetails = JSON.parse(JSON.stringify(inv.details));
+            itemsByItemId[itemId].forEach(it => {
+                let d = nDetails.find(x => x.size === it.size); if(!d) return;
+                if(d.issued && d.issued.mitra) d.issued.mitra[f.mitraId] = Math.max(0, (parseInt(d.issued.mitra[f.mitraId]) || 0) - it.qty);
+                if(d.allocated && typeof d.allocated.mitra === 'object') d.allocated.mitra[f.mitraId] = Math.max(0, (parseInt(d.allocated.mitra[f.mitraId]) || 0) - it.qty);
+                if(getDetailAllocatedTotal(d) === 0) d.allocationStatus = 'none';
+            });
+            db.collection("inventory").doc(itemId).update({ details: nDetails });
+        });
+        db.collection("orderforms").doc(formId).update({ status: 'void', voidedBy: currentUser || 'Guest', voidedAtLocal: Date.now() });
     }
 
     // ================= BAGIAN SALES =================
@@ -2052,7 +2121,7 @@
 
             trStr += `<div id="form-${item.id}" class="${activeSalesTab === 'sudah' ? 'hidden' : ''}"><div class="paste-zone" tabindex="0" onpaste="handleImagePaste(event, '${item.id}')">📸 Paste (Ctrl+V) Screenshot Foto di sini</div>`;
             
-            let isStaff = currentUserRole.startsWith('sales_staff');
+            let isStaff = currentUserRole && currentUserRole.startsWith('sales_staff');
 
             sizesToRender.forEach(d => {
                 let sid = safeId(d.size); let a = d.allocated; 
