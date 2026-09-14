@@ -348,7 +348,9 @@
                         <div class="form-group hidden" id="admin-new-sales-level-group">
                             <label>Posisi Sales</label>
                             <select id="admin-new-sales-level">
-                                <option value="staff">Staff</option>
+                                <option value="staff">Staff (Semua Brand)</option>
+                                <option value="staff_zs">Staff (Khusus ZS)</option>
+                                <option value="staff_shi">Staff (Khusus SHI)</option>
                                 <option value="leader">Leader (SPV)</option>
                             </select>
                         </div>
@@ -362,7 +364,9 @@
                         <select id="admin-filter-role" onchange="loadAdminData()">
                             <option value="ALL">Semua Role</option>
                             <option value="gudang">Gudang</option>
-                            <option value="sales_staff">Sales Staff</option>
+                            <option value="sales_staff">Sales Staff (All)</option>
+                            <option value="sales_staff_zs">Sales Staff (ZS)</option>
+                            <option value="sales_staff_shi">Sales Staff (SHI)</option>
                             <option value="sales_leader">Sales Leader</option>
                             <option value="admin">Admin</option>
                         </select>
@@ -791,7 +795,12 @@
             </div>
             <div class="form-group hidden" id="edit-role-sales-level-group">
                 <label>Posisi Sales</label>
-                <select id="edit-role-sales-level"><option value="staff">Staff</option><option value="leader">Leader (SPV)</option></select>
+                <select id="edit-role-sales-level">
+                    <option value="staff">Staff (Semua Brand)</option>
+                    <option value="staff_zs">Staff (Khusus ZS)</option>
+                    <option value="staff_shi">Staff (Khusus SHI)</option>
+                    <option value="leader">Leader (SPV)</option>
+                </select>
             </div>
             <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
                 <button class="btn-dark" onclick="closeEditRoleModal()">Batal</button>
@@ -907,7 +916,12 @@
 
     db.collection("mitras").onSnapshot(snap => {
         _mitras = []; snap.forEach(doc => { _mitras.push({id: doc.id, ...doc.data()}); });
+        
         if(!document.getElementById('sales-view-mitra').classList.contains('hidden')) loadMitraData();
+        if(!document.getElementById('admin-section').classList.contains('hidden')) {
+            const amv = document.getElementById('admin-view-mitra');
+            if(amv && !amv.classList.contains('hidden')) loadMitraDataAdmin();
+        }
         populateMitraSelects();
     });
 
@@ -963,7 +977,6 @@
         return (val === 'Oke' ? `<span class="badge badge-oke">Oke</span>` : `<span class="badge badge-defect">Defect</span>`); 
     }
     
-    // PEMBARUAN: getRawDates (Ditaruh Global)
     function formatDateDisplay(dateStr) { return dateStr ? dateStr.split('-').reverse().join('-') : '-'; }
     function getRawDates(item) {
         if(!item.history) return '-';
@@ -1193,7 +1206,11 @@
         else if (role === 'gudang') { document.getElementById('gudang-section').classList.remove('hidden'); loadGudangData(); } 
         else { 
             document.getElementById('sales-section').classList.remove('hidden'); 
-            let badgeRole = role === 'sales_leader' ? 'LEADER / SPV' : 'STAFF';
+            let badgeRole = 'STAFF';
+            if (role === 'sales_leader') badgeRole = 'LEADER / SPV';
+            else if (role === 'sales_staff_zs') badgeRole = 'STAFF (KHUSUS ZS)';
+            else if (role === 'sales_staff_shi') badgeRole = 'STAFF (KHUSUS SHI)';
+
             document.getElementById('sales-role-badge').innerText = badgeRole;
             document.getElementById('sales-role-badge').style.backgroundColor = role === 'sales_leader' ? '#6b21a8' : '#0f172a';
             loadSalesData(); 
@@ -1293,8 +1310,12 @@
         const data = _users[uname]; if(!data) return;
         document.getElementById('edit-role-username').value = uname; document.getElementById('edit-role-username-label').innerText = uname;
         let r = data.role;
-        if(r === 'sales_staff' || r === 'sales_leader') { document.getElementById('edit-role-value').value = 'sales'; document.getElementById('edit-role-sales-level').value = r === 'sales_leader' ? 'leader' : 'staff'; } 
-        else { document.getElementById('edit-role-value').value = r; }
+        if(r.startsWith('sales_')) { 
+            document.getElementById('edit-role-value').value = 'sales'; 
+            document.getElementById('edit-role-sales-level').value = r.replace('sales_', ''); 
+        } else { 
+            document.getElementById('edit-role-value').value = r; 
+        }
         toggleEditRoleSalesLevel(); document.getElementById('modal-edit-role').classList.remove('hidden');
     }
     function closeEditRoleModal() { document.getElementById('modal-edit-role').classList.add('hidden'); }
@@ -1377,7 +1398,11 @@
     function saveMitraAdmin() {
         const n = document.getElementById('admin-mitraName').value.trim(); const l = document.getElementById('admin-mitraLoc').value.trim(); const b = document.getElementById('admin-mitraBrand').value;
         if(!n || !l) return alert('Nama & Lokasi wajib diisi!');
-        db.collection("mitras").add({ name: n, loc: l, brand: b }).then(() => { document.getElementById('admin-mitraName').value = ''; document.getElementById('admin-mitraLoc').value = ''; });
+        db.collection("mitras").add({ name: n, loc: l, brand: b }).then(() => { 
+            document.getElementById('admin-mitraName').value = ''; 
+            document.getElementById('admin-mitraLoc').value = ''; 
+            alert('Mitra berhasil ditambahkan!');
+        });
     }
 
     function loadMitraDataAdmin() {
@@ -1412,7 +1437,6 @@
         _logs.slice().reverse().forEach(l => { tbody.innerHTML += `<tr><td style="font-size:0.85em; color:var(--text-muted);">${l.time}</td><td><strong>${l.user}</strong> <br><small style="color:var(--secondary)">[${l.role}]</small></td><td><span class="badge" style="background:#e2e8f0; color:#334155;">${l.action}</span></td><td>${l.details}</td></tr>`; });
     }
 
-    // PEMBARUAN: Fitur Clear All Logs (Superadmin) dengan aman via Promise.all
     function clearAllLogs() {
         if(!confirm('Peringatan: Anda akan menghapus SEMUA riwayat log aktivitas sistem secara permanen. Data tidak dapat dikembalikan. Lanjutkan?')) return;
         let p = prompt('Ketik "HAPUS" (tanpa tanda kutip) untuk konfirmasi:');
@@ -1557,7 +1581,6 @@
         if(rendered === 0) tbody.innerHTML = `<tr><td colspan="3" class="notif-empty">Kosong</td></tr>`;
     }
 
-    // FUNGSI LOAD DATA PERMINTAAN (GUDANG ONLY VIEW)
     function loadGudangRequestData() {
         const fName = document.getElementById('gudang-req-filter-nama').value.toLowerCase();
         const fMitra = document.getElementById('gudang-req-filter-mitra').value;
@@ -1569,7 +1592,6 @@
         
         _inventory.forEach(item => {
             if(fName && !item.name.toLowerCase().includes(fName)) return;
-            
             let requestsByMitra = {};
             
             item.details.forEach(d => {
@@ -1578,7 +1600,6 @@
                         if(fMitra !== 'ALL' && mId !== fMitra) return;
                         if(reqQty > 0) {
                             if(!requestsByMitra[mId]) requestsByMitra[mId] = [];
-                            
                             let allocQty = (d.allocated && d.allocated.mitra && d.allocated.mitra[mId]) ? d.allocated.mitra[mId] : 0;
                             let pct = Math.round((allocQty / reqQty) * 100);
                             let statusStr = '';
@@ -1587,7 +1608,6 @@
                             } else {
                                 statusStr = `<span class="badge" style="background:#e2e8f0; color:#334155;">BELUM DIALOKASI</span>`;
                             }
-                            
                             let color = pct >= 100 ? 'var(--success)' : (pct > 0 ? 'var(--warning)' : 'var(--danger)');
                             
                             requestsByMitra[mId].push(`<div style="border-bottom:1px dashed #ccc; padding:6px 0; font-size:0.85em;">
@@ -1706,7 +1726,6 @@
         db.collection("inventory").doc(itemId).update({ history: item.history, details: item.details }).then(() => closeEditBatchModal());
     }
 
-    // ================= FUNGSI SISA STOK REAL-TIME =================
     function calcSisa(itemId, sid, totalQty) {
         let totalInput = (parseInt(document.getElementById(`t-${itemId}-${sid}`).value)||0) + (parseInt(document.getElementById(`s-${itemId}-${sid}`).value)||0) + (parseInt(document.getElementById(`w-${itemId}-${sid}`).value)||0) + (parseInt(document.getElementById(`b-${itemId}-${sid}`).value)||0) + (parseInt(document.getElementById(`f-${itemId}-${sid}`).value)||0);
         document.querySelectorAll(`input[id^="m-${itemId}-${sid}-"]`).forEach(i => totalInput += parseInt(i.value) || 0);
@@ -1714,7 +1733,6 @@
         if(sisaEl) { let s = totalQty - totalInput; sisaEl.innerText = s; sisaEl.style.color = s < 0 ? 'var(--danger)' : (s === 0 ? 'var(--success)' : 'var(--primary)'); }
     }
 
-    // ================= NOTIFIKASI STOK =================
     function computeNotifications() {
         let entries = [];
         _inventory.forEach(item => {
@@ -1731,90 +1749,8 @@
         const wrap = document.getElementById('nav-notif-wrap'); if(wrap && !wrap.contains(e.target)) { let p = document.getElementById('notif-panel-global'); if(p) p.classList.add('hidden'); }
     });
 
-    // ================= FORM ORDER MITRA (GUDANG / ADMIN) =================
+    // ================= FORM ORDER MITRA (GUDANG) =================
     
-    // PEMBARUAN: Fungsi Delete Khusus Superadmin (Hapus Multi Form)
-    function deleteSelectedFormsAdmin() {
-        const cbs = document.querySelectorAll('.cb-form-history-admin:checked');
-        if(cbs.length === 0) return alert('Centang minimal satu form order untuk dihapus.');
-        if(!confirm(`Hapus permanen ${cbs.length} form terpilih?\n\nJika ada form yang masih berstatus "Diterbitkan", sistem akan otomatis menarik kembali barang ke stok gudang terlebih dahulu.`)) return;
-
-        let deletePromises = [];
-        let itemUpdates = {}; 
-
-        cbs.forEach(cb => {
-            const formId = cb.value;
-            const f = _orderForms.find(x => x.id === formId);
-            if(!f) return;
-
-            // Restock (Void) logic jika form masih issued
-            if(f.status === 'issued') {
-                (f.items || []).forEach(it => {
-                    const itemId = it.itemId;
-                    if(!itemUpdates[itemId]) {
-                        const inv = _inventory.find(i => i.id === itemId);
-                        if(inv) itemUpdates[itemId] = JSON.parse(JSON.stringify(inv.details));
-                    }
-                    
-                    if(itemUpdates[itemId]) {
-                        let d = itemUpdates[itemId].find(x => x.size === it.size);
-                        if(d) {
-                            if(d.issued && d.issued.mitra) d.issued.mitra[f.mitraId] = Math.max(0, (parseInt(d.issued.mitra[f.mitraId]) || 0) - it.qty);
-                            if(d.allocated && typeof d.allocated.mitra === 'object') d.allocated.mitra[f.mitraId] = Math.max(0, (parseInt(d.allocated.mitra[f.mitraId]) || 0) - it.qty);
-                            if(getDetailAllocatedTotal(d) === 0) d.allocationStatus = 'none';
-                        }
-                    }
-                });
-            }
-        });
-
-        // Eksekusi Update Stok Gabungan (agar tidak race condition)
-        Object.keys(itemUpdates).forEach(itemId => {
-            deletePromises.push(db.collection("inventory").doc(itemId).update({ details: itemUpdates[itemId] }));
-        });
-        
-        // Eksekusi Hapus Form
-        cbs.forEach(cb => {
-            deletePromises.push(db.collection("orderforms").doc(cb.value).delete());
-        });
-
-        Promise.all(deletePromises).then(() => {
-            logActivity('Admin Hapus Form Batch', `Superadmin menghapus permanen ${cbs.length} Form Order.`);
-            alert(`${cbs.length} Form berhasil dihapus permanen.`);
-            document.getElementById('admin-cb-all-forms').checked = false;
-        }).catch(err => {
-            alert('Beberapa data mungkin gagal dihapus: ' + err.message);
-        });
-    }
-
-    // PEMBARUAN: Fungsi Delete Khusus Superadmin (Hapus Single Form)
-    function deleteOrderFormAdmin(formId) {
-        const f = _orderForms.find(x => x.id === formId); if(!f) return;
-        
-        if(f.status === 'issued') {
-            if(!confirm(`Form ${f.formNo} masih aktif (Diterbitkan). \n\nJika dihapus, barang akan DITARIK KEMBALI dan masuk ke Sisa Stok Gudang. Yakin ingin menghapus permanen?`)) return;
-            
-            let itemsByItemId = {}; (f.items || []).forEach(it => { if(!itemsByItemId[it.itemId]) itemsByItemId[it.itemId] = []; itemsByItemId[it.itemId].push(it); });
-            Object.keys(itemsByItemId).forEach(itemId => {
-                const inv = _inventory.find(i => i.id === itemId); if(!inv) return;
-                let nDetails = JSON.parse(JSON.stringify(inv.details));
-                itemsByItemId[itemId].forEach(it => {
-                    let d = nDetails.find(x => x.size === it.size); if(!d) return;
-                    if(d.issued && d.issued.mitra) d.issued.mitra[f.mitraId] = Math.max(0, (parseInt(d.issued.mitra[f.mitraId]) || 0) - it.qty);
-                    if(d.allocated && typeof d.allocated.mitra === 'object') d.allocated.mitra[f.mitraId] = Math.max(0, (parseInt(d.allocated.mitra[f.mitraId]) || 0) - it.qty);
-                    if(getDetailAllocatedTotal(d) === 0) d.allocationStatus = 'none';
-                });
-                db.collection("inventory").doc(itemId).update({ details: nDetails });
-            });
-        } else {
-            if(!confirm(`Hapus permanen Form Order ${f.formNo} (Status: Dibatalkan)? \n\nRiwayat form ini akan hilang selamanya.`)) return;
-        }
-
-        db.collection("orderforms").doc(formId).delete().then(() => {
-            logActivity('Admin Hapus Form', `Superadmin menghapus permanen Form Order ${f.formNo}`);
-        });
-    }
-
     function terbitkanFormOrder() {
         try {
             const checkedBoxes = [...document.querySelectorAll('#order-mitra-checklist input[type="checkbox"]:checked')];
@@ -1859,7 +1795,7 @@
                 downloadMultiOrderFormExcelXML(formsToIssue);
             } catch(fileErr) {
                 console.error("Error generating files: ", fileErr);
-                alert("Gagal mengunduh file PDF/Excel (Abaikan jika tetap ingin menyimpan ke riwayat): " + fileErr.message);
+                alert("Gagal mengunduh file PDF/Excel: " + fileErr.message);
             }
 
             Promise.all(formsToIssue.map(fd => db.collection("orderforms").add(fd))).then(() => {
@@ -1889,18 +1825,15 @@
     }
 
     function populateMitraSelects() {
-        // Dropdown di tab Gudang
         const alokasiSelect = document.getElementById('gudang-alokasi-filter-mitra');
         if(alokasiSelect) { let cur = alokasiSelect.value; alokasiSelect.innerHTML = `<option value="ALL">Semua Mitra</option>` + _mitras.map(m => `<option value="${m.id}">${m.name} (${m.loc})</option>`).join(''); if([...alokasiSelect.options].some(o => o.value === cur)) alokasiSelect.value = cur; }
         
-        // Checklist Form Order Gudang
         const checklist = document.getElementById('order-mitra-checklist');
         if(checklist) {
             const checkedIds = new Set([...checklist.querySelectorAll('input[type="checkbox"]:checked')].map(cb => cb.value));
             checklist.innerHTML = _mitras.length === 0 ? `<span style="font-size:0.85em; color:var(--text-muted);">Belum ada data mitra.</span>` : _mitras.map(m => `<label class="order-mitra-check-item"><input type="checkbox" value="${m.id}" ${checkedIds.has(m.id) ? 'checked' : ''} onchange="onFormOrderMitraChange()"><span><strong>${m.name}</strong> <small style="color:var(--text-muted);">(${m.loc}) - ${m.brand}</small></span></label>`).join('');
         }
 
-        // Dropdown Permintaan Khusus Mitra (Sales)
         const reqSelect = document.getElementById('req-mitra-select');
         if(reqSelect) {
             let cur = reqSelect.value;
@@ -1967,7 +1900,6 @@
         document.getElementById('order-no-preview').innerText = itemCount > 0 ? `Siap diterbitkan: ${mitraCount} mitra, ${itemCount} baris item, total ${totalQty} pcs.` : `Belum ada item terpilih.`;
     }
 
-    // PDF JS
     function truncatePdfText(doc, text, maxWidth) { text = String(text == null ? '' : text); if(doc.getTextWidth(text) <= maxWidth) return text; while(text.length > 1 && doc.getTextWidth(text + '…') > maxWidth) text = text.slice(0, -1); return text + '…'; }
     function drawOrderFormPage(doc, f) {
         const pageWidth = doc.internal.pageSize.getWidth(); const marginX = 15; let y = 18;
@@ -2002,7 +1934,6 @@
         const { jsPDF } = window.jspdf; const doc = new jsPDF({ unit: 'mm', format: 'a4' }); forms.forEach((f, idx) => { if(idx > 0) doc.addPage(); drawOrderFormPage(doc, f); }); doc.save(`FormOrder-${forms.length === 1 ? forms[0].formNo : `Batch-${Date.now()}`}.pdf`); 
     }
 
-    // EXCEL (MULTI-SHEET, XML BORDERS)
     function downloadMultiOrderFormExcelXML(forms) {
         if(!forms || forms.length === 0) return;
         let xml = `<?xml version="1.0"?><?mso-application progid="Excel.Sheet"?><Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"><Styles><Style ss:ID="Bold"><Font ss:Bold="1"/></Style><Style ss:ID="Border"><Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1"/><Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1"/><Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1"/><Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1"/></Borders><Alignment ss:Horizontal="Center" ss:Vertical="Center"/></Style><Style ss:ID="BorderLeft"><Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1"/><Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1"/><Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1"/><Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1"/></Borders><Alignment ss:Horizontal="Left" ss:Vertical="Center"/></Style><Style ss:ID="Header"><Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1"/><Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1"/><Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1"/><Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1"/></Borders><Font ss:Bold="1" ss:Color="#FFFFFF"/><Interior ss:Color="#0f172a" ss:Pattern="Solid"/><Alignment ss:Horizontal="Center" ss:Vertical="Center"/></Style></Styles>`;
@@ -2050,7 +1981,14 @@
     function loadSalesData() {
         const fName = document.getElementById('sales-filter-nama').value.toLowerCase();
         const tbody = document.querySelector('#sales-table tbody'); tbody.innerHTML = '';
-        let list = _inventory.filter(i => fName === '' || i.name.toLowerCase().includes(fName));
+        
+        let list = _inventory.filter(i => {
+            if(fName !== '' && !i.name.toLowerCase().includes(fName)) return false;
+            if(currentUserRole === 'sales_staff_zs' && i.brand !== 'ZS') return false;
+            if(currentUserRole === 'sales_staff_shi' && i.brand !== 'SHI') return false;
+            return true;
+        });
+        
         list.sort((a,b) => document.getElementById('sales-sort').value === 'sisa_desc' ? getItemAvailableStock(b)-getItemAvailableStock(a) : (getItemLatestDate(b)||'').localeCompare(getItemLatestDate(a)||''));
         
         let renderedAny = false;
@@ -2114,9 +2052,11 @@
 
             trStr += `<div id="form-${item.id}" class="${activeSalesTab === 'sudah' ? 'hidden' : ''}"><div class="paste-zone" tabindex="0" onpaste="handleImagePaste(event, '${item.id}')">📸 Paste (Ctrl+V) Screenshot Foto di sini</div>`;
             
+            let isStaff = currentUserRole.startsWith('sales_staff');
+
             sizesToRender.forEach(d => {
                 let sid = safeId(d.size); let a = d.allocated; 
-                let ro = (activeSalesTab === 'sudah' && currentUserRole === 'sales_staff') ? 'readonly' : '';
+                let ro = (activeSalesTab === 'sudah' && isStaff) ? 'readonly' : '';
                 let statusBadge = d.allocationStatus === 'pending' ? `<span class="status-pending">PENDING</span>` : (d.allocationStatus === 'approved' ? `<span class="status-approved">APPROVED</span>` : '');
                 
                 let vT = a.tiktok||''; let vS = a.shopee||''; let vW = a.web||''; let vB = a.butik||''; let vF = a.foc||'';
@@ -2182,10 +2122,10 @@
 
             let actionBtns = '';
             if(activeSalesTab === 'belum') { 
-                actionBtns = `<button class="btn-success" onclick="saveAllocation('${item.id}', 'add', '${currentUserRole==='sales_staff'?'pending':'approved'}')">Simpan & ${currentUserRole==='sales_staff'?'Request Approval':'Approve Otomatis'}</button>`; 
+                actionBtns = `<button class="btn-success" onclick="saveAllocation('${item.id}', 'add', '${isStaff?'pending':'approved'}')">Simpan & ${isStaff?'Request Approval':'Approve Otomatis'}</button>`; 
             } else if(activeSalesTab === 'pending') { 
-                actionBtns = currentUserRole==='sales_staff' ? `<button class="btn-success" onclick="saveAllocation('${item.id}', 'update', 'pending')">Update Ajuan</button>` : `<button class="btn-danger" style="margin-right:10px;" onclick="resetAllocation('${item.id}')">Tolak (Reset)</button> <button class="btn-success" onclick="saveAllocation('${item.id}', 'update', 'approved')">Simpan & APPROVE</button>`; 
-            } else if (activeSalesTab === 'sudah' && (currentUserRole === 'sales_leader' || currentUserRole === 'admin')) { 
+                actionBtns = isStaff ? `<button class="btn-success" onclick="saveAllocation('${item.id}', 'update', 'pending')">Update Ajuan</button>` : `<button class="btn-danger" style="margin-right:10px;" onclick="resetAllocation('${item.id}')">Tolak (Reset)</button> <button class="btn-success" onclick="saveAllocation('${item.id}', 'update', 'approved')">Simpan & APPROVE</button>`; 
+            } else if (activeSalesTab === 'sudah' && !isStaff) { 
                 actionBtns = `<button class="btn-dark" style="margin-right:10px;" onclick="toggleEditAlloc('${item.id}')">Batal Edit</button><button class="btn-success" onclick="saveAllocation('${item.id}', 'update', 'approved')">Simpan Perubahan</button>`; 
             }
             
@@ -2238,8 +2178,14 @@
         const select = document.getElementById('req-item-select');
         if(!select) return;
         let currentVal = select.value;
+        
         select.innerHTML = '<option value="">-- Pilih Artikel --</option>' + 
-            _inventory.map(i => `<option value="${i.id}">${i.name} (${i.brand})</option>`).join('');
+            _inventory.filter(i => {
+                if(currentUserRole === 'sales_staff_zs' && i.brand !== 'ZS') return false;
+                if(currentUserRole === 'sales_staff_shi' && i.brand !== 'SHI') return false;
+                return true;
+            }).map(i => `<option value="${i.id}">${i.name} (${i.brand})</option>`).join('');
+            
         if([...select.options].some(o => o.value === currentVal)) select.value = currentVal;
     }
 
@@ -2300,6 +2246,8 @@
         
         _inventory.forEach(item => {
             if(fName && !item.name.toLowerCase().includes(fName)) return;
+            if(currentUserRole === 'sales_staff_zs' && item.brand !== 'ZS') return;
+            if(currentUserRole === 'sales_staff_shi' && item.brand !== 'SHI') return;
             
             let requestsByMitra = {};
             
@@ -2377,17 +2325,33 @@
         else if (type === 'alokasi' || type === 'sales_pending') {
             let statusFilter = type === 'alokasi' ? 'approved' : 'pending'; filename = type === 'alokasi' ? "Laporan_Alokasi_Sales_Approved" : "Laporan_Ajuan_Pending_Sales";
             tableHtml = `<tr><th style="${thStyle}">Tanggal Masuk (List)</th><th style="${thStyle}">Nama Artikel</th><th style="${thStyle}">Brand</th><th style="${thStyle}">Size</th><th style="${thStyle}">Status</th><th style="${thStyle}">Stok Gudang</th><th style="${thStyle}">Tiktok</th><th style="${thStyle}">Shopee</th><th style="${thStyle}">Web</th><th style="${thStyle}">Butik</th><th style="${thStyle}">FOC</th>${_mitras.map(m => `<th style="${thStyleMitra}">Mitra: ${m.name}<br>(${m.loc})</th>`).join('')}<th style="${thStyleTotal}">Total Alokasi</th><th style="${thStyleTotal}">Sisa Stok (Gudang)</th></tr>`;
-            _inventory.forEach(item => { item.details.forEach(d => { if(d.allocationStatus !== statusFilter) return; let a = d.allocated; let mitraTotal = 0; let mitraCells = _mitras.map(m => { let v = (typeof a.mitra === 'object' && a.mitra[m.id]) ? a.mitra[m.id] : 0; mitraTotal += v; return `<td style="${tdNum}">${v || 0}</td>`; }).join(''); let totalAlloc = a.tiktok + a.shopee + a.web + (a.butik||0) + (a.foc||0) + mitraTotal; if(totalAlloc > 0) { tableHtml += `<tr><td style="${tdText}">${getRawDates(item)}</td><td style="${tdText}">${item.name}</td><td style="${tdText}">${item.brand}</td><td style="${tdText}">${d.size}</td><td style="${tdText}">${d.allocationStatus.toUpperCase()}</td><td style="${tdBold}">${d.totalQty}</td><td style="${tdNum}">${a.tiktok||0}</td><td style="${tdNum}">${a.shopee||0}</td><td style="${tdNum}">${a.web||0}</td><td style="${tdNum}">${a.butik||0}</td><td style="${tdNum}">${a.foc||0}</td>${mitraCells}<td style="${tdBold}">${totalAlloc}</td><td style="${tdBold}; color:${d.totalQty - totalAlloc < 0 ? 'red' : 'black'};">${d.totalQty - totalAlloc}</td></tr>`; } }); });
+            _inventory.forEach(item => { 
+                if((type.startsWith('sales_') || type === 'alokasi') && currentUserRole && currentUserRole.startsWith('sales_staff_')) {
+                    if (currentUserRole === 'sales_staff_zs' && item.brand !== 'ZS') return;
+                    if (currentUserRole === 'sales_staff_shi' && item.brand !== 'SHI') return;
+                }
+                item.details.forEach(d => { if(d.allocationStatus !== statusFilter) return; let a = d.allocated; let mitraTotal = 0; let mitraCells = _mitras.map(m => { let v = (typeof a.mitra === 'object' && a.mitra[m.id]) ? a.mitra[m.id] : 0; mitraTotal += v; return `<td style="${tdNum}">${v || 0}</td>`; }).join(''); let totalAlloc = a.tiktok + a.shopee + a.web + (a.butik||0) + (a.foc||0) + mitraTotal; if(totalAlloc > 0) { tableHtml += `<tr><td style="${tdText}">${getRawDates(item)}</td><td style="${tdText}">${item.name}</td><td style="${tdText}">${item.brand}</td><td style="${tdText}">${d.size}</td><td style="${tdText}">${d.allocationStatus.toUpperCase()}</td><td style="${tdBold}">${d.totalQty}</td><td style="${tdNum}">${a.tiktok||0}</td><td style="${tdNum}">${a.shopee||0}</td><td style="${tdNum}">${a.web||0}</td><td style="${tdNum}">${a.butik||0}</td><td style="${tdNum}">${a.foc||0}</td>${mitraCells}<td style="${tdBold}">${totalAlloc}</td><td style="${tdBold}; color:${d.totalQty - totalAlloc < 0 ? 'red' : 'black'};">${d.totalQty - totalAlloc}</td></tr>`; } }); 
+            });
         }
         else if (type === 'sales_belum') {
             filename = "Laporan_Sisa_Stok_Gudang"; tableHtml = `<tr><th style="${thStyle}">Tanggal Masuk (List)</th><th style="${thStyle}">Nama Artikel</th><th style="${thStyle}">Brand</th><th style="${thStyle}">Size</th><th style="${thStyle}">Total Qty (Gudang)</th><th style="${thStyle}">Status Alokasi</th><th style="${thStyle}">Qty Telah Dialokasikan</th><th style="${thStyle}">Sisa Stok Belum Dialokasikan</th></tr>`;
-            _inventory.forEach(item => { item.details.forEach(d => { let a = d.allocated; let mitraTotal = 0; if(typeof a.mitra === 'object') { Object.values(a.mitra).forEach(v => mitraTotal += (parseInt(v)||0)); } let totalAlloc = a.tiktok + a.shopee + a.web + (a.butik||0) + (a.foc||0) + mitraTotal; if(d.allocationStatus === 'none' || !d.allocationStatus) { tableHtml += `<tr><td style="${tdText}">${getRawDates(item)}</td><td style="${tdText}">${item.name}</td><td style="${tdText}">${item.brand}</td><td style="${tdText}">${d.size}</td><td style="${tdBold}">${d.totalQty}</td><td style="${tdText}">BELUM</td><td style="${tdBold}">${totalAlloc}</td><td style="${tdBold}; color:red;">${d.totalQty - totalAlloc}</td></tr>`; } }); });
+            _inventory.forEach(item => { 
+                if(currentUserRole && currentUserRole.startsWith('sales_staff_')) {
+                    if (currentUserRole === 'sales_staff_zs' && item.brand !== 'ZS') return;
+                    if (currentUserRole === 'sales_staff_shi' && item.brand !== 'SHI') return;
+                }
+                item.details.forEach(d => { let a = d.allocated; let mitraTotal = 0; if(typeof a.mitra === 'object') { Object.values(a.mitra).forEach(v => mitraTotal += (parseInt(v)||0)); } let totalAlloc = a.tiktok + a.shopee + a.web + (a.butik||0) + (a.foc||0) + mitraTotal; if(d.allocationStatus === 'none' || !d.allocationStatus) { tableHtml += `<tr><td style="${tdText}">${getRawDates(item)}</td><td style="${tdText}">${item.name}</td><td style="${tdText}">${item.brand}</td><td style="${tdText}">${d.size}</td><td style="${tdBold}">${d.totalQty}</td><td style="${tdText}">BELUM</td><td style="${tdBold}">${totalAlloc}</td><td style="${tdBold}; color:red;">${d.totalQty - totalAlloc}</td></tr>`; } }); 
+            });
         }
         else if (type === 'sales_request') {
             filename = "Laporan_Permintaan_Khusus_Mitra";
             tableHtml = `<tr><th style="${thStyle}">Nama Artikel</th><th style="${thStyle}">Brand</th><th style="${thStyle}">Nama Mitra</th><th style="${thStyle}">Size</th><th style="${thStyle}">Qty Diminta</th><th style="${thStyle}">Qty Dialokasikan</th><th style="${thStyle}">Status Alokasi</th><th style="${thStyle}">Persentase Terpenuhi</th></tr>`;
             
             _inventory.forEach(item => {
+                if(currentUserRole && currentUserRole.startsWith('sales_staff_')) {
+                    if (currentUserRole === 'sales_staff_zs' && item.brand !== 'ZS') return;
+                    if (currentUserRole === 'sales_staff_shi' && item.brand !== 'SHI') return;
+                }
                 item.details.forEach(d => {
                     if(d.requested && d.requested.mitra) {
                         Object.entries(d.requested.mitra).forEach(([mId, reqQty]) => {
