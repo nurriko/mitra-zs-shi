@@ -111,7 +111,6 @@
         .badge-both { background-color: #f3e8ff; color: #6b21a8; border: 1px solid #d8b4fe; }
         .badge-oke { background-color: #d1fae5; color: #047857; } .badge-defect { background-color: #fee2e2; color: #b91c1c; }
         .progress-text { font-size: 0.85em; font-weight: 600; color: var(--secondary); margin-top: 5px; display: inline-block; }
-        .status-pending { background-color: #fef08a; color: #b45309; padding: 3px 8px; border-radius: 4px; font-size: 0.8em; font-weight: bold; }
         .status-approved { background-color: #d1fae5; color: #047857; padding: 3px 8px; border-radius: 4px; font-size: 0.8em; font-weight: bold; }
 
         .filter-bar { display: flex; flex-wrap: wrap; gap: 10px; background: #f8fafc; padding: 15px; border-radius: 8px; align-items: center; border: 1px solid var(--border); margin-bottom: 0; flex-grow: 1;}
@@ -126,7 +125,7 @@
         .alloc-badge { background: #e2e8f0; color: #334155; padding: 4px 8px; border-radius: 4px; font-size: 0.85em; margin-right: 5px; display: inline-block; font-weight: 600; margin-bottom: 5px; }
         .alloc-badge-mitra { background: #dbeafe; color: #1e40af; border: 1px solid #bfdbfe; }
         
-        /* ================= DESAIN UI ALOKASI SALES BARU (ANTI PUSING) ================= */
+        /* ================= DESAIN UI ALOKASI SALES BARU ================= */
         .alloc-panel { border: 1px solid #cbd5e1; border-radius: 8px; margin-bottom: 15px; background: white; overflow: hidden; box-shadow: 0 2px 5px rgba(0,0,0,0.03); }
         .alloc-panel-header { background: #f8fafc; padding: 12px 15px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #cbd5e1; }
         .alloc-panel-body { padding: 15px; }
@@ -138,9 +137,10 @@
         .compact-input-group { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; font-size: 0.85em; border-bottom: 1px dashed #e2e8f0; padding-bottom: 6px; }
         .compact-input-group:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
         .compact-input-group label { margin: 0; font-weight: 600; color: #334155; }
-        .compact-input-group input { width: 75px; padding: 6px; text-align: center; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 1.05em; font-weight: 600; color: var(--primary); }
-        .compact-input-group input:focus { border-color: var(--secondary); outline: none; box-shadow: 0 0 0 3px rgba(59,130,246,0.15); }
         
+        /* Modifikasi transisi warna untuk highlight perbedaan request vs alokasi */
+        input[type="number"] { transition: background-color 0.3s, border-color 0.3s, color 0.3s; }
+
         .paste-zone { border: 2px dashed #cbd5e1; background: #f8fafc; padding: 15px; text-align: center; color: var(--text-muted); font-size: 0.85em; border-radius: 8px; cursor: pointer; outline: none; margin-bottom: 15px; transition: 0.2s; }
         .paste-zone:focus { border-color: var(--secondary); background: #eff6ff; }
         .item-image-preview { max-width: 150px; max-height: 150px; border-radius: 8px; border: 1px solid var(--border); object-fit: cover; }
@@ -313,11 +313,11 @@
                 <div class="stat-grid" id="admin-stat-cards"></div>
                 <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px; margin-top:20px;">
                     <div style="background:#f8fafc; border:1px solid var(--border); border-radius:10px; padding:20px;">
-                        <h3 style="margin-top:0; font-size:1em;">📊 Alokasi per Channel (Approved, Semua Brand)</h3>
+                        <h3 style="margin-top:0; font-size:1em;">📊 Total Distribusi per Brand (Approved)</h3>
                         <div id="admin-channel-chart"></div>
                     </div>
                     <div style="background:#f8fafc; border:1px solid var(--border); border-radius:10px; padding:20px;">
-                        <h3 style="margin-top:0; font-size:1em;">🏆 Top 5 Mitra (Volume Alokasi Approved)</h3>
+                        <h3 style="margin-top:0; font-size:1em;">🏆 Top 5 Mitra (Volume Distribusi)</h3>
                         <div id="admin-top-mitra"></div>
                     </div>
                 </div>
@@ -381,16 +381,11 @@
                 <div class="header-actions">
                     <div class="filter-bar">
                         <input type="text" id="admin-alokasi-filter-nama" placeholder="Cari Nama Baju..." oninput="loadAdminAlokasiData()">
-                        <select id="admin-alokasi-filter-status" onchange="loadAdminAlokasiData()">
-                            <option value="ALL">Semua Status</option>
-                            <option value="pending">Pending</option>
-                            <option value="approved">Approved</option>
-                        </select>
                     </div>
                 </div>
                 <div class="table-container">
                     <table id="admin-alokasi-table">
-                        <thead><tr><th>Artikel</th><th>Foto</th><th>Rincian Alokasi</th></tr></thead>
+                        <thead><tr><th>Artikel</th><th>Foto</th><th>Rincian Distribusi Mitra</th></tr></thead>
                         <tbody></tbody>
                     </table>
                 </div>
@@ -489,7 +484,7 @@
 
             <div class="tabs">
                 <button class="tab-btn active" id="tab-gudang-input" onclick="switchGudangTab('input')">Input & Stok Gudang</button>
-                <button class="tab-btn" id="tab-gudang-alokasi" onclick="switchGudangTab('alokasi')">Tinjau Hasil Alokasi Sales</button>
+                <button class="tab-btn" id="tab-gudang-alokasi" onclick="switchGudangTab('alokasi')">Tinjau Hasil Distribusi</button>
                 <button class="tab-btn" id="tab-gudang-form" onclick="switchGudangTab('form')">🖊️ Form Order Mitra</button>
                 <button class="tab-btn" id="tab-gudang-request" onclick="switchGudangTab('request')">📝 Permintaan Mitra</button>
             </div>
@@ -545,11 +540,11 @@
                         <input type="text" id="gudang-alokasi-filter-nama" placeholder="Cari Nama Baju..." oninput="loadGudangAlokasiData()">
                         <select id="gudang-alokasi-filter-mitra" onchange="loadGudangAlokasiData()"><option value="ALL">Semua Mitra</option></select>
                     </div>
-                    <button class="btn-success" onclick="exportExcel('alokasi')">📥 Download Laporan Alokasi Excel</button>
+                    <button class="btn-success" onclick="exportExcel('alokasi')">📥 Download Laporan Distribusi Excel</button>
                 </div>
                 <div class="table-container">
                     <table id="gudang-alokasi-table">
-                        <thead><tr><th>Artikel</th><th>Foto</th><th>Rincian Alokasi (Approved)</th></tr></thead>
+                        <thead><tr><th>Artikel</th><th>Foto</th><th>Rincian Distribusi (Approved)</th></tr></thead>
                         <tbody></tbody>
                     </table>
                 </div>
@@ -557,7 +552,7 @@
 
             <!-- VIEW: FORM ORDER MITRA (KHUSUS GUDANG) -->
             <div id="gudang-view-form" class="hidden">
-                <p style="font-size:0.85em; color:var(--text-muted); margin:8px 0 20px;">Terbitkan Form Order untuk satu/banyak mitra sekaligus. Hasil Excel untuk Multi-Mitra kini otomatis memiliki garis tabel & rapi.</p>
+                <p style="font-size:0.85em; color:var(--text-muted); margin:8px 0 20px;">Terbitkan Form Order untuk satu/banyak mitra sekaligus. Hasil Excel untuk Multi-Mitra otomatis memiliki garis tabel & rapi.</p>
 
                 <div style="background:#f8fafc; padding:20px; border-radius:8px; border:1px solid var(--border); margin-bottom:20px;">
                     <h3 style="margin-bottom:15px; font-size:1.1em;">Buat Form Order Baru</h3>
@@ -576,7 +571,7 @@
                         <div id="order-no-preview" class="form-doc-preview"></div>
                         <button class="btn-success" onclick="terbitkanFormOrder()" style="margin-top:15px;">📤 Terbitkan Form Order (Download PDF & Excel)</button>
                     </div>
-                    <div id="order-empty-msg" class="notif-empty hidden">Mitra yang dicentang belum memiliki alokasi approved yang tersedia untuk diterbitkan.</div>
+                    <div id="order-empty-msg" class="notif-empty hidden">Mitra yang dicentang belum memiliki distribusi approved yang tersedia untuk diterbitkan.</div>
                 </div>
 
                 <h3 style="margin-top:30px; border-top: 1px solid #eee; padding-top:20px;">Riwayat Form Order</h3>
@@ -623,14 +618,13 @@
             </div>
 
             <div class="tabs">
-                <button class="tab-btn active" id="tab-sales-belum" onclick="switchSalesTab('belum')">Daftar Stok</button>
-                <button class="tab-btn" id="tab-sales-pending" onclick="switchSalesTab('pending')">Menunggu Approval</button>
-                <button class="tab-btn" id="tab-sales-sudah" onclick="switchSalesTab('sudah')">Telah Dialokasikan</button>
-                <button class="tab-btn" id="tab-sales-mitra" onclick="switchSalesTab('mitra')">⚙️ Mitra</button>
+                <button class="tab-btn active" id="tab-sales-belum" onclick="switchSalesTab('belum')">Daftar Stok & Distribusi</button>
+                <button class="tab-btn" id="tab-sales-sudah" onclick="switchSalesTab('sudah')">Riwayat Terdistribusi</button>
+                <button class="tab-btn" id="tab-sales-mitra" onclick="switchSalesTab('mitra')">⚙️ Kelola Mitra</button>
                 <button class="tab-btn" id="tab-sales-request" onclick="switchSalesTab('request')">📝 Permintaan Khusus</button>
             </div>
 
-            <!-- VIEW: STOK / ALOKASI (BELUM, PENDING, SUDAH) -->
+            <!-- VIEW: STOK / ALOKASI (BELUM & SUDAH) -->
             <div id="sales-view-data">
                 <div class="header-actions">
                     <div class="filter-bar">
@@ -642,11 +636,11 @@
                     </div>
                     <button class="btn-success" id="btn-export-sales" onclick="exportExcel('sales_belum')">📥 Download Laporan Excel</button>
                 </div>
-                <p id="sales-void-notif" style="font-size:0.85em; color:var(--danger); font-weight:600; margin:5px 0;">*Catatan: Barang dari Form Order yang dibatalkan Gudang akan otomatis kembali ke tab "Daftar Stok" ini.</p>
+                <p id="sales-void-notif" style="font-size:0.85em; color:var(--danger); font-weight:600; margin:5px 0;">*Catatan: Barang dari Form Order yang dibatalkan Gudang akan otomatis kembali ke tab "Daftar Stok & Distribusi" ini.</p>
                 
                 <div class="table-container">
                     <table id="sales-table">
-                        <thead><tr><th>Artikel & Progress Produksi</th><th>Foto / Gambar</th><th>Kondisi</th><th>Sisa Stok</th><th>Aksi</th></tr></thead>
+                        <thead><tr><th>Artikel & Progress Produksi</th><th>Foto / Gambar</th><th>Kondisi</th><th>Sisa Stok Gudang</th><th>Aksi</th></tr></thead>
                         <tbody></tbody>
                     </table>
                 </div>
@@ -656,13 +650,31 @@
             <div id="sales-view-request" class="hidden">
                 <div style="background:#f8fafc; padding:20px; border-radius:8px; border:1px solid var(--border); margin-bottom:20px;">
                     <h3 style="margin-bottom: 15px; font-size:1.1em;">Input Permintaan Khusus Mitra</h3>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label>Pilih Artikel & Kondisi</label>
+                    
+                    <div class="form-row" style="align-items: flex-start;">
+                        <div class="form-group" style="flex: 1;">
+                            <label>1. Pilih Artikel & Kondisi</label>
                             <select id="req-item-select" onchange="onReqItemChange()"><option value="">-- Pilih Artikel --</option></select>
                         </div>
+                        
+                        <!-- TAMBAHAN BLOK UPLOAD EXCEL -->
+                        <div class="form-group" style="flex: 1.5; background:#eff6ff; padding:15px; border-radius:8px; border:1px dashed #3b82f6;">
+                            <label style="color:#1e40af; margin-bottom:8px; font-weight:700;">⚡ Upload Massal via Excel (Opsional)</label>
+                            <div style="display:flex; gap:10px; align-items:center;">
+                                <button class="btn-primary btn-small" onclick="downloadReqTemplate()">📥 Download Template</button>
+                                <input type="file" id="req-excel-upload" accept=".xlsx, .xls" style="display:none;" onchange="handleReqUpload(event)">
+                                <button class="btn-success btn-small" onclick="document.getElementById('req-excel-upload').click()">📤 Upload Excel</button>
+                            </div>
+                            <div style="font-size:0.75em; color:#334155; margin-top:8px;">Pilih artikel dulu, download template, isi angka, lalu upload. Baris "TOTAL" akan diabaikan sistem.</div>
+                        </div>
+                    </div>
+                    
+                    <div style="border-top: 1px solid var(--border); margin: 10px 0 15px;"></div>
+                    <h4 style="margin: 0 0 10px; font-size:0.9em; color:var(--primary);">Atau Input Manual Per Mitra:</h4>
+                    
+                    <div class="form-row">
                         <div class="form-group">
-                            <label>Pilih Mitra</label>
+                            <label>2. Pilih Mitra (Jika Input Manual)</label>
                             <select id="req-mitra-select"><option value="">-- Pilih Mitra --</option></select>
                         </div>
                     </div>
@@ -670,7 +682,7 @@
                     <div class="size-grid" id="req-size-container" style="margin-top:10px;">
                         <div class="notif-empty" style="grid-column: 1/-1;">Pilih artikel terlebih dahulu.</div>
                     </div>
-                    <button class="btn-success" onclick="saveMitraRequest()" style="margin-top:15px;">Simpan Permintaan</button>
+                    <button class="btn-success" onclick="saveMitraRequest()" style="margin-top:15px;">Simpan Permintaan Manual</button>
                 </div>
 
                 <div class="header-actions">
@@ -1140,7 +1152,7 @@
     function getDetailAllocatedTotal(d) {
         let a = d.allocated || {}; let mitraTotal = 0;
         if(typeof a.mitra === 'object') Object.values(a.mitra).forEach(v => mitraTotal += (parseInt(v) || 0));
-        return (a.tiktok||0) + (a.shopee||0) + (a.web||0) + (a.butik||0) + (a.foc||0) + mitraTotal;
+        return mitraTotal; // HANYA MITRA
     }
     function getItemTotalMasuk(item) { return (item.details || []).reduce((sum, d) => sum + (d.totalQty || 0), 0); }
     function getItemProgressPercent(item) {
@@ -1348,10 +1360,10 @@
             <div class="stat-card" onclick="showDashboardDetail('mitra')"><div class="stat-value">${totalMitra}</div><div class="stat-label">Total Mitra</div></div>
             <div class="stat-card" onclick="showDashboardDetail('user')"><div class="stat-value">${totalUserAktif}</div><div class="stat-label">User Aktif</div></div>`;
 
-        let channels = { Tiktok: 0, Shopee: 0, Web: 0, Butik: 0, FOC: 0, Mitra: 0 };
-        _inventory.forEach(item => { (item.details || []).forEach(d => { if(d.allocationStatus === 'approved') { let a = d.allocated || {}; channels.Tiktok += a.tiktok || 0; channels.Shopee += a.shopee || 0; channels.Web += a.web || 0; channels.Butik += a.butik || 0; channels.FOC += a.foc || 0; if(typeof a.mitra === 'object') Object.values(a.mitra).forEach(v => channels.Mitra += (parseInt(v) || 0)); } }); });
-        const maxVal = Math.max(1, ...Object.values(channels)); const colors = { Tiktok: '#ec4899', Shopee: '#f97316', Web: '#0ea5e9', Butik: '#8b5cf6', FOC: '#64748b', Mitra: '#10b981' };
-        document.getElementById('admin-channel-chart').innerHTML = Object.entries(channels).map(([label, val]) => `<div style="margin-bottom:12px;"><div style="display:flex; justify-content:space-between; font-size:0.8em; margin-bottom:3px;"><span>${label}</span><span><b>${val}</b> pcs</span></div><div style="background:#e2e8f0; border-radius:4px; height:14px; overflow:hidden;"><div style="width:${(val/maxVal*100).toFixed(1)}%; background:${colors[label]}; height:100%; border-radius:4px;"></div></div></div>`).join('');
+        let channels = { ZS: 0, SHI: 0 };
+        _inventory.forEach(item => { (item.details || []).forEach(d => { if(d.allocationStatus === 'approved') { let a = d.allocated || {}; let mitraTotal = 0; if(typeof a.mitra === 'object') Object.values(a.mitra).forEach(v => mitraTotal += (parseInt(v) || 0)); if(item.brand === 'ZS') channels.ZS += mitraTotal; else channels.SHI += mitraTotal; } }); });
+        const maxVal = Math.max(1, ...Object.values(channels)); const colors = { ZS: '#be185d', SHI: '#4338ca' };
+        document.getElementById('admin-channel-chart').innerHTML = Object.entries(channels).map(([label, val]) => `<div style="margin-bottom:12px;"><div style="display:flex; justify-content:space-between; font-size:0.8em; margin-bottom:3px;"><span>Brand ${label}</span><span><b>${val}</b> pcs didistribusikan</span></div><div style="background:#e2e8f0; border-radius:4px; height:14px; overflow:hidden;"><div style="width:${(val/maxVal*100).toFixed(1)}%; background:${colors[label]}; height:100%; border-radius:4px;"></div></div></div>`).join('');
 
         let mitraVolumes = {};
         _inventory.forEach(item => { (item.details || []).forEach(d => { if(d.allocationStatus === 'approved') { const a = d.allocated || {}; if(typeof a.mitra === 'object') Object.entries(a.mitra).forEach(([mid, v]) => { mitraVolumes[mid] = (mitraVolumes[mid] || 0) + (parseInt(v) || 0); }); } }); });
@@ -1385,7 +1397,7 @@
     function closeDashboardDetailModal() { document.getElementById('modal-dashboard-detail').classList.add('hidden'); }
 
     function loadAdminAlokasiData() {
-        const fName = document.getElementById('admin-alokasi-filter-nama').value.toLowerCase(); const fStatus = document.getElementById('admin-alokasi-filter-status').value;
+        const fName = document.getElementById('admin-alokasi-filter-nama').value.toLowerCase(); 
         const tbody = document.querySelector('#admin-alokasi-table tbody'); tbody.innerHTML = '';
         let rendered = 0;
         _inventory.forEach(item => {
@@ -1393,17 +1405,16 @@
             let itemMitras = _mitras.filter(m => m.brand === item.brand || m.brand === 'BOTH'); let allocDetails = '';
             (item.details || []).forEach(d => {
                 const status = d.allocationStatus || 'none'; if(status === 'none') return;
-                if(fStatus !== 'ALL' && status !== fStatus) return;
                 let a = d.allocated || {}; let mHtml = '';
                 itemMitras.forEach(m => { let v = (typeof a.mitra === 'object' && a.mitra[m.id]) ? a.mitra[m.id] : 0; if(v > 0) mHtml += `[${m.name} (${m.loc}): ${v}] `; });
-                let statusBadge = status === 'approved' ? `<span class="status-issued">APPROVED</span>` : `<span class="mini-tag mini-tag-warn" style="margin-left:0;">PENDING</span>`;
-                allocDetails += `<div style="border-bottom:1px dashed #ccc; padding:5px 0; font-size:0.85em;"><strong>Size ${d.size}</strong> ${statusBadge} ➔ Tiktok:${a.tiktok||0}, Shopee:${a.shopee||0}, Web:${a.web||0}, Butik:${a.butik||0}, FOC:${a.foc||0} <br><span style="color:var(--secondary)">Mitra: ${mHtml || 'Tidak ada'}</span></div>`;
+                let statusBadge = status === 'approved' ? `<span class="status-issued">SUDAH DISTRIBUSI</span>` : ``;
+                if(mHtml.length > 0) allocDetails += `<div style="border-bottom:1px dashed #ccc; padding:5px 0; font-size:0.85em;"><strong>Size ${d.size}</strong> ${statusBadge} <br><span style="color:var(--secondary)">Distribusi: ${mHtml}</span></div>`;
             });
             if(allocDetails === '') return;
             rendered++;
             tbody.innerHTML += `<tr><td style="width:25%"><strong>${item.name}</strong><br>${getBadge(item.brand, 'brand')}</td><td style="width:15%">${item.image ? `<img src="${item.image}" style="max-width:80px; border-radius:5px;">` : `-`}</td><td style="width:60%">${allocDetails}</td></tr>`;
         });
-        if(rendered === 0) tbody.innerHTML = `<tr><td colspan="3" class="notif-empty">Tidak ada data alokasi.</td></tr>`;
+        if(rendered === 0) tbody.innerHTML = `<tr><td colspan="3" class="notif-empty">Tidak ada data distribusi mitra.</td></tr>`;
     }
 
     function saveMitraAdmin() {
@@ -1556,7 +1567,7 @@
             let updateData = { history: existingItem.history || [], details: existingItem.details };
             updateData.history.push({ entryId: Date.now(), date: dateStr, added: inputDetails.map(d=>({size: d.size, qty: d.totalQty})) });
             if(qtyProduksi > 0) updateData.qtyProduksi = qtyProduksi; 
-            inputDetails.forEach(newD => { let existD = updateData.details.find(d => d.size === newD.size); if(existD) { existD.totalQty += newD.totalQty; if(existD.allocationStatus === 'approved') existD.allocationStatus = 'pending'; } else { updateData.details.push(newD); } });
+            inputDetails.forEach(newD => { let existD = updateData.details.find(d => d.size === newD.size); if(existD) { existD.totalQty += newD.totalQty; if(existD.allocationStatus === 'approved') existD.allocationStatus = 'none'; } else { updateData.details.push(newD); } });
             db.collection("inventory").doc(existingItem.id).update(updateData).then(() => alert('Tersimpan!'));
         } else {
             db.collection("inventory").add({ name, brand, condition, qtyProduksi, details: inputDetails, image: '', date: dateStr, history: [{ entryId: Date.now(), date: dateStr, added: inputDetails.map(d=>({size: d.size, qty: d.totalQty})) }] }).then(() => alert('Barang Baru Tersimpan!'));
@@ -1584,6 +1595,7 @@
                     totalOke: 0, totalDefect: 0
                 };
             }
+            if(item.qtyProduksi > grouped[key].qtyProduksi) grouped[key].qtyProduksi = item.qtyProduksi;
             grouped[key].ids.push(item.id);
             if(item.history) item.history.forEach(h => grouped[key].dates.add(h.date));
             
@@ -1632,7 +1644,7 @@
             let idsStr = g.ids.join(',');
 
             tbody.innerHTML += `<tr>
-                <td><strong>${g.name}</strong> <br><small>Tgl Masuk: ${datesDisp || '-'}</small><br>${getBadge(g.brand,'brand')}<br><span class="progress-text">Progress: ${totalMasuk} / ${g.qtyProduksi} pcs (${percent}%)</span></td>
+                <td><strong>${g.name}</strong> <br><small>Tgl Masuk: ${datesDisp || '-'}</small><br>${getBadge(g.brand,'brand')}<br><span class="progress-text" style="display:inline-block; margin-top:5px; padding:2px 6px; background:#eff6ff; border-radius:4px;">Progress Gudang: <b>${totalMasuk}</b> / ${g.qtyProduksi || 0} pcs (${percent}%)</span></td>
                 <td>${imgStr}</td><td>${detStr}</td>
                 <td>
                     <button class="btn-primary btn-small" onclick="openItemHistoryFullModalGrouped('${idsStr}')">Riwayat Lengkap</button> <br>
@@ -1757,8 +1769,8 @@
             let detail = item.details.find(d => d.size === size);
             if(detail) {
                 let a = detail.allocated; let mitraTotal = 0; if(typeof a.mitra === 'object') Object.values(a.mitra).forEach(v => mitraTotal += (parseInt(v)||0));
-                let totalAllocated = a.tiktok + a.shopee + a.web + (a.butik||0) + (a.foc||0) + mitraTotal;
-                if(detail.totalQty + (newQty - oldQty) < totalAllocated) { alert(`Gagal! Qty akhir < Alokasi.`); hasError = true; }
+                let totalAllocated = mitraTotal;
+                if(detail.totalQty + (newQty - oldQty) < totalAllocated) { alert(`Gagal! Qty akhir < Alokasi Distribusi.`); hasError = true; }
             }
             if(newQty > 0) newAdded.push({size, qty: newQty});
         });
@@ -1781,7 +1793,7 @@
                 let a = d.allocated; let mHtml = ''; let matches = (fMitra === 'ALL');
                 if(itemMitras.length > 0) { itemMitras.forEach(m => { let v = (typeof a.mitra === 'object' && a.mitra[m.id]) ? a.mitra[m.id] : 0; if(v > 0) { mHtml += `[${m.name} (${m.loc}): ${v}] `; if(fMitra !== 'ALL' && m.id === fMitra) matches = true; } }); }
                 if(!matches) return;
-                if(a.tiktok||a.shopee||a.web||a.butik||a.foc||mHtml.length > 0) allocDetails += `<div style="border-bottom:1px dashed #ccc; padding:5px 0; font-size:0.85em;"><strong>Size ${d.size}</strong> ➔ Tiktok:${a.tiktok||0}, Shopee:${a.shopee||0}, Web:${a.web||0}, Butik:${a.butik||0}, FOC:${a.foc||0} <br><span style="color:var(--secondary)">Mitra: ${mHtml || 'Tidak ada'}</span></div>`;
+                if(mHtml.length > 0) allocDetails += `<div style="border-bottom:1px dashed #ccc; padding:5px 0; font-size:0.85em;"><strong>Size ${d.size}</strong> <br><span style="color:var(--secondary)">Distribusi: ${mHtml}</span></div>`;
             });
             if(allocDetails === '') return; rendered++;
             tbody.innerHTML += `<tr><td style="width:25%"><strong>${item.name}</strong><br>${getBadge(item.brand, 'brand')}</td><td style="width:15%">${item.image ? `<img src="${item.image}" style="max-width:80px;">` : `-`}</td><td style="width:60%">${allocDetails}</td></tr>`;
@@ -1811,10 +1823,13 @@
                             if(!requestsByMitra[mId]) requestsByMitra[mId] = [];
                             
                             let allocQty = (d.allocated && d.allocated.mitra && d.allocated.mitra[mId]) ? d.allocated.mitra[mId] : 0;
-                            let pct = Math.round((allocQty / reqQty) * 100);
+                            let isApproved = d.allocationStatus === 'approved';
+                            let validAllocQty = isApproved ? allocQty : 0;
+                            let pct = Math.round((validAllocQty / reqQty) * 100);
                             let statusStr = '';
-                            if(allocQty > 0) {
-                                statusStr = d.allocationStatus === 'approved' ? `<span class="status-approved">APPROVED</span>` : `<span class="status-pending">PENDING</span>`;
+                            
+                            if(isApproved && validAllocQty > 0) {
+                                statusStr = `<span class="status-approved">SUDAH DISTRIBUSI</span>`;
                             } else {
                                 statusStr = `<span class="badge" style="background:#e2e8f0; color:#334155;">BELUM DIALOKASI</span>`;
                             }
@@ -1822,7 +1837,7 @@
                             let color = pct >= 100 ? 'var(--success)' : (pct > 0 ? 'var(--warning)' : 'var(--danger)');
                             
                             requestsByMitra[mId].push(`<div style="border-bottom:1px dashed #ccc; padding:6px 0; font-size:0.85em;">
-                                <strong>Size ${d.size}</strong>: Diminta <b style="color:var(--primary)">${reqQty}</b> ➔ Diberikan <b>${allocQty}</b> ${statusStr} (Terpenuhi: <b style="color:${color}">${pct}%</b>)
+                                <strong>Size ${d.size}</strong>: Diminta <b style="color:var(--primary)">${reqQty}</b> ➔ Diberikan <b>${validAllocQty}</b> ${statusStr} (Terpenuhi: <b style="color:${color}">${pct}%</b>)
                             </div>`);
                         }
                     });
@@ -1845,10 +1860,25 @@
         if(rendered === 0) tbody.innerHTML = `<tr><td colspan="3" class="notif-empty">Belum ada data permintaan khusus yang diinput Sales.</td></tr>`;
     }
 
-    // ================= FUNGSI SISA STOK REAL-TIME =================
+    // ================= FUNGSI SISA STOK REAL-TIME & HIGHLIGHT SELISIH =================
     function calcSisa(itemId, sid, totalQty) {
-        let totalInput = (parseInt(document.getElementById(`t-${itemId}-${sid}`).value)||0) + (parseInt(document.getElementById(`s-${itemId}-${sid}`).value)||0) + (parseInt(document.getElementById(`w-${itemId}-${sid}`).value)||0) + (parseInt(document.getElementById(`b-${itemId}-${sid}`).value)||0) + (parseInt(document.getElementById(`f-${itemId}-${sid}`).value)||0);
-        document.querySelectorAll(`input[id^="m-${itemId}-${sid}-"]`).forEach(i => totalInput += parseInt(i.value) || 0);
+        let totalInput = 0;
+        document.querySelectorAll(`input[id^="m-${itemId}-${sid}-"]`).forEach(i => {
+            let val = parseInt(i.value) || 0;
+            totalInput += val;
+            let req = parseInt(i.getAttribute('data-req')) || 0;
+            
+            // Cek selisih dan highlight kotak jika berbeda
+            if(req > 0 && i.value !== '' && val !== req) {
+                i.style.backgroundColor = '#fffbeb';
+                i.style.borderColor = '#f59e0b';
+                i.style.color = '#d97706';
+            } else {
+                i.style.backgroundColor = '';
+                i.style.borderColor = '#cbd5e1';
+                i.style.color = 'var(--primary)';
+            }
+        });
         const sisaEl = document.getElementById(`sisa-${itemId}-${sid}`);
         if(sisaEl) { let s = totalQty - totalInput; sisaEl.innerText = s; sisaEl.style.color = s < 0 ? 'var(--danger)' : (s === 0 ? 'var(--success)' : 'var(--primary)'); }
     }
@@ -2194,7 +2224,6 @@
     function switchSalesTab(tab) {
         activeSalesTab = tab;
         document.getElementById('tab-sales-belum').classList.toggle('active', tab === 'belum'); 
-        document.getElementById('tab-sales-pending').classList.toggle('active', tab === 'pending'); 
         document.getElementById('tab-sales-sudah').classList.toggle('active', tab === 'sudah'); 
         document.getElementById('tab-sales-mitra').classList.toggle('active', tab === 'mitra');
         document.getElementById('tab-sales-request').classList.toggle('active', tab === 'request');
@@ -2213,12 +2242,12 @@
             document.getElementById('sales-view-data').classList.remove('hidden'); 
             loadSalesData(); 
             let btnEx = document.getElementById('btn-export-sales');
-            btnEx.innerText = tab === 'belum' ? "📥 Download Laporan Sisa Stok" : (tab === 'pending' ? "📥 Download Ajuan Pending" : "📥 Download Laporan Alokasi Approved"); 
-            btnEx.onclick = () => exportExcel(tab === 'belum' ? 'sales_belum' : (tab === 'pending' ? 'sales_pending' : 'alokasi')); 
+            btnEx.innerText = tab === 'belum' ? "📥 Download Laporan Sisa Stok" : "📥 Download Laporan Alokasi Approved"; 
+            btnEx.onclick = () => exportExcel(tab === 'belum' ? 'sales_belum' : 'alokasi'); 
         }
     }
 
-    // LOGIKA BARU: Tampilan Data Sales Digabung per Nama + Desain 2 Kolom
+    // LOGIKA BARU: Tampilan Data Sales Digabung per Nama + Desain List Sejajar (Khusus Distribusi Mitra)
     function loadSalesData() {
         const fName = document.getElementById('sales-filter-nama').value.toLowerCase();
         const tbody = document.querySelector('#sales-table tbody'); tbody.innerHTML = '';
@@ -2236,9 +2265,11 @@
             if(!grouped[key]) {
                 grouped[key] = {
                     key: key, name: item.name, brand: item.brand, image: item.image,
+                    qtyProduksi: item.qtyProduksi,
                     items: [], totalStock: 0, totalAlloc: 0, dates: new Set()
                 };
             }
+            if(item.qtyProduksi > grouped[key].qtyProduksi) grouped[key].qtyProduksi = item.qtyProduksi;
             grouped[key].items.push(item);
             (item.history || []).forEach(h => grouped[key].dates.add(h.date));
         });
@@ -2278,15 +2309,12 @@
                 let itemMitras = _mitras.filter(m => m.brand === item.brand || m.brand === 'BOTH');
                 
                 item.details.forEach(d => {
-                    let a = d.allocated; let mitraTotal = 0; 
-                    if(typeof a.mitra === 'object') Object.values(a.mitra).forEach(v => mitraTotal += (parseInt(v)||0));
-                    let sizeAllocTotal = (a.tiktok + a.shopee + a.web + (a.butik||0) + (a.foc||0) + mitraTotal);
+                    let sizeAllocTotal = getDetailAllocatedTotal(d); // Hanya menghitung Mitra
                     itemTotalStock += d.totalQty; 
                     itemTotalAlloc += sizeAllocTotal;
                     
                     let status = d.allocationStatus || 'none';
                     if(activeSalesTab === 'belum' && status !== 'none') return; 
-                    if(activeSalesTab === 'pending' && status !== 'pending') return; 
                     if(activeSalesTab === 'sudah' && status !== 'approved') return; 
                     sizesToRender.push(d);
                 });
@@ -2296,23 +2324,17 @@
 
                 if(sizesToRender.length === 0) return; // Lewati jika barang ini tidak punya size yg cocok di tab ini
                 
-                let isStaff = currentUserRole && currentUserRole.startsWith('sales_staff');
                 let conditionBadge = getBadge(item.condition, 'cond');
                 htmlContent += `<div style="margin-bottom:20px; border:1px solid #ccc; padding:15px; border-radius:8px; background:#fff; box-shadow: 0 4px 6px rgba(0,0,0,0.02);">
                     <h4 style="margin-top:0; display:flex; justify-content:space-between; align-items:center;">
-                        <span>Alokasi Stok ${conditionBadge}</span>
+                        <span>Distribusi Stok ${conditionBadge}</span>
                         <span style="font-size:0.85em; color:var(--text-muted); font-weight:normal;">Total Qty Kondisi Ini: ${itemTotalStock} pcs</span>
                     </h4>`;
 
                 if (activeSalesTab === 'sudah') {
                     let summaryHtml = '';
                     sizesToRender.forEach(d => {
-                        let a = d.allocated; let badges = [];
-                        if(a.tiktok) badges.push(`<span class="alloc-badge">Tiktok: ${a.tiktok}</span>`); 
-                        if(a.shopee) badges.push(`<span class="alloc-badge">Shopee: ${a.shopee}</span>`); 
-                        if(a.web) badges.push(`<span class="alloc-badge">Web: ${a.web}</span>`); 
-                        if(a.butik) badges.push(`<span class="alloc-badge">Butik: ${a.butik}</span>`); 
-                        if(a.foc) badges.push(`<span class="alloc-badge">FOC: ${a.foc}</span>`);
+                        let a = d.allocated || {}; let badges = [];
                         if(typeof a.mitra === 'object') { 
                             for(let mid in a.mitra) { 
                                 if(a.mitra[mid] > 0) { 
@@ -2323,79 +2345,81 @@
                         }
                         if(badges.length > 0) summaryHtml += `<div style="margin-bottom:8px; padding-bottom:8px; border-bottom:1px solid #eee;"><span style="display:inline-block; width:60px; font-weight:bold; color:var(--primary);">Size ${d.size}</span> ${badges.join(' ')}</div>`;
                     });
-                    htmlContent += `<div id="summary-${item.id}"><div style="background:#f8fafc; border:1px solid var(--border); border-radius:8px; padding:15px; margin-bottom:15px;"><h5 style="margin-top:0;">Ringkasan Alokasi: <span class="status-approved">APPROVED</span></h5>${summaryHtml}</div>${(currentUserRole === 'sales_leader' || currentUserRole === 'admin') ? `<div style="text-align:right; margin-bottom:10px;"><button class="btn-danger" style="margin-right:10px;" onclick="resetAllocation('${item.id}')">Hapus (Reset) Semua</button><button class="btn-warning" onclick="toggleEditAlloc('${item.id}')">Edit Mode ➔</button></div>` : ''}</div>`;
+                    htmlContent += `<div id="summary-${item.id}"><div style="background:#f8fafc; border:1px solid var(--border); border-radius:8px; padding:15px; margin-bottom:15px;"><h5 style="margin-top:0;">Ringkasan Distribusi: <span class="status-approved">SUDAH DISTRIBUSI</span></h5>${summaryHtml}</div><div style="text-align:right; margin-bottom:10px;"><button class="btn-danger" style="margin-right:10px;" onclick="resetAllocation('${item.id}')">Hapus (Reset) Semua</button><button class="btn-warning" onclick="toggleEditAlloc('${item.id}')">Edit Mode ➔</button></div></div>`;
                 }
 
                 htmlContent += `<div id="form-${item.id}" class="${activeSalesTab === 'sudah' ? 'hidden' : ''}">`;
-                htmlContent += `<div class="paste-zone" tabindex="0" onpaste="handleImagePaste(event, '${item.id}')">📸 Paste (Ctrl+V) Screenshot Foto di sini</div>`;
+                
+                // UPLOAD BOX (Ditambahkan pada setiap blok item/kondisi)
+                htmlContent += `
+                    <div style="background:#eff6ff; border:1px dashed #3b82f6; padding:12px; margin-bottom:15px; border-radius:8px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+                        <div>
+                            <span style="font-size:0.9em; color:#1e40af; font-weight:700; display:block;">⚡ Upload Massal Distribusi (${item.condition})</span>
+                            <span style="font-size:0.75em; color:#334155;">Download template, isi Qty, lalu upload untuk pengisian otomatis.</span>
+                        </div>
+                        <div style="display:flex; gap:8px;">
+                            <button class="btn-primary btn-small" onclick="downloadAllocTemplate('${item.id}')">📥 Template</button>
+                            <input type="file" id="upload-alloc-${item.id}" accept=".xlsx, .xls" style="display:none;" onchange="handleAllocUpload(event, '${item.id}')">
+                            <button class="btn-success btn-small" onclick="document.getElementById('upload-alloc-${item.id}').click()">📤 Upload</button>
+                        </div>
+                    </div>
+                    <div class="paste-zone" tabindex="0" onpaste="handleImagePaste(event, '${item.id}')">📸 Paste (Ctrl+V) Screenshot Foto Bukti di sini</div>
+                `;
                 
                 sizesToRender.forEach(d => {
-                    let sid = safeId(d.size); let a = d.allocated; 
-                    let ro = (activeSalesTab === 'sudah' && isStaff) ? 'readonly' : '';
-                    let statusBadge = d.allocationStatus === 'pending' ? `<span class="status-pending">PENDING</span>` : (d.allocationStatus === 'approved' ? `<span class="status-approved">APPROVED</span>` : '');
+                    let sid = safeId(d.size); let a = d.allocated || {}; 
+                    let statusBadge = d.allocationStatus === 'approved' ? `<span class="status-approved">SUDAH DISTRIBUSI</span>` : '';
                     
-                    let vT = a.tiktok||''; let vS = a.shopee||''; let vW = a.web||''; let vB = a.butik||''; let vF = a.foc||'';
-                    let sum = (parseInt(vT)||0) + (parseInt(vS)||0) + (parseInt(vW)||0) + (parseInt(vB)||0) + (parseInt(vF)||0);
-
-                    let suggestedMitraVal = 0; let remainder = 0;
-                    if(activeSalesTab === 'belum' && itemMitras.length > 0) {
-                        let suggestTotal = Math.floor(d.totalQty * 0.6); 
-                        suggestedMitraVal = Math.floor(suggestTotal / itemMitras.length);
-                        remainder = suggestTotal % itemMitras.length;
-                    }
-
-                    let mitraInputsHtml = '';
+                    let sum = 0;
+                    let mitraRowsHtml = '';
+                    
                     if(itemMitras.length === 0) {
-                        mitraInputsHtml = `<div style="font-size:0.8em; color:var(--danger); padding:10px;">Belum ada Mitra terdaftar untuk brand ini.</div>`;
+                        mitraRowsHtml = `<div style="font-size:0.8em; color:var(--danger); padding:10px; text-align:center;">Belum ada Mitra terdaftar untuk brand ini.</div>`;
                     } else {
-                        itemMitras.forEach((m, idx) => { 
-                            let vM = '';
-                            if(activeSalesTab === 'belum') {
-                                let reqKhusus = (d.requested && d.requested.mitra && d.requested.mitra[m.id]) ? d.requested.mitra[m.id] : 0;
-                                if(reqKhusus > 0) {
-                                    vM = reqKhusus; 
-                                } else {
-                                    vM = suggestedMitraVal + (idx < remainder ? 1 : 0); 
-                                    if(vM === 0) vM = '';
-                                }
-                            } else { 
-                                vM = (a.mitra && a.mitra[m.id]) ? a.mitra[m.id] : ''; 
-                            }
+                        itemMitras.forEach((m) => { 
+                            let reqKhusus = (d.requested && d.requested.mitra && d.requested.mitra[m.id]) ? d.requested.mitra[m.id] : 0;
+                            
+                            // HANYA MENGAMBIL NILAI DARI ALLOCATED DB ATAU KOSONG (Menghapus Auto-Fill)
+                            let vM = (a.mitra && a.mitra[m.id]) ? a.mitra[m.id] : ''; 
+                            if(vM === 0) vM = ''; // Memastikan jika 0 tetap tampil kosong
                             sum += (parseInt(vM)||0); 
                             
-                            let reqBadge = '';
-                            if(activeSalesTab === 'belum' || activeSalesTab === 'pending') {
-                               let rq = (d.requested && d.requested.mitra && d.requested.mitra[m.id]) ? d.requested.mitra[m.id] : 0;
-                               if(rq > 0) reqBadge = `<span style="font-size:0.75em; color:var(--secondary); margin-left:5px;">(Req: ${rq})</span>`;
+                            let diffStyle = '';
+                            if (reqKhusus > 0 && vM !== '' && parseInt(vM) !== reqKhusus) {
+                                diffStyle = 'background-color:#fffbeb; border-color:#f59e0b; color:#d97706;';
                             }
-
-                            mitraInputsHtml += `<div class="compact-input-group"><label title="${m.name}">${m.name} ${reqBadge}</label><input type="number" id="m-${item.id}-${sid}-${m.id}" value="${vM}" ${ro} oninput="calcSisa('${item.id}', '${sid}', ${d.totalQty})"></div>`; 
+                            
+                            mitraRowsHtml += `
+                            <div style="display:flex; align-items:center; justify-content:space-between; border-bottom:1px dashed #e2e8f0; padding:8px 0;">
+                                <div style="flex:2; font-weight:600; font-size:0.9em; color:#334155;" title="${m.name}">
+                                    ${m.name} <br><span style="font-size:0.8em; color:var(--text-muted); font-weight:normal;">${m.loc}</span>
+                                </div>
+                                <div style="flex:1; text-align:center; font-size:0.95em; color:var(--primary); font-weight:bold; background:#eff6ff; padding:4px; border-radius:6px; margin:0 10px;">
+                                    ${reqKhusus > 0 ? reqKhusus + ' pcs' : '-'}
+                                </div>
+                                <div style="flex:1; text-align:right;">
+                                    <input type="number" id="m-${item.id}-${sid}-${m.id}" data-req="${reqKhusus}" value="${vM}" oninput="calcSisa('${item.id}', '${sid}', ${d.totalQty})" style="width:75px; padding:6px; text-align:center; border:1px solid #cbd5e1; border-radius:6px; font-size:1.05em; font-weight:600; color:var(--primary); ${diffStyle}">
+                                </div>
+                            </div>`; 
                         });
                     }
 
                     let s = d.totalQty - sum;
                     let sisaColor = s < 0 ? 'red' : (s === 0 ? 'green' : 'blue');
                     
-                    // DESAIN UI 2 KOLOM RAPI
                     htmlContent += `
                     <div class="alloc-panel">
                         <div class="alloc-panel-header">
                             <span>Size: <b style="color:var(--primary); font-size:1.1em;">${d.size}</b> ${statusBadge}</span>
-                            <span>Sisa Stok: <b id="sisa-${item.id}-${sid}" style="color:${sisaColor}; font-size:1.2em;">${s}</b> / ${d.totalQty}</span>
+                            <span>Sisa Stok Gudang: <b id="sisa-${item.id}-${sid}" style="color:${sisaColor}; font-size:1.2em;">${s}</b> / ${d.totalQty}</span>
                         </div>
-                        <div class="alloc-panel-body alloc-two-col">
-                            <div class="alloc-col-box">
-                                <div class="alloc-col-title">🛒 Internal & Store</div>
-                                <div class="compact-input-group"><label>Tiktok</label><input type="number" id="t-${item.id}-${sid}" value="${vT}" ${ro} oninput="calcSisa('${item.id}', '${sid}', ${d.totalQty})"></div>
-                                <div class="compact-input-group"><label>Shopee</label><input type="number" id="s-${item.id}-${sid}" value="${vS}" ${ro} oninput="calcSisa('${item.id}', '${sid}', ${d.totalQty})"></div>
-                                <div class="compact-input-group"><label>Web</label><input type="number" id="w-${item.id}-${sid}" value="${vW}" ${ro} oninput="calcSisa('${item.id}', '${sid}', ${d.totalQty})"></div>
-                                <div class="compact-input-group"><label>Butik</label><input type="number" id="b-${item.id}-${sid}" value="${vB}" ${ro} oninput="calcSisa('${item.id}', '${sid}', ${d.totalQty})"></div>
-                                <div class="compact-input-group"><label>FOC</label><input type="number" id="f-${item.id}-${sid}" value="${vF}" ${ro} oninput="calcSisa('${item.id}', '${sid}', ${d.totalQty})"></div>
+                        <div class="alloc-panel-body">
+                            <div style="display:flex; justify-content:space-between; font-size:0.85em; font-weight:bold; color:var(--primary); border-bottom:2px solid #e2e8f0; padding-bottom:8px; margin-bottom:8px;">
+                                <div style="flex:2;">🤝 Nama Mitra</div>
+                                <div style="flex:1; text-align:center;">📝 Permintaan</div>
+                                <div style="flex:1; text-align:right;">📦 Diberikan</div>
                             </div>
-                            <div class="alloc-col-box">
-                                <div class="alloc-col-title">🤝 Distribusi Mitra</div>
-                                ${mitraInputsHtml}
-                            </div>
+                            ${mitraRowsHtml}
                         </div>
                     </div>`;
                 });
@@ -2403,10 +2427,8 @@
 
                 let actionBtns = '';
                 if(activeSalesTab === 'belum') { 
-                    actionBtns = `<button class="btn-success" onclick="saveAllocation('${item.id}', 'add', '${isStaff?'pending':'approved'}')">Simpan & ${isStaff?'Request Approval':'Approve Otomatis'} (${item.condition})</button>`; 
-                } else if(activeSalesTab === 'pending') { 
-                    actionBtns = isStaff ? `<button class="btn-success" onclick="saveAllocation('${item.id}', 'update', 'pending')">Update Ajuan (${item.condition})</button>` : `<button class="btn-danger" style="margin-right:10px;" onclick="resetAllocation('${item.id}')">Tolak/Reset (${item.condition})</button> <button class="btn-success" onclick="saveAllocation('${item.id}', 'update', 'approved')">Simpan & APPROVE (${item.condition})</button>`; 
-                } else if (activeSalesTab === 'sudah' && !isStaff) { 
+                    actionBtns = `<button class="btn-success" onclick="saveAllocation('${item.id}', 'add', 'approved')">Simpan Distribusi (${item.condition})</button>`; 
+                } else if (activeSalesTab === 'sudah') { 
                     actionBtns = `<button class="btn-dark" style="margin-right:10px;" onclick="toggleEditAlloc('${item.id}')">Batal Edit</button><button class="btn-success" onclick="saveAllocation('${item.id}', 'update', 'approved')">Simpan Perubahan (${item.condition})</button>`; 
                 }
                 htmlContent += `<div style="text-align:right;">${actionBtns}</div></div>`;
@@ -2416,12 +2438,18 @@
 
             renderedAny = true;
             let sisaGudang = groupTotalStock - groupTotalAlloc;
-            let btnText = (activeSalesTab === 'belum' || activeSalesTab === 'pending') ? 'Alokasi/Edit ▼' : 'Lihat Detail ▼';
+            let btnText = activeSalesTab === 'belum' ? 'Distribusi/Edit ▼' : 'Lihat Detail ▼';
             let datesDisp = [...g.dates].sort().map(d => formatDateDisplay(d)).join(', ');
+            let percentProgress = g.qtyProduksi > 0 ? ((g.totalGroupStock / g.qtyProduksi) * 100).toFixed(1) : 0;
             
             tbody.innerHTML += `
             <tr class="parent-row" onclick="toggleAccordion('${g.key}')">
-                <td><strong>${g.name}</strong><br><small>Tgl Masuk: ${datesDisp || '-'}</small><br>${getBadge(g.brand, 'brand')}</td>
+                <td>
+                    <strong>${g.name}</strong><br>
+                    <small>Tgl Masuk: ${datesDisp || '-'}</small><br>
+                    ${getBadge(g.brand, 'brand')}<br>
+                    <span class="progress-text" style="font-size:0.8em; margin-top:5px; display:inline-block; background:#eff6ff; padding:2px 6px; border-radius:4px; border:1px solid #bfdbfe;">Progress Gudang: <b>${g.totalGroupStock}</b> / ${g.qtyProduksi || 0} pcs (${percentProgress}%)</span>
+                </td>
                 <td>${g.image ? `<img src="${g.image}" class="item-image-preview">` : `-`}</td> 
                 <td><span style="font-size:0.85em; font-weight:bold; color:var(--text-muted); background:#e2e8f0; padding:2px 6px; border-radius:4px;">Gabungan OKE & DEFECT</span></td>
                 <td><b>${sisaGudang}</b> / ${groupTotalStock}</td> 
@@ -2454,22 +2482,61 @@
     function toggleEditAlloc(id) { document.getElementById(`summary-${id}`).classList.toggle('hidden'); document.getElementById(`form-${id}`).classList.toggle('hidden'); }
     function toggleAccordion(key) { const r = document.getElementById(`acc-${key}`); if(r) r.classList.toggle('hidden'); }
 
+    // MODIFIKASI: FUNGSI BARU saveAllocation YANG MEMAKSA SALES MENGETIK ANGKA DISTRIBUSI
     function saveAllocation(itemId, mode, targetStatus) {
-        let item = JSON.parse(JSON.stringify(_inventory.find(i => i.id === itemId))); let itemMitras = _mitras.filter(m => m.brand === item.brand || m.brand === 'BOTH'); let hasError = false;
+        let item = JSON.parse(JSON.stringify(_inventory.find(i => i.id === itemId))); 
+        let itemMitras = _mitras.filter(m => m.brand === item.brand || m.brand === 'BOTH'); 
+        let hasError = false;
+        
+        // Tambahan Validasi: Cek apakah ada barang yang benar-benar didistribusikan > 0
+        let atLeastOneAllocated = false; 
+
         item.details.forEach(d => {
-            const sid = safeId(d.size); const a = d.allocated; if(typeof a.mitra !== 'object') a.mitra = {}; if(!document.getElementById(`t-${itemId}-${sid}`)) return; 
-            const vT = parseInt(document.getElementById(`t-${itemId}-${sid}`).value)||0; const vS = parseInt(document.getElementById(`s-${itemId}-${sid}`).value)||0; const vW = parseInt(document.getElementById(`w-${itemId}-${sid}`).value)||0; const vB = parseInt(document.getElementById(`b-${itemId}-${sid}`).value)||0; const vF = parseInt(document.getElementById(`f-${itemId}-${sid}`).value)||0;
+            const sid = safeId(d.size); 
+            const a = d.allocated || {}; 
+            if(typeof a.mitra !== 'object') a.mitra = {}; 
+            
+            // Pengecekan elemen aman, pastikan kita tidak update size yang disembunyikan UI tab ini
+            if(!document.getElementById(`m-${itemId}-${sid}-${itemMitras[0]?.id}`) && itemMitras.length > 0) return; 
+
             let totalInputMitra = 0; let newMitraObj = {};
-            itemMitras.forEach(m => { const el = document.getElementById(`m-${itemId}-${sid}-${m.id}`); const vM = el ? (parseInt(el.value) || 0) : 0; let finalM = mode === 'add' ? (a.mitra[m.id]||0) + vM : vM; if(finalM > 0) newMitraObj[m.id] = finalM; totalInputMitra += finalM; });
+            itemMitras.forEach(m => { 
+                const el = document.getElementById(`m-${itemId}-${sid}-${m.id}`); 
+                const vM = el ? (parseInt(el.value) || 0) : 0; 
+                let finalM = mode === 'add' ? ((a.mitra[m.id]||0) + vM) : vM; 
+                if(finalM > 0) newMitraObj[m.id] = finalM; 
+                totalInputMitra += finalM; 
+            });
+
             if(mode === 'add') { Object.keys(a.mitra).forEach(k => { if(!newMitraObj[k] && a.mitra[k]) { newMitraObj[k] = a.mitra[k]; totalInputMitra += a.mitra[k]; } }); }
-            let fT = mode === 'add' ? a.tiktok + vT : vT; let fS = mode === 'add' ? a.shopee + vS : vS; let fW = mode === 'add' ? a.web + vW : vW; let fB = mode === 'add' ? (a.butik||0) + vB : vB; let fF = mode === 'add' ? (a.foc||0) + vF : vF;
-            if (fT + fS + fW + fB + fF + totalInputMitra > d.totalQty) { alert(`Size ${d.size} melebihi stok.`); hasError = true; } 
-            else { d.allocated = { mitra: newMitraObj, tiktok: fT, shopee: fS, web: fW, butik: fB, foc: fF }; d.allocationStatus = targetStatus; }
+
+            if (totalInputMitra > d.totalQty) { 
+                alert(`Size ${d.size} melebihi sisa stok gudang.`); 
+                hasError = true; 
+            } else { 
+                d.allocated = { mitra: newMitraObj, tiktok: 0, shopee: 0, web: 0, butik: 0, foc: 0 }; 
+                
+                // FIX MODIFIKASI: Hanya set status 'approved' jika sales benar-benar mendistribusikan quantity > 0
+                if (totalInputMitra > 0) {
+                    d.allocationStatus = targetStatus; // 'approved'
+                    atLeastOneAllocated = true;
+                } else {
+                    d.allocationStatus = 'none'; // Tetap 'none' agar tidak otomatis pindah ke tab Sudah Distribusi
+                }
+            }
         });
-        if (!hasError) db.collection("inventory").doc(itemId).update({ details: item.details }).then(() => alert('Berhasil disimpan!'));
+        
+        if (!hasError) {
+            // FIX MODIFIKASI: Tolak dan cegah proses save jika staff belum mengisi angka apapun
+            if (!atLeastOneAllocated && mode === 'add') {
+                alert('GAGAL: Anda belum mendistribusikan quantity. Silakan ketik angka distribusi untuk mitra terlebih dahulu sebelum menyimpan.');
+                return;
+            }
+            db.collection("inventory").doc(itemId).update({ details: item.details }).then(() => alert('Distribusi manual berhasil disimpan!'));
+        }
     }
 
-    function resetAllocation(itemId) { if(confirm('Tolak / Hapus semua alokasi ini?')) { let item = JSON.parse(JSON.stringify(_inventory.find(i => i.id === itemId))); item.details.forEach(d => { d.allocated = { mitra: {}, tiktok: 0, shopee: 0, web: 0, butik: 0, foc: 0 }; d.allocationStatus = 'none'; }); db.collection("inventory").doc(itemId).update({ details: item.details }); } }
+    function resetAllocation(itemId) { if(confirm('Tolak / Hapus semua distribusi ini?')) { let item = JSON.parse(JSON.stringify(_inventory.find(i => i.id === itemId))); item.details.forEach(d => { d.allocated = { mitra: {}, tiktok: 0, shopee: 0, web: 0, butik: 0, foc: 0 }; d.allocationStatus = 'none'; }); db.collection("inventory").doc(itemId).update({ details: item.details }); } }
 
     // ================= FUNGSI PERMINTAAN KHUSUS MITRA =================
     
@@ -2558,10 +2625,13 @@
                             if(!requestsByMitra[mId]) requestsByMitra[mId] = [];
                             
                             let allocQty = (d.allocated && d.allocated.mitra && d.allocated.mitra[mId]) ? d.allocated.mitra[mId] : 0;
-                            let pct = Math.round((allocQty / reqQty) * 100);
+                            let isApproved = d.allocationStatus === 'approved';
+                            let validAllocQty = isApproved ? allocQty : 0;
+                            let pct = Math.round((validAllocQty / reqQty) * 100);
                             let statusStr = '';
-                            if(allocQty > 0) {
-                                statusStr = d.allocationStatus === 'approved' ? `<span class="status-approved">APPROVED</span>` : `<span class="status-pending">PENDING</span>`;
+                            
+                            if(isApproved && validAllocQty > 0) {
+                                statusStr = `<span class="status-approved">SUDAH DISTRIBUSI</span>`;
                             } else {
                                 statusStr = `<span class="badge" style="background:#e2e8f0; color:#334155;">BELUM DIALOKASI</span>`;
                             }
@@ -2569,7 +2639,7 @@
                             let color = pct >= 100 ? 'var(--success)' : (pct > 0 ? 'var(--warning)' : 'var(--danger)');
                             
                             requestsByMitra[mId].push(`<div style="border-bottom:1px dashed #ccc; padding:6px 0; font-size:0.85em;">
-                                <strong>Size ${d.size}</strong>: Diminta <b style="color:var(--primary)">${reqQty}</b> ➔ Diberikan <b>${allocQty}</b> ${statusStr} (Terpenuhi: <b style="color:${color}">${pct}%</b>)
+                                <strong>Size ${d.size}</strong>: Diminta <b style="color:var(--primary)">${reqQty}</b> ➔ Diberikan <b>${validAllocQty}</b> ${statusStr} (Terpenuhi: <b style="color:${color}">${pct}%</b>)
                             </div>`);
                         }
                     });
@@ -2621,30 +2691,38 @@
             filename = "Laporan_Stok_Gudang"; tableHtml = `<tr><th style="${thStyle}">Semua Tanggal Masuk</th><th style="${thStyle}">Nama Artikel</th><th style="${thStyle}">Brand</th><th style="${thStyle}">Kondisi</th><th style="${thStyle}">Target Produksi</th><th style="${thStyle}">Total Masuk Gudang</th><th style="${thStyle}">Progress (%)</th><th style="${thStyle}">Rincian Size & Qty Masuk</th></tr>`;
             _inventory.forEach(item => { let total = item.details.reduce((sum, d) => sum + d.totalQty, 0); tableHtml += `<tr><td style="${tdText}">${getRawDates(item)}</td><td style="${tdText}">${item.name}</td><td style="${tdText}">${item.brand}</td><td style="${tdText}">${item.condition}</td><td style="${tdNum}">${item.qtyProduksi}</td><td style="${tdBold}">${total}</td><td style="${tdPct}">${item.qtyProduksi > 0 ? ((total/item.qtyProduksi)*100).toFixed(1) : 0}%</td><td style="${tdText}">${item.details.map(d => `${d.size}: ${d.totalQty}`).join(', ')}</td></tr>`; });
         } 
-        else if (type === 'alokasi' || type === 'sales_pending') {
-            let statusFilter = type === 'alokasi' ? 'approved' : 'pending'; filename = type === 'alokasi' ? "Laporan_Alokasi_Sales_Approved" : "Laporan_Ajuan_Pending_Sales";
-            tableHtml = `<tr><th style="${thStyle}">Tanggal Masuk (List)</th><th style="${thStyle}">Nama Artikel</th><th style="${thStyle}">Brand</th><th style="${thStyle}">Size</th><th style="${thStyle}">Status</th><th style="${thStyle}">Stok Gudang</th><th style="${thStyle}">Tiktok</th><th style="${thStyle}">Shopee</th><th style="${thStyle}">Web</th><th style="${thStyle}">Butik</th><th style="${thStyle}">FOC</th>${_mitras.map(m => `<th style="${thStyleMitra}">Mitra: ${m.name}<br>(${m.loc})</th>`).join('')}<th style="${thStyleTotal}">Total Alokasi</th><th style="${thStyleTotal}">Sisa Stok (Gudang)</th></tr>`;
+        else if (type === 'alokasi') {
+            let statusFilter = 'approved'; filename = "Laporan_Distribusi_Sales_Approved";
+            tableHtml = `<tr><th style="${thStyle}">Tanggal Masuk (List)</th><th style="${thStyle}">Nama Artikel</th><th style="${thStyle}">Brand</th><th style="${thStyle}">Size</th><th style="${thStyle}">Status</th><th style="${thStyle}">Stok Gudang</th>${_mitras.map(m => `<th style="${thStyleMitra}">Mitra: ${m.name}<br>(${m.loc})</th>`).join('')}<th style="${thStyleTotal}">Total Distribusi</th><th style="${thStyleTotal}">Sisa Stok (Gudang)</th></tr>`;
             _inventory.forEach(item => { 
                 if((type.startsWith('sales_') || type === 'alokasi') && currentUserRole && currentUserRole.startsWith('sales_staff_')) {
                     if (currentUserRole === 'sales_staff_zs' && item.brand !== 'ZS') return;
                     if (currentUserRole === 'sales_staff_shi' && item.brand !== 'SHI') return;
                 }
-                item.details.forEach(d => { if(d.allocationStatus !== statusFilter) return; let a = d.allocated; let mitraTotal = 0; let mitraCells = _mitras.map(m => { let v = (typeof a.mitra === 'object' && a.mitra[m.id]) ? a.mitra[m.id] : 0; mitraTotal += v; return `<td style="${tdNum}">${v || 0}</td>`; }).join(''); let totalAlloc = a.tiktok + a.shopee + a.web + (a.butik||0) + (a.foc||0) + mitraTotal; if(totalAlloc > 0) { tableHtml += `<tr><td style="${tdText}">${getRawDates(item)}</td><td style="${tdText}">${item.name}</td><td style="${tdText}">${item.brand}</td><td style="${tdText}">${d.size}</td><td style="${tdText}">${d.allocationStatus.toUpperCase()}</td><td style="${tdBold}">${d.totalQty}</td><td style="${tdNum}">${a.tiktok||0}</td><td style="${tdNum}">${a.shopee||0}</td><td style="${tdNum}">${a.web||0}</td><td style="${tdNum}">${a.butik||0}</td><td style="${tdNum}">${a.foc||0}</td>${mitraCells}<td style="${tdBold}">${totalAlloc}</td><td style="${tdBold}; color:${d.totalQty - totalAlloc < 0 ? 'red' : 'black'};">${d.totalQty - totalAlloc}</td></tr>`; } }); 
+                item.details.forEach(d => { 
+                    if(d.allocationStatus !== statusFilter) return; 
+                    let a = d.allocated || {}; let mitraTotal = 0; 
+                    let mitraCells = _mitras.map(m => { let v = (typeof a.mitra === 'object' && a.mitra[m.id]) ? a.mitra[m.id] : 0; mitraTotal += v; return `<td style="${tdNum}">${v || 0}</td>`; }).join(''); 
+                    let totalAlloc = mitraTotal; 
+                    if(totalAlloc > 0) { 
+                        tableHtml += `<tr><td style="${tdText}">${getRawDates(item)}</td><td style="${tdText}">${item.name}</td><td style="${tdText}">${item.brand}</td><td style="${tdText}">${d.size}</td><td style="${tdText}">${d.allocationStatus.toUpperCase()}</td><td style="${tdBold}">${d.totalQty}</td>${mitraCells}<td style="${tdBold}">${totalAlloc}</td><td style="${tdBold}; color:${d.totalQty - totalAlloc < 0 ? 'red' : 'black'};">${d.totalQty - totalAlloc}</td></tr>`; 
+                    } 
+                }); 
             });
         }
         else if (type === 'sales_belum') {
-            filename = "Laporan_Sisa_Stok_Gudang"; tableHtml = `<tr><th style="${thStyle}">Tanggal Masuk (List)</th><th style="${thStyle}">Nama Artikel</th><th style="${thStyle}">Brand</th><th style="${thStyle}">Size</th><th style="${thStyle}">Total Qty (Gudang)</th><th style="${thStyle}">Status Alokasi</th><th style="${thStyle}">Qty Telah Dialokasikan</th><th style="${thStyle}">Sisa Stok Belum Dialokasikan</th></tr>`;
+            filename = "Laporan_Sisa_Stok_Gudang"; tableHtml = `<tr><th style="${thStyle}">Tanggal Masuk (List)</th><th style="${thStyle}">Nama Artikel</th><th style="${thStyle}">Brand</th><th style="${thStyle}">Size</th><th style="${thStyle}">Total Qty (Gudang)</th><th style="${thStyle}">Status Distribusi</th><th style="${thStyle}">Qty Telah Didistribusikan</th><th style="${thStyle}">Sisa Stok Belum Didistribusikan</th></tr>`;
             _inventory.forEach(item => { 
                 if(currentUserRole && currentUserRole.startsWith('sales_staff_')) {
                     if (currentUserRole === 'sales_staff_zs' && item.brand !== 'ZS') return;
                     if (currentUserRole === 'sales_staff_shi' && item.brand !== 'SHI') return;
                 }
-                item.details.forEach(d => { let a = d.allocated; let mitraTotal = 0; if(typeof a.mitra === 'object') { Object.values(a.mitra).forEach(v => mitraTotal += (parseInt(v)||0)); } let totalAlloc = a.tiktok + a.shopee + a.web + (a.butik||0) + (a.foc||0) + mitraTotal; if(d.allocationStatus === 'none' || !d.allocationStatus) { tableHtml += `<tr><td style="${tdText}">${getRawDates(item)}</td><td style="${tdText}">${item.name}</td><td style="${tdText}">${item.brand}</td><td style="${tdText}">${d.size}</td><td style="${tdBold}">${d.totalQty}</td><td style="${tdText}">BELUM</td><td style="${tdBold}">${totalAlloc}</td><td style="${tdBold}; color:red;">${d.totalQty - totalAlloc}</td></tr>`; } }); 
+                item.details.forEach(d => { let a = d.allocated || {}; let mitraTotal = 0; if(typeof a.mitra === 'object') { Object.values(a.mitra).forEach(v => mitraTotal += (parseInt(v)||0)); } let totalAlloc = mitraTotal; if(d.allocationStatus === 'none' || !d.allocationStatus) { tableHtml += `<tr><td style="${tdText}">${getRawDates(item)}</td><td style="${tdText}">${item.name}</td><td style="${tdText}">${item.brand}</td><td style="${tdText}">${d.size}</td><td style="${tdBold}">${d.totalQty}</td><td style="${tdText}">BELUM</td><td style="${tdBold}">${totalAlloc}</td><td style="${tdBold}; color:red;">${d.totalQty - totalAlloc}</td></tr>`; } }); 
             });
         }
         else if (type === 'sales_request') {
             filename = "Laporan_Permintaan_Khusus_Mitra";
-            tableHtml = `<tr><th style="${thStyle}">Nama Artikel</th><th style="${thStyle}">Brand</th><th style="${thStyle}">Kondisi</th><th style="${thStyle}">Nama Mitra</th><th style="${thStyle}">Size</th><th style="${thStyle}">Qty Diminta</th><th style="${thStyle}">Qty Dialokasikan</th><th style="${thStyle}">Status Alokasi</th><th style="${thStyle}">Persentase Terpenuhi</th></tr>`;
+            tableHtml = `<tr><th style="${thStyle}">Nama Artikel</th><th style="${thStyle}">Brand</th><th style="${thStyle}">Kondisi</th><th style="${thStyle}">Nama Mitra</th><th style="${thStyle}">Size</th><th style="${thStyle}">Qty Diminta</th><th style="${thStyle}">Qty Diberikan</th><th style="${thStyle}">Status Distribusi</th><th style="${thStyle}">Persentase Terpenuhi</th></tr>`;
             
             _inventory.forEach(item => {
                 if(currentUserRole && currentUserRole.startsWith('sales_staff_')) {
@@ -2658,10 +2736,12 @@
                                 let mitra = _mitras.find(m => m.id === mId);
                                 let mName = mitra ? mitra.name : 'Mitra Terhapus';
                                 let allocQty = (d.allocated && d.allocated.mitra && d.allocated.mitra[mId]) ? d.allocated.mitra[mId] : 0;
-                                let pct = Math.round((allocQty / reqQty) * 100);
-                                let status = allocQty > 0 ? (d.allocationStatus||'').toUpperCase() : 'BELUM DIALOKASI';
+                                let isApproved = d.allocationStatus === 'approved';
+                                let validAllocQty = isApproved ? allocQty : 0;
+                                let pct = Math.round((validAllocQty / reqQty) * 100);
+                                let status = (isApproved && validAllocQty > 0) ? 'SUDAH DISTRIBUSI' : 'BELUM DIALOKASI';
                                 
-                                tableHtml += `<tr><td style="${tdText}">${item.name}</td><td style="${tdText}">${item.brand}</td><td style="${tdText}">${item.condition}</td><td style="${tdText}">${mName}</td><td style="${tdText}">${d.size}</td><td style="${tdBold}">${reqQty}</td><td style="${tdBold}">${allocQty}</td><td style="${tdText}">${status}</td><td style="${tdPct}">${pct}%</td></tr>`;
+                                tableHtml += `<tr><td style="${tdText}">${item.name}</td><td style="${tdText}">${item.brand}</td><td style="${tdText}">${item.condition}</td><td style="${tdText}">${mName}</td><td style="${tdText}">${d.size}</td><td style="${tdBold}">${reqQty}</td><td style="${tdBold}">${validAllocQty}</td><td style="${tdText}">${status}</td><td style="${tdPct}">${pct}%</td></tr>`;
                             }
                         });
                     }
@@ -2677,19 +2757,238 @@
         if(!window.XLSX) return alert('Library Excel gagal dimuat. Coba refresh halaman.');
         const wb = XLSX.utils.book_new();
 
-        let stokRows = [['Tanggal Masuk', 'Nama Artikel', 'Brand', 'Kondisi', 'Total Masuk (pcs)', 'Sisa di Gudang (Belum Dialokasi)']];
+        let stokRows = [['Tanggal Masuk', 'Nama Artikel', 'Brand', 'Kondisi', 'Total Masuk (pcs)', 'Sisa di Gudang (Belum Distribusi)']];
         _inventory.forEach(i => { stokRows.push([getRawDates(i), i.name, i.brand, i.condition, getItemTotalMasuk(i), getItemAvailableStock(i)]); });
         let wsStok = XLSX.utils.aoa_to_sheet(stokRows); wsStok['!cols'] = [{wch:15}, {wch:35}, {wch:10}, {wch:10}, {wch:20}, {wch:25}]; XLSX.utils.book_append_sheet(wb, wsStok, "Ringkasan Stok");
 
-        let alokasiRows = [['Nama Artikel', 'Brand', 'Size', 'Status', 'Total Stok Size Ini', 'Tiktok', 'Shopee', 'Web', 'Butik', 'FOC']]; _mitras.forEach(m => alokasiRows[0].push(`Mitra: ${m.name}`));
-        _inventory.forEach(item => { item.details.forEach(d => { if(d.allocationStatus === 'none' || !d.allocationStatus) return; let row = [item.name, item.brand, d.size, d.allocationStatus, d.totalQty, d.allocated.tiktok||0, d.allocated.shopee||0, d.allocated.web||0, d.allocated.butik||0, d.allocated.foc||0]; _mitras.forEach(m => { row.push((d.allocated.mitra && d.allocated.mitra[m.id]) ? d.allocated.mitra[m.id] : 0); }); alokasiRows.push(row); }); });
-        XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(alokasiRows), "Alokasi Distribusi");
+        let alokasiRows = [['Nama Artikel', 'Brand', 'Size', 'Status', 'Total Stok Size Ini']]; _mitras.forEach(m => alokasiRows[0].push(`Mitra: ${m.name}`));
+        _inventory.forEach(item => { item.details.forEach(d => { if(d.allocationStatus === 'none' || !d.allocationStatus) return; let row = [item.name, item.brand, d.size, d.allocationStatus, d.totalQty]; _mitras.forEach(m => { row.push((d.allocated.mitra && d.allocated.mitra[m.id]) ? d.allocated.mitra[m.id] : 0); }); alokasiRows.push(row); }); });
+        XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(alokasiRows), "Distribusi Mitra");
 
         let orderRows = [['No. Form', 'Tanggal', 'Mitra', 'Lokasi', 'Gudang Penyerah', 'Total Qty', 'Status']];
         _orderForms.forEach(f => { orderRows.push([f.formNo, f.date, f.mitraName, f.mitraLoc, f.gudangName, (f.items||[]).reduce((s,i)=>s+(parseInt(i.qty)||0),0), f.status.toUpperCase()]); });
         let wsOrders = XLSX.utils.aoa_to_sheet(orderRows); wsOrders['!cols'] = [{wch:20},{wch:12},{wch:25},{wch:15},{wch:20},{wch:10},{wch:15}]; XLSX.utils.book_append_sheet(wb, wsOrders, "Riwayat Form Order");
 
         XLSX.writeFile(wb, `Laporan_Periodik_ZS_SHI_${new Date().toISOString().slice(0,10)}.xlsx`);
+    }
+
+    // ================= FUNGSI TEMPLATE & UPLOAD ALOKASI DISTRIBUSI =================
+    
+    function downloadAllocTemplate(itemId) {
+        if(!window.XLSX) return alert('Library Excel belum dimuat.');
+        const item = _inventory.find(i => i.id === itemId);
+        if(!item) return;
+
+        let sizes = item.details.map(d => d.size); 
+        let headerRow = ['Nama Mitra', ...sizes, 'TOTAL'];
+        let data = [headerRow];
+
+        let mitrasToUse = _mitras.filter(m => m.brand === item.brand || m.brand === 'BOTH');
+        mitrasToUse.forEach(m => {
+            let row = [m.name];
+            sizes.forEach(() => row.push('')); // Dibiarkan kosong agar diisi sales
+            row.push(''); // Kolom total
+            data.push(row);
+        });
+
+        const ws = XLSX.utils.aoa_to_sheet(data);
+        
+        let wscols = [{wch: 35}]; 
+        sizes.forEach(() => wscols.push({wch: 10})); 
+        wscols.push({wch: 12}); 
+        ws['!cols'] = wscols;
+
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Template_Distribusi");
+        let safeName = `${item.name}_${item.condition}`.replace(/[\\/:*?"<>|]/g, "_");
+        XLSX.writeFile(wb, `Template_Distribusi_${safeName}.xlsx`);
+    }
+
+    function handleAllocUpload(event, itemId) {
+        const file = event.target.files[0];
+        if(!file) return;
+
+        const item = _inventory.find(i => i.id === itemId);
+        if(!item) return;
+
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, {type: 'array'});
+                const firstSheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[firstSheetName];
+                const json = XLSX.utils.sheet_to_json(worksheet, {header: 1});
+
+                if(json.length < 2) return alert('File Excel kosong atau tidak memiliki data.');
+
+                const headers = json[0];
+                if(!headers[0] || headers[0].toString().trim().toLowerCase() !== 'nama mitra') {
+                    return alert('Format Excel salah. Kolom pertama (A1) harus berjudul "Nama Mitra".');
+                }
+
+                let sizesInExcel = [];
+                for(let i = 1; i < headers.length; i++) {
+                    if(headers[i] && headers[i].toString().toUpperCase() !== 'TOTAL') {
+                        sizesInExcel.push({ name: headers[i].toString().toLowerCase(), colIndex: i });
+                    }
+                }
+
+                let updateCount = 0;
+
+                for(let r = 1; r < json.length; r++) {
+                    let row = json[r];
+                    if(!row || row.length === 0 || !row[0]) continue; 
+
+                    let mitraName = row[0].toString().trim().toLowerCase();
+                    let mitra = _mitras.find(m => m.name.toLowerCase() === mitraName);
+                    if(!mitra) continue; 
+
+                    sizesInExcel.forEach(sizeData => {
+                        let rawVal = row[sizeData.colIndex];
+                        let val = parseInt(rawVal);
+                        
+                        if(!isNaN(val) && val >= 0) {
+                            let d = item.details.find(x => x.size.toLowerCase() === sizeData.name);
+                            if(d) {
+                                let sid = safeId(d.size);
+                                let inputEl = document.getElementById(`m-${item.id}-${sid}-${mitra.id}`);
+                                if(inputEl && !inputEl.readOnly) {
+                                    inputEl.value = val;
+                                    calcSisa(item.id, sid, d.totalQty); // Trigger the change check for differences
+                                    updateCount++;
+                                }
+                            }
+                        }
+                    });
+                }
+
+                if(updateCount > 0) {
+                    alert(`Berhasil mengisikan angka untuk ${updateCount} field dari Excel!\nPeriksa indikator warna kuning jika ada selisih dengan permintaan, lalu klik "Simpan Distribusi".`);
+                } else {
+                    alert('Tidak ada data yang valid ditemukan untuk diisi.');
+                }
+            } catch(err) {
+                console.error(err);
+                alert('Gagal memproses file Excel.');
+            }
+            event.target.value = ''; // Reset input
+        };
+        reader.readAsArrayBuffer(file);
+    }
+
+    // ================= FUNGSI TEMPLATE & UPLOAD PERMINTAAN KHUSUS (Sales Tab Akhir) =================
+    
+    function downloadReqTemplate() {
+        if(!window.XLSX) return alert('Library Excel belum dimuat.');
+        const itemId = document.getElementById('req-item-select').value;
+        if(!itemId) return alert('Silakan pilih Artikel terlebih dahulu. Template akan dibuat dinamis berdasarkan size artikel tersebut.');
+        
+        const item = _inventory.find(i => i.id === itemId);
+        if(!item) return;
+
+        let sizes = item.details.map(d => d.size); 
+        let headerRow = ['Nama Mitra', ...sizes, 'TOTAL'];
+        let data = [headerRow];
+
+        let mitrasToUse = _mitras.filter(m => m.brand === item.brand || m.brand === 'BOTH');
+        mitrasToUse.forEach(m => {
+            let row = [m.name];
+            sizes.forEach(() => row.push(''));
+            row.push('');
+            data.push(row);
+        });
+
+        const ws = XLSX.utils.aoa_to_sheet(data);
+        let wscols = [{wch: 35}]; sizes.forEach(() => wscols.push({wch: 10})); wscols.push({wch: 12}); ws['!cols'] = wscols;
+
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Template_Permintaan");
+        let safeName = item.name.replace(/[\\/:*?"<>|]/g, "_");
+        XLSX.writeFile(wb, `Template_Permintaan_${safeName}.xlsx`);
+    }
+
+    function handleReqUpload(event) {
+        const file = event.target.files[0];
+        if(!file) return;
+
+        const itemId = document.getElementById('req-item-select').value;
+        if(!itemId) {
+            alert('Silakan pilih Artikel terlebih dahulu sebelum mengupload!');
+            event.target.value = ''; // Reset file input
+            return;
+        }
+
+        const item = _inventory.find(i => i.id === itemId);
+        if(!item) return;
+
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, {type: 'array'});
+                const firstSheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[firstSheetName];
+                const json = XLSX.utils.sheet_to_json(worksheet, {header: 1});
+
+                if(json.length < 2) return alert('File Excel kosong atau tidak memiliki data.');
+
+                const headers = json[0];
+                if(!headers[0] || headers[0].toString().trim().toLowerCase() !== 'nama mitra') {
+                    return alert('Format Excel salah. Kolom pertama (A1) harus berjudul "Nama Mitra". Gunakan template yang disediakan.');
+                }
+
+                let sizesInExcel = [];
+                for(let i = 1; i < headers.length; i++) {
+                    if(headers[i] && headers[i].toString().toUpperCase() !== 'TOTAL') {
+                        sizesInExcel.push({ name: headers[i], colIndex: i });
+                    }
+                }
+
+                let itemDetailsCopy = JSON.parse(JSON.stringify(item.details));
+                let updateCount = 0;
+
+                for(let r = 1; r < json.length; r++) {
+                    let row = json[r];
+                    if(!row || row.length === 0 || !row[0]) continue; 
+
+                    let mitraName = row[0].toString().trim().toLowerCase();
+                    let mitra = _mitras.find(m => m.name.toLowerCase() === mitraName);
+                    if(!mitra) continue; 
+
+                    sizesInExcel.forEach(sizeData => {
+                        let rawVal = row[sizeData.colIndex];
+                        let val = parseInt(rawVal);
+                        
+                        if(!isNaN(val) && val >= 0) { 
+                            let d = itemDetailsCopy.find(x => x.size.toString().toLowerCase() === sizeData.name.toString().toLowerCase());
+                            if(d) {
+                                if(!d.requested) d.requested = { mitra: {} };
+                                if(!d.requested.mitra) d.requested.mitra = {};
+                                d.requested.mitra[mitra.id] = val;
+                                updateCount++;
+                            }
+                        }
+                    });
+                }
+
+                if(updateCount > 0) {
+                    db.collection("inventory").doc(itemId).update({ details: itemDetailsCopy }).then(() => {
+                        if(typeof logActivity === 'function') logActivity('Upload Permintaan Mitra', `Upload massal via Excel pada artikel ${item.name}`);
+                        alert(`Berhasil mengupload dan memproses data permintaan untuk ${updateCount} size/mitra!`);
+                        onReqItemChange(); 
+                        loadSalesRequestData(); 
+                    });
+                } else {
+                    alert('Tidak ada data (angka Qty) yang valid ditemukan dalam file Excel untuk diproses.');
+                }
+            } catch(err) {
+                console.error(err);
+                alert('Gagal memproses file Excel.');
+            }
+            event.target.value = ''; 
+        };
+        reader.readAsArrayBuffer(file);
     }
 
 </script>
