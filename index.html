@@ -185,6 +185,13 @@
         .stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; }
         .stat-card { background: white; border: 1px solid var(--border); border-radius: 10px; padding: 18px; text-align: center; cursor: pointer; transition: transform 0.15s ease, box-shadow 0.15s ease; }
         .stat-card:hover { transform: translateY(-3px); box-shadow: 0 6px 16px rgba(0,0,0,0.08); border-color: var(--secondary); }
+        .leader-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:14px; margin-bottom:20px; }
+        .leader-kpi { background:#f8fafc; border:1px solid var(--border); border-radius:10px; padding:16px; }
+        .leader-kpi .label { font-size:.78em; color:var(--text-muted); text-transform:uppercase; }
+        .leader-kpi .value { font-size:1.6em; font-weight:800; margin-top:4px; }
+        .report-filter { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+        .profile-card { background:#f8fafc; border:1px solid var(--border); border-radius:10px; padding:18px; margin-bottom:18px; }
+
         .stat-value { font-size: 1.8em; font-weight: 800; color: var(--primary); line-height: 1.2; }
         .stat-label { font-size: 0.8em; color: var(--text-muted); margin-top: 4px; }
         .size-chip { display: inline-flex; align-items: center; gap: 6px; background: #e2e8f0; color: #334155; padding: 5px 10px; border-radius: 20px; font-size: 0.85em; font-weight: 600; }
@@ -499,7 +506,11 @@
         <div class="card">
             <div class="flex-header">
                 <h2>Dashboard Gudang</h2>
-                <button class="btn-primary" onclick="generatePeriodicReport()"><span style="font-size:1.1em;">📊</span> Laporan Periodik 1-Klik</button>
+                <div class="report-filter">
+                    <input type="date" id="periodic-from-gudang" title="Dari">
+                    <input type="date" id="periodic-to-gudang" title="Sampai">
+                    <button class="btn-primary" onclick="generatePeriodicReport('gudang')"><span style="font-size:1.1em;">📊</span> Laporan Periodik 1-Klik</button>
+                </div>
             </div>
 
             <div class="tabs">
@@ -532,6 +543,15 @@
                     <input type="text" id="custom-size-input" placeholder="Ketik size lain"><button class="btn-primary btn-small" onclick="addCustomSize('main')">+ Tambah Size</button>
                 </div>
                 <button class="btn-success" onclick="saveInventory()" style="margin-top: 20px;">Simpan Barang Masuk</button>
+                <div style="margin-top:12px; padding:15px; background:#eff6ff; border:1px dashed #3b82f6; border-radius:8px;">
+                    <div style="font-weight:700; color:#1e40af; margin-bottom:8px;">⚡ Import Barang Masuk Massal via Excel</div>
+                    <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+                        <button class="btn-primary btn-small" onclick="downloadInventoryImportTemplate()">📥 Download Template</button>
+                        <input type="file" id="inventory-import-upload" accept=".xlsx,.xls" style="display:none" onchange="handleInventoryImport(event)">
+                        <button class="btn-success btn-small" onclick="document.getElementById('inventory-import-upload').click()">📤 Upload Excel</button>
+                    </div>
+                    <div style="font-size:.75em;color:#334155;margin-top:7px;">Format: Nama Artikel, Brand, Kondisi, Target Qty Produksi, Tgl Masuk, lalu kolom size.</div>
+                </div>
 
                 <h3 style="margin-top:30px; border-top: 1px solid #eee; padding-top:20px;">Riwayat Stok Gudang</h3>
                 <div class="header-actions">
@@ -642,6 +662,9 @@
                 <button class="tab-btn" id="tab-sales-sudah" onclick="switchSalesTab('sudah')">Riwayat Terdistribusi</button>
                 <button class="tab-btn" id="tab-sales-mitra" onclick="switchSalesTab('mitra')">⚙️ Kelola Mitra</button>
                 <button class="tab-btn" id="tab-sales-request" onclick="switchSalesTab('request')">📝 Permintaan Khusus</button>
+                <button class="tab-btn" id="tab-sales-profile" onclick="switchSalesTab('profile')">👤 Profil Mitra</button>
+                <button class="tab-btn" id="tab-sales-forms" onclick="switchSalesTab('forms')">🖊️ Form Order Terbit</button>
+                <button class="tab-btn hidden" id="tab-sales-leader" onclick="switchSalesTab('leader')">📊 Dashboard Leader</button>
             </div>
 
             <!-- VIEW: STOK / ALOKASI (BELUM & SUDAH) -->
@@ -702,7 +725,11 @@
                     <div class="size-grid" id="req-size-container" style="margin-top:10px;">
                         <div class="notif-empty" style="grid-column: 1/-1;">Pilih artikel terlebih dahulu.</div>
                     </div>
-                    <button class="btn-success" onclick="saveMitraRequest()" style="margin-top:15px;">Simpan Permintaan Manual</button>
+                    <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:15px;">
+                        <button class="btn-success" onclick="saveMitraRequest()">Simpan Permintaan Final</button>
+                        <button class="btn-warning" onclick="saveMitraRequestDraft()">💾 Simpan Draft</button>
+                        <button class="btn-dark" onclick="loadMitraRequestDraft()">📂 Muat Draft</button>
+                    </div>
                 </div>
 
                 <div class="header-actions">
@@ -722,6 +749,47 @@
             </div>
 
             <!-- VIEW: MANAJEMEN MITRA -->
+            <div id="sales-view-forms" class="hidden">
+                <div class="header-actions">
+                    <div class="filter-bar">
+                        <input type="text" id="sales-form-filter-cari" placeholder="Cari No. Form / Mitra..." oninput="loadSalesOrderFormHistory()">
+                        <select id="sales-form-filter-status" onchange="loadSalesOrderFormHistory()"><option value="issued">Diterbitkan</option><option value="ALL">Semua Status</option><option value="void">Dibatalkan</option></select>
+                    </div>
+                    <button class="btn-success" onclick="exportExcel('alokasi')">📥 Download Riwayat Distribusi</button>
+                </div>
+                <div class="table-container"><table id="sales-form-table"><thead><tr><th>No. Form</th><th>Mitra</th><th>Tanggal</th><th>Jumlah Item</th><th>Qty</th><th>Status</th><th>Aksi</th></tr></thead><tbody></tbody></table></div>
+            </div>
+
+            <div id="sales-view-profile" class="hidden">
+                <div class="profile-card">
+                    <div class="form-row">
+                        <div class="form-group" style="margin-bottom:0; flex:2;"><label>Pilih Mitra</label><select id="sales-profile-mitra" onchange="loadSalesMitraProfile()"><option value="">-- Pilih Mitra --</option></select></div>
+                        <div class="form-group" style="margin-bottom:0; flex:1;"><label>Cari Mitra</label><input id="sales-profile-search" placeholder="Nama/lokasi" oninput="populateSalesProfileMitra()"></div>
+                    </div>
+                </div>
+                <div id="sales-profile-result" class="notif-empty">Pilih Mitra untuk melihat ringkasan request, alokasi, dan Form Order.</div>
+            </div>
+
+            <div id="sales-view-leader" class="hidden">
+                <div style="background:linear-gradient(135deg,#4c1d95,#7e22ce); color:#fff; padding:18px 20px; border-radius:12px; margin-bottom:18px;">
+                    <div style="font-size:0.78em; letter-spacing:.08em; font-weight:700; opacity:.85;">LEADER / SPV</div>
+                    <h3 style="margin:4px 0 4px;">Dashboard Monitoring Sales</h3>
+                    <div style="opacity:.9; font-size:.9em;">Pantau permintaan, alokasi, realisasi distribusi, dan pengelolaan mitra tim.</div>
+                </div>
+                <div class="leader-grid" id="leader-kpis">
+                <div class="profile-card">
+                    <div class="form-row">
+                        <div class="form-group"><label>Periode Dari</label><input type="date" id="leader-filter-from" onchange="loadLeaderDashboard()"></div>
+                        <div class="form-group"><label>Periode Sampai</label><input type="date" id="leader-filter-to" onchange="loadLeaderDashboard()"></div>
+                        <div class="form-group"><label>Brand</label><select id="leader-filter-brand" onchange="loadLeaderDashboard()"><option value="ALL">Semua</option><option value="ZS">ZS</option><option value="SHI">SHI</option></select></div>
+                    </div>
+                </div>
+                <h3 style="margin-top:20px;">Performa Sales</h3>
+                <div class="table-container"><table id="leader-staff-table"><thead><tr><th>Sales</th><th>Request</th><th>Mitra</th><th>Alokasi</th><th>Request Terpenuhi</th><th>Sudah Terbit</th></tr></thead><tbody></tbody></table></div>
+                <h3 style="margin-top:20px;">Reassign Mitra</h3>
+                <div class="table-container"><table id="leader-mitra-table"><thead><tr><th>Mitra</th><th>Brand</th><th>Lokasi</th><th>Sales Owner</th><th>Aksi</th></tr></thead><tbody></tbody></table></div>
+            </div>
+
             <div id="sales-view-mitra" class="hidden">
                 <div style="background:#f8fafc; padding:20px; border-radius:8px; border:1px solid var(--border); margin-bottom:20px;">
                     <h3 style="margin-bottom: 15px; font-size:1.1em;">Tambah Mitra Baru</h3>
@@ -874,6 +942,8 @@
 
 <!-- PREVIEW IMPORT REQUEST -->
 <div id="modal-request-preview" class="modal-overlay hidden"><div class="modal-content fade-in" style="max-width:1050px;"><div class="flex-header"><h3 style="margin:0;">Preview Import Permintaan Mitra</h3><button class="btn-dark btn-small" onclick="closeRequestPreview()">Tutup</button></div><div id="req-preview-summary" class="log-summary" style="margin-bottom:12px;"></div><div class="table-container" style="max-height:55vh;overflow:auto;"><table class="preview-table" id="req-preview-table"><thead></thead><tbody></tbody></table></div><div id="req-preview-errors" style="margin-top:12px;"></div><div style="display:flex;gap:10px;justify-content:flex-end;margin-top:15px;"><button class="btn-dark" onclick="closeRequestPreview()">Batal</button><button class="btn-success" id="btn-confirm-req-import" onclick="confirmRequestImport()">✅ Simpan ke Sistem</button></div></div></div>
+<!-- PREVIEW IMPORT BARANG MASUK -->
+<div id="modal-inventory-import-preview" class="modal-overlay hidden"><div class="modal-content fade-in" style="max-width:1100px;"><div class="flex-header"><h3 style="margin:0;">Preview Import Barang Masuk</h3><button class="btn-dark btn-small" onclick="closeInventoryImportPreview()">Tutup</button></div><div id="inventory-import-summary" class="log-summary" style="margin-bottom:12px;"></div><div class="table-container" style="max-height:55vh;overflow:auto;"><table class="preview-table" id="inventory-import-preview-table"><thead></thead><tbody></tbody></table></div><div id="inventory-import-errors" style="margin-top:12px;"></div><div style="display:flex;gap:10px;justify-content:flex-end;margin-top:15px;"><button class="btn-dark" onclick="closeInventoryImportPreview()">Batal</button><button class="btn-success" id="btn-confirm-inventory-import" onclick="confirmInventoryImport()">✅ Simpan ke Sistem</button></div></div></div>
 <!-- LOG DETAIL -->
 <div id="modal-log-detail" class="modal-overlay hidden"><div class="modal-content fade-in" style="max-width:850px;"><div class="flex-header"><h3 id="log-detail-title" style="margin:0;">Detail Audit Log</h3><button class="btn-dark btn-small" onclick="document.getElementById('modal-log-detail').classList.add('hidden')">Tutup</button></div><div id="log-detail-meta" class="log-summary" style="margin-bottom:12px;"></div><div class="log-detail-grid"><div><h4>Before</h4><pre id="log-detail-before" class="log-json">-</pre></div><div><h4>After</h4><pre id="log-detail-after" class="log-json">-</pre></div></div></div></div>
 
@@ -915,6 +985,7 @@
 
     let _settings = { lowStockThreshold: 5, nearTargetPercent: 90, sizes: globalSizes.slice() };
     let _pendingRequestImport = null;
+    let _pendingInventoryImport = null;
     let monthlyStockChart = null;
     let topMitraChart = null;
 
@@ -963,9 +1034,10 @@
         }
         if(!document.getElementById('sales-section').classList.contains('hidden')) {
             if(!document.getElementById('sales-view-data').classList.contains('hidden')) loadSalesData();
-            if(!document.getElementById('sales-view-request').classList.contains('hidden')) {
-                populateReqItemSelect(); loadSalesRequestData();
-            }
+            if(!document.getElementById('sales-view-request').classList.contains('hidden')) { populateReqItemSelect(); loadSalesRequestData(); }
+            if(!document.getElementById('sales-view-forms').classList.contains('hidden')) loadSalesOrderFormHistory();
+            if(!document.getElementById('sales-view-profile').classList.contains('hidden')) { populateSalesProfileMitra(); loadSalesMitraProfile(); }
+            if(!document.getElementById('sales-view-leader').classList.contains('hidden')) loadLeaderDashboard();
         }
         computeNotifications();
     });
@@ -986,6 +1058,9 @@
         if(!document.getElementById('gudang-section').classList.contains('hidden') && !document.getElementById('gudang-view-form').classList.contains('hidden')) { loadOrderFormHistory(); onFormOrderMitraChange(); }
         if(!document.getElementById('admin-section').classList.contains('hidden')) {
             const v = document.getElementById('admin-view-orderform'); if(v && !v.classList.contains('hidden')) loadAdminOrderFormData();
+        }
+        if(!document.getElementById('sales-section').classList.contains('hidden')) {
+            const sv=document.getElementById('sales-view-forms'); if(sv && !sv.classList.contains('hidden')) loadSalesOrderFormHistory();
         }
     });
 
@@ -1166,14 +1241,30 @@
         if(query.length < 2) { resBox.classList.add('hidden'); return; }
         let html = '';
         
-        _inventory.forEach(i => { if(i.name.toLowerCase().includes(query)) html += `<div class="gs-item" onclick="alert('Ini adalah Artikel Stok. Gunakan filter di tabel untuk mencarinya.')">📦 Artikel: <strong>${i.name}</strong> <span style="color:#888; font-size:0.85em;">(${i.brand})</span></div>`; });
-        _mitras.forEach(m => { if(m.name.toLowerCase().includes(query) || (m.loc||'').toLowerCase().includes(query)) html += `<div class="gs-item" onclick="alert('Ini adalah Mitra. Cari di tab Mitra.')">🤝 Mitra: <strong>${m.name}</strong> <span style="color:#888; font-size:0.85em;">(${m.loc})</span></div>`; });
-        _orderForms.forEach(f => { if(f.formNo.toLowerCase().includes(query) || f.mitraName.toLowerCase().includes(query)) html += `<div class="gs-item" onclick="alert('Gudang/Admin bisa melihat form ini di tab Riwayat Form Order.')">📄 Form Order: <strong>${f.formNo}</strong> <span style="color:#888; font-size:0.85em;">(Mitra: ${f.mitraName})</span></div>`; });
+        _inventory.forEach(i => { if(i.name.toLowerCase().includes(query)) html += `<div class="gs-item" onclick="navigateGlobalSearch('inventory','${i.id}')">📦 Artikel: <strong>${i.name}</strong> <span style="color:#888; font-size:0.85em;">(${i.brand})</span></div>`; });
+        _mitras.forEach(m => { if(m.name.toLowerCase().includes(query) || (m.loc||'').toLowerCase().includes(query)) html += `<div class="gs-item" onclick="navigateGlobalSearch('mitra','${m.id}')">🤝 Mitra: <strong>${m.name}</strong> <span style="color:#888; font-size:0.85em;">(${m.loc})</span></div>`; });
+        _orderForms.forEach(f => { if((f.formNo||'').toLowerCase().includes(query) || (f.mitraName||'').toLowerCase().includes(query)) html += `<div class="gs-item" onclick="navigateGlobalSearch('form','${f.id}')">📄 Form Order: <strong>${f.formNo}</strong> <span style="color:#888; font-size:0.85em;">(Mitra: ${f.mitraName})</span></div>`; });
         
         if(html === '') html = '<div class="gs-item" style="color:#888; text-align:center;">Tidak ada hasil...</div>';
         resBox.innerHTML = html;
         resBox.classList.remove('hidden');
     }
+    function navigateGlobalSearch(type, id) {
+        document.getElementById('global-search-results').classList.add('hidden');
+        if(type === 'inventory') {
+            if(currentUserRole === 'gudang') { switchGudangTab('input'); const i=_inventory.find(x=>x.id===id); if(i){ document.getElementById('gudang-filter-nama').value=i.name; loadGudangData(); } }
+            else { switchSalesTab('belum'); const i=_inventory.find(x=>x.id===id); if(i){ document.getElementById('sales-filter-nama').value=i.name; loadSalesData(); } }
+        } else if(type === 'mitra') {
+            if(currentUserRole === 'gudang') { switchGudangTab('request'); const m=_mitras.find(x=>x.id===id); if(m){ document.getElementById('gudang-req-filter-mitra').value=id; loadGudangRequestData(); } }
+            else if(currentUserRole === 'admin') { switchAdminTab('mitra'); }
+            else { switchSalesTab('profile'); const sel=document.getElementById('sales-profile-mitra'); if(sel){ sel.value=id; loadSalesMitraProfile(); } }
+        } else if(type === 'form') {
+            if(currentUserRole === 'gudang') { switchGudangTab('form'); const f=_orderForms.find(x=>x.id===id); if(f){ document.getElementById('orderform-filter-cari').value=f.formNo; loadOrderFormHistory(); } }
+            else if(currentUserRole === 'admin') { switchAdminTab('orderform'); const f=_orderForms.find(x=>x.id===id); if(f){ document.getElementById('admin-orderform-filter-cari').value=f.formNo; loadAdminOrderFormData(); } }
+            else { switchSalesTab('forms'); const f=_orderForms.find(x=>x.id===id); if(f){ document.getElementById('sales-form-filter-cari').value=f.formNo; loadSalesOrderFormHistory(); } }
+        }
+    }
+
     document.addEventListener('click', function(e) {
         const wrap = document.getElementById('nav-search-wrap');
         if(wrap && !wrap.contains(e.target)) document.getElementById('global-search-results').classList.add('hidden');
@@ -1215,9 +1306,22 @@
     }
     function toggleSizeInput(prefix, sid) { const input = document.getElementById(`${prefix}qty-${sid}`); input.classList.toggle('hidden'); if(input.classList.contains('hidden')) input.value = ''; }
     function addCustomSize(ctx) {
-        let inputEl = document.getElementById(ctx === 'main' ? 'custom-size-input' : 'edit-batch-custom-size-input');
+        const isEdit = ctx === 'edit';
+        const containerId = isEdit ? 'edit-batch-size-container' : 'size-container';
+        const prefix = isEdit ? 'edit-batch-' : '';
+        let inputEl = document.getElementById(isEdit ? 'edit-batch-custom-size-input' : 'custom-size-input');
+        if(!inputEl) return;
         const val = inputEl.value.trim();
-        if(val && !globalSizes.includes(val)) { globalSizes.push(val); renderSizeCheckboxes('size-container', ''); }
+        if(val && !globalSizes.includes(val)) {
+            const previous = {};
+            globalSizes.forEach(size => {
+                const sid = safeId(size); const chk = document.getElementById(`${prefix}chk-${sid}`); const qty = document.getElementById(`${prefix}qty-${sid}`);
+                if(chk) previous[size] = {checked:chk.checked, qty:qty ? qty.value : ''};
+            });
+            globalSizes.push(val);
+            renderSizeCheckboxes(containerId, prefix);
+            Object.entries(previous).forEach(([size,state])=>{const sid=safeId(size);const chk=document.getElementById(`${prefix}chk-${sid}`);const qty=document.getElementById(`${prefix}qty-${sid}`);if(chk){chk.checked=state.checked;if(state.checked){qty.classList.remove('hidden');qty.value=state.qty||'';}}});
+        }
         inputEl.value = '';
     }
     renderSizeCheckboxes('size-container', '');
@@ -1254,19 +1358,29 @@
         } else { document.getElementById('login-msg').innerText = 'Username/password salah!'; }
     }
 
+    function isSalesLeaderRole(role) {
+        return role === 'sales_leader' || role === 'leader';
+    }
+
     function routeUser(role) {
         if (role === 'admin') { document.getElementById('admin-section').classList.remove('hidden'); loadAdminDashboard(); }
         else if (role === 'gudang') { document.getElementById('gudang-section').classList.remove('hidden'); loadGudangData(); } 
         else { 
             document.getElementById('sales-section').classList.remove('hidden'); 
             let badgeRole = 'STAFF';
-            if (role === 'sales_leader') badgeRole = 'LEADER / SPV';
+            if (isSalesLeaderRole(role)) badgeRole = 'LEADER / SPV';
             else if (role === 'sales_staff_zs') badgeRole = 'STAFF (KHUSUS ZS)';
             else if (role === 'sales_staff_shi') badgeRole = 'STAFF (KHUSUS SHI)';
 
             document.getElementById('sales-role-badge').innerText = badgeRole;
-            document.getElementById('sales-role-badge').style.backgroundColor = role === 'sales_leader' ? '#6b21a8' : '#0f172a';
-            loadSalesData(); 
+            document.getElementById('sales-role-badge').style.backgroundColor = isSalesLeaderRole(role) ? '#6b21a8' : '#0f172a';
+            const leaderTab = document.getElementById('tab-sales-leader');
+            if (leaderTab) leaderTab.classList.toggle('hidden', !isSalesLeaderRole(role));
+            if (isSalesLeaderRole(role)) {
+                switchSalesTab('leader');
+            } else {
+                switchSalesTab('belum');
+            }
         }
     }
 
@@ -1541,7 +1655,8 @@
         let name = document.getElementById('itemName').value.trim().toLowerCase();
         let existing = _inventory.find(i => i.name.toLowerCase() === name);
         if(existing) {
-            document.getElementById('itemQtyProduksi').value = existing.qtyProduksi;
+            const targetEl = document.getElementById('itemQtyProduksi');
+            if(!targetEl.value) targetEl.value = existing.qtyProduksi;
             document.getElementById('itemBrand').value = existing.brand;
         }
     }
@@ -1585,6 +1700,10 @@
         if (existingItem) {
             let updateData = { history: existingItem.history || [], details: existingItem.details };
             updateData.history.push({ entryId: Date.now(), date: dateStr, added: inputDetails.map(d=>({size: d.size, qty: d.totalQty})) });
+            if(qtyProduksi > 0 && qtyProduksi !== (parseInt(existingItem.qtyProduksi)||0)) {
+                const ok = confirm(`Target Qty Produksi sebelumnya ${existingItem.qtyProduksi} pcs.\n\nAnda mengisi ${qtyProduksi} pcs. Ubah target produksi?`);
+                if(!ok) return;
+            }
             if(qtyProduksi > 0) updateData.qtyProduksi = qtyProduksi; 
             inputDetails.forEach(newD => { let existD = updateData.details.find(d => d.size === newD.size); if(existD) { existD.totalQty += newD.totalQty; if(existD.allocationStatus === 'approved') existD.allocationStatus = 'none'; } else { updateData.details.push(newD); } });
             const beforeDetails = JSON.parse(JSON.stringify(existingItem.details || []));
@@ -2003,7 +2122,20 @@
         }
     }
 
-    function terbitkanFormOrder() {
+    async function reserveFormNumbers(count) {
+        const dateKey = getTodayLocalISO().replace(/-/g,'');
+        const ref = db.collection('counters').doc('orderform_'+dateKey);
+        return await db.runTransaction(async tx => {
+            const snap = await tx.get(ref);
+            const current = snap.exists ? safeCounterInt(snap.data().lastSeq) : 0;
+            const start = current + 1;
+            tx.set(ref,{lastSeq:current+count,updatedAtLocal:Date.now(),updatedBy:currentUser||'Guest'},{merge:true});
+            return Array.from({length:count},(_,i)=>`FO-${dateKey}-${String(start+i).padStart(3,'0')}`);
+        });
+    }
+    function safeCounterInt(v){ return Math.max(0,parseInt(v,10)||0); }
+
+    async function terbitkanFormOrder() {
         try {
             const checkedBoxes = [...document.querySelectorAll('#order-mitra-checklist input[type="checkbox"]:checked')];
             const gudangName = document.getElementById('order-gudang-name').value.trim();
@@ -2030,12 +2162,14 @@
                 });
                 if(items.length === 0) return;
                 formsToIssue.push({
-                    formNo: `FO-${getTodayLocalISO().replace(/-/g,'')}-${String(_orderForms.length + formsToIssue.length + 1).padStart(3,'0')}`,
+                    formNo: '', 
                     mitraId: mitra.id, mitraName: mitra.name, mitraLoc: mitra.loc, brand: mitra.brand,
                     date: dateVal, items, gudangName, notes, status:'issued', createdBy: currentUser || 'Guest', createdAtLocal: Date.now()+formsToIssue.length, timestamp: firebase.firestore.FieldValue.serverTimestamp()
                 });
             });
             if(formsToIssue.length === 0) return alert('Tidak ada alokasi/batch yang dipilih untuk diterbitkan.');
+            const reservedFormNos = await reserveFormNumbers(formsToIssue.length);
+            formsToIssue.forEach((fd,idx)=>fd.formNo=reservedFormNos[idx]);
 
             if(window.jspdf) generateMultiOrderFormPDF(formsToIssue);
             downloadMultiOrderFormExcelXML(formsToIssue);
@@ -2276,29 +2410,19 @@
     // ================= BAGIAN SALES =================
     
     function switchSalesTab(tab) {
+        if(tab==='leader' && !isSalesLeaderRole(currentUserRole)) tab='belum';
         activeSalesTab = tab;
-        document.getElementById('tab-sales-belum').classList.toggle('active', tab === 'belum'); 
-        document.getElementById('tab-sales-sudah').classList.toggle('active', tab === 'sudah'); 
-        document.getElementById('tab-sales-mitra').classList.toggle('active', tab === 'mitra');
-        document.getElementById('tab-sales-request').classList.toggle('active', tab === 'request');
-
-        document.getElementById('sales-view-data').classList.add('hidden');
-        document.getElementById('sales-view-mitra').classList.add('hidden');
-        document.getElementById('sales-view-request').classList.add('hidden');
-
-        if (tab === 'mitra') { 
-            document.getElementById('sales-view-mitra').classList.remove('hidden'); loadMitraData(); 
-        } else if (tab === 'request') {
-            document.getElementById('sales-view-request').classList.remove('hidden'); 
-            populateReqItemSelect();
-            loadSalesRequestData();
-        } else { 
-            document.getElementById('sales-view-data').classList.remove('hidden'); 
-            loadSalesData(); 
-            let btnEx = document.getElementById('btn-export-sales');
-            btnEx.innerText = tab === 'belum' ? "📥 Download Laporan Sisa Stok" : "📥 Download Laporan Alokasi Approved"; 
-            btnEx.onclick = () => exportExcel(tab === 'belum' ? 'sales_belum' : 'alokasi'); 
-        }
+        ['belum','sudah','mitra','request','profile','forms','leader'].forEach(t=>{const b=document.getElementById(`tab-sales-${t}`);if(b)b.classList.toggle('active',tab===t);});
+        const leaderTab=document.getElementById('tab-sales-leader');
+        if(leaderTab) leaderTab.classList.toggle('hidden', !isSalesLeaderRole(currentUserRole));
+        if(tab==='leader' && !isSalesLeaderRole(currentUserRole)) tab='belum';
+        ['sales-view-data','sales-view-mitra','sales-view-request','sales-view-profile','sales-view-forms','sales-view-leader'].forEach(id=>{const el=document.getElementById(id);if(el)el.classList.add('hidden');});
+        if(tab==='request'){document.getElementById('sales-view-request').classList.remove('hidden');populateReqItemSelect();loadSalesRequestData();}
+        else if(tab==='mitra'){document.getElementById('sales-view-mitra').classList.remove('hidden');loadMitraData();}
+        else if(tab==='profile'){document.getElementById('sales-view-profile').classList.remove('hidden');populateSalesProfileMitra();loadSalesMitraProfile();}
+        else if(tab==='forms'){document.getElementById('sales-view-forms').classList.remove('hidden');loadSalesOrderFormHistory();}
+        else if(tab==='leader'){document.getElementById('sales-view-leader').classList.remove('hidden');loadLeaderDashboard();}
+        else {document.getElementById('sales-view-data').classList.remove('hidden');loadSalesData();let btnEx=document.getElementById('btn-export-sales');if(btnEx){btnEx.innerText=tab==='belum'?"📥 Download Laporan Sisa Stok":"📥 Download Laporan Alokasi Approved";btnEx.onclick=()=>exportExcel(tab==='belum'?'sales_belum':'alokasi');}}
     }
 
     // LOGIKA BARU: Tampilan Data Sales Digabung per Nama + Desain List Sejajar (Khusus Distribusi Mitra)
@@ -2310,6 +2434,7 @@
             if(fName !== '' && !i.name.toLowerCase().includes(fName)) return false;
             if(currentUserRole === 'sales_staff_zs' && i.brand !== 'ZS') return false;
             if(currentUserRole === 'sales_staff_shi' && i.brand !== 'SHI') return false;
+            if(isSalesLeaderRole(currentUserRole)) { /* Leader dapat melihat ZS dan SHI */ }
             return true;
         });
         
@@ -2812,7 +2937,9 @@
                 const val = parseInt(inputEl.value) || 0;
                 if(!d.requested) d.requested = { mitra: {} };
                 if(!d.requested.mitra) d.requested.mitra = {};
-                d.requested.mitra[mitraId] = val; 
+                d.requested.mitra[mitraId] = val;
+                d.requestMeta = d.requestMeta || {};
+                d.requestMeta[mitraId] = { updatedAtLocal: Date.now(), updatedBy: currentUser || 'Guest' };
                 hasInput = true;
             }
         });
@@ -2822,6 +2949,7 @@
         const beforeDetails=JSON.parse(JSON.stringify((_inventory.find(i=>i.id===itemId)||{}).details||[])); db.collection("inventory").doc(itemId).update({details:item.details}).then(()=>{
             logActivity('Input Permintaan Mitra',`Merubah permintaan khusus mitra pada artikel ${item.name}`,beforeDetails,item.details,{type:'request_manual'});
             alert('Permintaan berhasil disimpan!');
+            localStorage.removeItem(draftStorageKey());
             document.getElementById('req-item-select').value = '';
             document.getElementById('req-mitra-select').value = '';
             document.getElementById('req-size-container').innerHTML = '<div class="notif-empty" style="grid-column: 1/-1;">Pilih artikel terlebih dahulu.</div>';
@@ -2904,6 +3032,57 @@
             logActivity('Hapus Permintaan Mitra', `Menghapus request mitra pada artikel: ${item.name}`);
         });
     }
+
+    // ================= FITUR SALES TAMBAHAN =================
+    function draftStorageKey(){ return `mitra-request-draft:${currentUser||'guest'}`; }
+    function saveMitraRequestDraft(){
+        const itemId=document.getElementById('req-item-select').value, mitraId=document.getElementById('req-mitra-select').value;
+        if(!itemId||!mitraId) return alert('Pilih Artikel dan Mitra untuk menyimpan draft.');
+        const item=_inventory.find(i=>i.id===itemId); if(!item) return;
+        const values={}; (item.details||[]).forEach(d=>{const el=document.getElementById(`req-input-${safeId(d.size)}`); if(el && el.value!=='') values[d.size]=parseInt(el.value,10)||0;});
+        localStorage.setItem(draftStorageKey(),JSON.stringify({itemId,mitraId,values,savedAt:Date.now()})); alert('Draft permintaan tersimpan di perangkat ini.');
+    }
+    function loadMitraRequestDraft(){
+        const raw=localStorage.getItem(draftStorageKey()); if(!raw) return alert('Belum ada draft permintaan di perangkat ini.');
+        try{ const d=JSON.parse(raw); document.getElementById('req-item-select').value=d.itemId||''; populateReqItemSelect(); document.getElementById('req-item-select').value=d.itemId||''; onReqItemChange(); document.getElementById('req-mitra-select').value=d.mitraId||''; Object.entries(d.values||{}).forEach(([size,qty])=>{const el=document.getElementById(`req-input-${safeId(size)}`); if(el)el.value=qty;}); }catch(e){alert('Draft tidak dapat dimuat.');}
+    }
+
+    function populateSalesProfileMitra(){
+        const sel=document.getElementById('sales-profile-mitra'); if(!sel) return;
+        const q=(document.getElementById('sales-profile-search')?.value||'').toLowerCase(); const current=sel.value;
+        const allowed=_mitras.filter(m=>(!q || m.name.toLowerCase().includes(q)||(m.loc||'').toLowerCase().includes(q)) && (currentUserRole==='sales_staff_zs' ? ['ZS','BOTH'].includes(m.brand) : currentUserRole==='sales_staff_shi' ? ['SHI','BOTH'].includes(m.brand) : true));
+        sel.innerHTML='<option value="">-- Pilih Mitra --</option>'+allowed.map(m=>`<option value="${m.id}">${m.name} (${m.loc||'-'})</option>`).join(''); if(allowed.some(m=>m.id===current)) sel.value=current;
+    }
+    function loadSalesMitraProfile(){
+        const id=document.getElementById('sales-profile-mitra')?.value, box=document.getElementById('sales-profile-result'); if(!box)return; if(!id){box.innerHTML='<div class="notif-empty">Pilih Mitra untuk melihat ringkasan request, alokasi, dan Form Order.</div>';return;}
+        const m=_mitras.find(x=>x.id===id); if(!m)return;
+        const rows=[], formRows=[]; let req=0,alloc=0,issued=0;
+        _inventory.forEach(item=>(item.details||[]).forEach(d=>{const r=safeInt(d.requested?.mitra?.[id]),a=safeInt(d.allocated?.mitra?.[id]),i=safeInt(d.issued?.mitra?.[id]);if(r+a+i){req+=r;alloc+=a;issued+=i;rows.push([item.name,item.brand,item.condition,d.size,r,a,i]);}}));
+        _orderForms.filter(f=>f.mitraId===id).sort((a,b)=>(b.createdAtLocal||0)-(a.createdAtLocal||0)).forEach(f=>formRows.push(f));
+        const pct=req>0?Math.min(100,Math.round(alloc/req*100)):0;
+        box.innerHTML=`<div class="profile-card"><h3 style="margin-top:0">${m.name}</h3><div>${m.loc||'-'} • ${m.brand||'-'} ${m.salesOwner?`• Sales Owner: <b>${m.salesOwner}</b>`:''}</div><div class="leader-grid" style="margin-top:14px"><div class="leader-kpi"><div class="label">Total Permintaan</div><div class="value">${req}</div></div><div class="leader-kpi"><div class="label">Total Alokasi</div><div class="value">${alloc}</div></div><div class="leader-kpi"><div class="label">Terpenuhi</div><div class="value">${pct}%</div></div><div class="leader-kpi"><div class="label">Sudah Terbit</div><div class="value">${issued}</div></div></div></div>`+
+        `<h4>Detail Artikel / Size</h4><div class="table-container"><table><thead><tr><th>Artikel</th><th>Brand</th><th>Kondisi</th><th>Size</th><th>Request</th><th>Alokasi</th><th>Terbit</th></tr></thead><tbody>${rows.map(r=>`<tr>${r.map((x,idx)=>`<td${idx>=4?' style="text-align:center"':''}>${x}</td>`).join('')}</tr>`).join('')||'<tr><td colspan="7">Belum ada data.</td></tr>'}</tbody></table></div>`+
+        `<h4 style="margin-top:20px">Riwayat Form Order</h4><div class="table-container"><table><thead><tr><th>No. Form</th><th>Tanggal</th><th>Qty</th><th>Status</th></tr></thead><tbody>${formRows.map(f=>`<tr><td>${f.formNo}</td><td>${formatDateDisplay(f.date)}</td><td>${(f.items||[]).reduce((s,x)=>s+safeInt(x.qty),0)}</td><td>${f.status}</td></tr>`).join('')||'<tr><td colspan="4">Belum ada Form Order.</td></tr>'}</tbody></table></div>`;
+    }
+
+    function loadSalesOrderFormHistory(){
+        const tbody=document.querySelector('#sales-form-table tbody'); if(!tbody)return; const q=(document.getElementById('sales-form-filter-cari')?.value||'').toLowerCase(), st=document.getElementById('sales-form-filter-status')?.value||'issued';
+        let list=_orderForms.filter(f=>{if(st!=='ALL'&&f.status!==st)return false;if(currentUserRole==='sales_staff_zs'&&f.brand!=='ZS')return false;if(currentUserRole==='sales_staff_shi'&&f.brand!=='SHI')return false;return !q||(f.formNo||'').toLowerCase().includes(q)||(f.mitraName||'').toLowerCase().includes(q);}).sort((a,b)=>(b.createdAtLocal||0)-(a.createdAtLocal||0));
+        tbody.innerHTML=list.map(f=>`<tr><td><b>${f.formNo}</b></td><td>${f.mitraName}</td><td>${formatDateDisplay(f.date)}</td><td>${(f.items||[]).length}</td><td>${(f.items||[]).reduce((s,x)=>s+safeInt(x.qty),0)}</td><td>${f.status==='void'?'<span class="status-void">Dibatalkan</span>':'<span class="status-issued">Diterbitkan</span>'}</td><td><button class="btn-primary btn-small" onclick="generateOrderFormPDF(_orderForms.find(x=>x.id==='${f.id}'))">📄 PDF</button></td></tr>`).join('')||'<tr><td colspan="7" class="notif-empty">Belum ada Form Order.</td></tr>';
+    }
+
+    function loadLeaderDashboard(){
+        if(!isSalesLeaderRole(currentUserRole))return;
+        const from=document.getElementById('leader-filter-from')?.value||'', to=document.getElementById('leader-filter-to')?.value||'', brand=document.getElementById('leader-filter-brand')?.value||'ALL';
+        const inRange=d=>{const x=String(d||'');return (!from||x>=from)&&(!to||x<=to);};
+        const staffMap={}; Object.entries(_users).filter(([u,d])=>['sales_staff_zs','sales_staff_shi','sales_leader','leader'].includes(d.role)).forEach(([u,d])=>staffMap[u]={user:u,name:d.name||u,request:0,mitra:new Set(),alloc:0,reqBase:0,issued:0});
+        let totalReq=0,totalAlloc=0,totalIssued=0,totalMitra=0; const activeMitra=new Set();
+        _inventory.forEach(item=>(item.details||[]).forEach(d=>{const itemBrand=item.brand||'';if(brand!=='ALL'&&itemBrand!==brand)return;const batches=getAllocationBatches(d).filter(b=>inRange(b.date)); const req=d.requested?.mitra||{}; Object.entries(req).forEach(([mid,v])=>{const m=_mitras.find(x=>x.id===mid); if(m&&(brand==='ALL'||m.brand===brand||m.brand==='BOTH')){const owner=m.salesOwner; if(owner&&staffMap[owner]){staffMap[owner].request+=safeInt(v);staffMap[owner].mitra.add(mid);} totalReq+=safeInt(v);activeMitra.add(mid);}}); batches.forEach(b=>(b.items||[]).forEach(bi=>{if(bi.qty<=0)return;totalAlloc+=safeInt(bi.qty);const m=_mitras.find(x=>x.id===bi.mitraId);if(m&&m.salesOwner&&staffMap[m.salesOwner])staffMap[m.salesOwner].alloc+=safeInt(bi.qty);})); Object.entries(d.issued?.mitra||{}).forEach(([mid,v])=>{const m=_mitras.find(x=>x.id===mid);if(m&&m.salesOwner&&staffMap[m.salesOwner])staffMap[m.salesOwner].issued+=safeInt(v);totalIssued+=safeInt(v);});}));
+        totalMitra=activeMitra.size; document.getElementById('leader-kpis').innerHTML=`<div class="leader-kpi"><div class="label">Request</div><div class="value">${totalReq}</div></div><div class="leader-kpi"><div class="label">Alokasi</div><div class="value">${totalAlloc}</div></div><div class="leader-kpi"><div class="label">% Terpenuhi</div><div class="value">${totalReq?Math.min(100,Math.round(totalAlloc/totalReq*100)):0}%</div></div><div class="leader-kpi"><div class="label">Sudah Terbit</div><div class="value">${totalIssued}</div></div><div class="leader-kpi"><div class="label">Mitra Aktif</div><div class="value">${totalMitra}</div></div>`;
+        const staffT=document.querySelector('#leader-staff-table tbody'); if(staffT)staffT.innerHTML=Object.values(staffMap).filter(x=>x.request||x.alloc||x.issued).sort((a,b)=>b.alloc-a.alloc).map(x=>`<tr><td><b>${x.name}</b></td><td>${x.request}</td><td>${x.mitra.size}</td><td>${x.alloc}</td><td>${x.request?Math.min(100,Math.round(x.alloc/x.request*100)):0}%</td><td>${x.issued}</td></tr>`).join('')||'<tr><td colspan="6">Belum ada data pada periode ini.</td></tr>';
+        const mt=document.querySelector('#leader-mitra-table tbody'); if(mt){const sales=Object.entries(_users).filter(([u,d])=>['sales_staff_zs','sales_staff_shi','sales_leader','leader'].includes(d.role));mt.innerHTML=_mitras.filter(m=>brand==='ALL'||m.brand===brand||m.brand==='BOTH').sort((a,b)=>a.name.localeCompare(b.name)).map(m=>{const opts='<option value="">-- Belum ditugaskan --</option>'+sales.map(([u,d])=>`<option value="${u}" ${m.salesOwner===u?'selected':''}>${d.name||u}</option>`).join('');return `<tr><td><b>${m.name}</b></td><td>${m.brand}</td><td>${m.loc||'-'}</td><td>${m.salesOwner||'Belum ditugaskan'}</td><td><select onchange="reassignMitra('${m.id}',this.value)">${opts}</select></td></tr>`;}).join('');}
+    }
+    function reassignMitra(mitraId,user){const m=_mitras.find(x=>x.id===mitraId);if(!m)return;const before={salesOwner:m.salesOwner||null};db.collection('mitras').doc(mitraId).update({salesOwner:user||null,salesOwnerUpdatedAtLocal:Date.now(),salesOwnerUpdatedBy:currentUser||'Guest'}).then(()=>logActivity('Reassign Mitra',`Mitra ${m.name} dipindahkan ke sales ${user||'Belum ditugaskan'}`,before,{salesOwner:user||null},{type:'mitra_reassign'})).catch(e=>alert('Gagal reassign mitra: '+e.message));}
 
     // ================= EXPORT EXCEL & REPORT =================
     function exportExcelStyles() {
@@ -3185,17 +3364,21 @@
 
     function safeInt(v){ return Math.max(0, parseInt(v,10)||0); }
 
-    function generatePeriodicReport() {
+    function generatePeriodicReport(source) {
         if(!window.XLSX) return alert('Library Excel gagal dimuat. Coba refresh halaman.');
         const wb=XLSX.utils.book_new();
+        const from=document.getElementById(`periodic-from-${source||'admin'}`)?.value||'';
+        const to=document.getElementById(`periodic-to-${source||'admin'}`)?.value||'';
+        const inRange=v=>{const x=String(v||'');return (!from||x>=from)&&(!to||x<=to);};
+        const invFiltered=_inventory.map(i=>{const clone=JSON.parse(JSON.stringify(i));clone.history=(i.history||[]).filter(h=>inRange(h.date));return clone;}).filter(i=>(i.history||[]).length||(!from&&!to));
         const stokRows=[['Tanggal Masuk','Nama Artikel','Brand','Kondisi','Total Masuk (pcs)','Sisa di Gudang (Belum Dialokasi)']];
-        _inventory.forEach(i=>stokRows.push([getRawDates(i),i.name,i.brand,i.condition,getItemTotalMasuk(i),getItemAvailableStock(i)]));
+        invFiltered.forEach(i=>stokRows.push([getRawDates(i),i.name,i.brand,i.condition,getItemTotalMasuk(i),getItemAvailableStock(i)]));
         const wsStok=XLSX.utils.aoa_to_sheet(stokRows);
         const alokasiRows=[['Tanggal Alokasi','Nama Artikel','Brand','Size','Status Batch','Total Stok Size Ini','Nama Mitra','Qty Alokasi','Qty Sudah Terbit','Sisa Belum Terbit']];
-        _inventory.forEach(item=>(item.details||[]).forEach(d=>getAllocationBatches(d).forEach(batch=>(batch.items||[]).forEach(bi=>{ if(safeInt(bi.qty)<=0)return; const m=_mitras.find(x=>x.id===bi.mitraId); alokasiRows.push([batch.date||d.allocationDate||getRawDates(item),item.name,item.brand,d.size,batch.status||'',d.totalQty,m?m.name:'Mitra Terhapus',safeInt(bi.qty),safeInt(bi.issuedQty),Math.max(0,safeInt(bi.qty)-safeInt(bi.issuedQty))]); }))));
+        _inventory.forEach(item=>(item.details||[]).forEach(d=>getAllocationBatches(d).forEach(batch=>(batch.items||[]).forEach(bi=>{ const bdate=batch.date||d.allocationDate||getRawDates(item); if(!inRange(bdate))return; if(safeInt(bi.qty)<=0)return; const m=_mitras.find(x=>x.id===bi.mitraId); alokasiRows.push([bdate,item.name,item.brand,d.size,batch.status||'',d.totalQty,m?m.name:'Mitra Terhapus',safeInt(bi.qty),safeInt(bi.issuedQty),Math.max(0,safeInt(bi.qty)-safeInt(bi.issuedQty))]); }))));
         const wsAlloc=XLSX.utils.aoa_to_sheet(alokasiRows);
         const orderRows=[['No. Form','Tanggal','Mitra','Lokasi','Gudang Penyerah','Total Qty','Status']];
-        _orderForms.forEach(f=>orderRows.push([f.formNo,f.date,f.mitraName,f.mitraLoc,f.gudangName,(f.items||[]).reduce((s,i)=>s+safeInt(i.qty),0),String(f.status||'').toUpperCase()]));
+        _orderForms.filter(f=>inRange(f.date)).forEach(f=>orderRows.push([f.formNo,f.date,f.mitraName,f.mitraLoc,f.gudangName,(f.items||[]).reduce((s,i)=>s+safeInt(i.qty),0),String(f.status||'').toUpperCase()]));
         const wsOrders=XLSX.utils.aoa_to_sheet(orderRows);
         finalizeWorkbook(wb,[
             {name:'Ringkasan Stok',ws:wsStok,widths:[22,35,10,12,20,28],filter:`A1:F${Math.max(1,stokRows.length)}`,freeze:{xSplit:0,ySplit:1},centerCols:[0,2,3,4,5]},
@@ -3205,8 +3388,24 @@
         formatWorksheetNumbers(wsStok,1,stokRows.length-1,[4,5],'#,##0');
         formatWorksheetNumbers(wsAlloc,1,alokasiRows.length-1,[5,7,8,9],'#,##0');
         formatWorksheetNumbers(wsOrders,1,orderRows.length-1,[5],'#,##0');
-        downloadWorkbook(wb,`Laporan_Periodik_ZS_SHI_${getTodayLocalISO()}.xlsx`,`Laporan periodik berhasil didownload.`);
+        downloadWorkbook(wb,`Laporan_Periodik_ZS_SHI_${from||'ALL'}_${to||'ALL'}.xlsx`,`Laporan periodik berhasil didownload${from||to?` untuk periode ${from||'awal'} s/d ${to||'akhir'}`:''}.`);
     }
+
+    // ================= IMPORT MASSAL BARANG MASUK =================
+    function downloadInventoryImportTemplate(){
+        if(!window.XLSX)return alert('Library Excel belum dimuat.');
+        const headers=['Nama Artikel','Brand','Kondisi','Target Qty Produksi','Tgl Masuk',...globalSizes];
+        const rows=[headers,['Contoh Artikel','ZS','Oke','100',getTodayLocalISO(),...globalSizes.map(()=> ' ')]];
+        const ws=XLSX.utils.aoa_to_sheet(rows); finalizeWorkbook(XLSX.utils.book_new(),[]); // no-op safety
+        styleWorksheet(ws,{headerRow:0,centerCols:[1,2,3,4]}); ws['!cols']=headers.map((h,i)=>({wch:i<5?22:12})); ws['!freeze']={xSplit:0,ySplit:1}; ws['!autofilter']={ref:`A1:${XLSX.utils.encode_col(headers.length-1)}2`};
+        const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,'Template_Barang_Masuk'); downloadWorkbook(wb,'Template_Barang_Masuk_Massal.xlsx','Template import barang masuk berhasil didownload.');
+    }
+    function handleInventoryImport(event){
+        const file=event.target.files[0]; if(!file)return; if(!window.XLSX)return alert('Library Excel belum dimuat.');
+        const reader=new FileReader(); reader.onload=e=>{try{const wb=XLSX.read(new Uint8Array(e.target.result),{type:'array'}),ws=wb.Sheets[wb.SheetNames[0]],json=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});if(json.length<2)throw new Error('File kosong.');const headers=json[0].map(x=>String(x).trim()),norm=h=>h.toLowerCase();const idx={name:headers.findIndex(h=>norm(h)==='nama artikel'),brand:headers.findIndex(h=>norm(h)==='brand'),condition:headers.findIndex(h=>norm(h)==='kondisi'),target:headers.findIndex(h=>norm(h).includes('target qty')),date:headers.findIndex(h=>norm(h).includes('tgl masuk'))};if(idx.name<0||idx.brand<0||idx.condition<0||idx.target<0||idx.date<0)throw new Error('Kolom wajib: Nama Artikel, Brand, Kondisi, Target Qty Produksi, Tgl Masuk.');const sizes=headers.slice(5).filter(Boolean);const items=[],errors=[];for(let r=1;r<json.length;r++){const row=json[r];if(!row||!row[idx.name])continue;const name=String(row[idx.name]).trim(),brand=String(row[idx.brand]).trim().toUpperCase(),condition=String(row[idx.condition]).trim(),target=parseInt(row[idx.target],10)||0,date=String(row[idx.date]||getTodayLocalISO()).slice(0,10);if(!['ZS','SHI'].includes(brand)||!['Oke','Defect'].includes(condition)||target<=0){errors.push(`Baris ${r+1}: Brand/Kondisi/Target tidak valid.`);continue;}const added=[];sizes.forEach((size,si)=>{const qty=parseInt(row[5+si],10)||0;if(qty>0)added.push({size,totalQty:qty,allocationStatus:'none',allocated:{mitra:{},tiktok:0,shopee:0,web:0,butik:0,foc:0}});});if(!added.length){errors.push(`Baris ${r+1}: tidak ada Qty size.`);continue;}items.push({name,brand,condition,target,date,added,row:r+1});} _pendingInventoryImport={items,errors};document.getElementById('inventory-import-summary').innerHTML=`<b>${items.length}</b> baris siap dipreview • <span class="preview-warn">${errors.length} warning</span>`;document.querySelector('#inventory-import-preview-table thead').innerHTML='<tr><th>Baris</th><th>Artikel</th><th>Brand</th><th>Kondisi</th><th>Target</th><th>Tgl Masuk</th><th>Rincian Size</th></tr>';document.querySelector('#inventory-import-preview-table tbody').innerHTML=items.map(x=>`<tr><td>${x.row}</td><td>${x.name}</td><td>${x.brand}</td><td>${x.condition}</td><td>${x.target}</td><td>${x.date}</td><td>${x.added.map(a=>`${a.size}: ${a.totalQty}`).join(', ')}</td></tr>`).join('')||'<tr><td colspan="7">Tidak ada data valid.</td></tr>';document.getElementById('inventory-import-errors').innerHTML=errors.length?`<div class="preview-warn"><b>Warning:</b><br>${errors.join('<br>')}</div>`:'<div class="preview-ok">Tidak ada warning.</div>';document.getElementById('btn-confirm-inventory-import').disabled=!items.length;document.getElementById('modal-inventory-import-preview').classList.remove('hidden');}catch(err){console.error(err);alert('Gagal memproses Excel: '+err.message);}event.target.value='';};reader.readAsArrayBuffer(file);
+    }
+    function closeInventoryImportPreview(){document.getElementById('modal-inventory-import-preview').classList.add('hidden');_pendingInventoryImport=null;}
+    async function confirmInventoryImport(){const p=_pendingInventoryImport;if(!p||!p.items.length)return;const btn=document.getElementById('btn-confirm-inventory-import');btn.disabled=true;btn.innerText='Menyimpan...';try{for(const x of p.items){let existing=_inventory.find(i=>i.name.toLowerCase()===x.name.toLowerCase()&&i.brand===x.brand&&i.condition===x.condition);if(existing){if(x.target!==safeInt(existing.qtyProduksi)){const ok=confirm(`Artikel ${x.name} (${x.condition}) punya target ${existing.qtyProduksi}. Import berisi ${x.target}. Ubah target?`);if(!ok)continue;}const hist=[...(existing.history||[]),{entryId:Date.now()+Math.floor(Math.random()*9999),date:x.date,added:x.added.map(a=>({size:a.size,qty:a.totalQty}))}];const details=JSON.parse(JSON.stringify(existing.details||[]));x.added.forEach(a=>{let d=details.find(z=>z.size===a.size);if(d)d.totalQty+=a.totalQty;else details.push(a);});await db.collection('inventory').doc(existing.id).update({qtyProduksi:x.target,history:hist,details});logActivity('Import Barang Masuk Massal',`Menambah stok ${x.name} (${x.condition}) via Excel.`);}else{const data={name:x.name,brand:x.brand,condition:x.condition,qtyProduksi:x.target,details:x.added,image:'',date:x.date,history:[{entryId:Date.now()+Math.floor(Math.random()*9999),date:x.date,added:x.added.map(a=>({size:a.size,qty:a.totalQty}))}]};await db.collection('inventory').add(data);logActivity('Import Barang Baru Massal',`Membuat artikel baru ${x.name} (${x.condition}) via Excel.`);}}alert(`Berhasil memproses ${p.items.length} baris import.`);closeInventoryImportPreview();}catch(e){console.error(e);alert('Gagal menyimpan import: '+e.message);}finally{btn.disabled=false;btn.innerText='✅ Simpan ke Sistem';}}
 
     // ================= FUNGSI TEMPLATE & UPLOAD ALOKASI DISTRIBUSI =================
     
