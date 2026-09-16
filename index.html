@@ -3058,6 +3058,86 @@
                     pivotSourceRows.push([m.name||'',item.name||'',item.brand||'',d.size||'',batch.date||'',req,qty,iss,Math.max(0,qty-iss)]);
                 }));
             }));
+            // Khusus USER GUDANG: workbook dibuat lebih sederhana, hanya Riwayat Alokasi + sheet per Mitra.
+            if(currentUserRole === 'gudang') {
+                const rowsByMitra = {};
+                _mitras.forEach(m => rowsByMitra[m.id] = []);
+                visibleInventory.forEach(item => (item.details || []).forEach(d => {
+                    const requested = (d.requested && d.requested.mitra) || {};
+                    const batches = getAllocationBatches(d).slice().sort((a,b)=>dateSortValue(a.date)-dateSortValue(b.date));
+                    _mitras.forEach(m => {
+                        const req = safeNum(requested[m.id]);
+                        const relevantBatches = batches.filter(batch => (batch.items || []).some(bi => bi.mitraId === m.id && safeNum(bi.qty) > 0));
+                        if(relevantBatches.length === 0 && req <= 0) return;
+                        if(relevantBatches.length === 0) {
+                            rowsByMitra[m.id].push([
+                                '', item.name||'', item.brand||'', item.condition||'', d.size||'', m.loc||'',
+                                req, 0, 0, 0, req, pctVal(0,req), 'BELUM DIALOKASI'
+                            ]);
+                        } else {
+                            relevantBatches.forEach(batch => {
+                                const bi = (batch.items || []).find(x => x.mitraId === m.id);
+                                if(!bi) return;
+                                const alloc = safeNum(bi.qty);
+                                const iss = safeNum(bi.issuedQty);
+                                const remainingAlloc = Math.max(0, alloc - iss);
+                                rowsByMitra[m.id].push([
+                                    batch.date || d.allocationDate || getRawDates(item), item.name||'', item.brand||'', item.condition||'', d.size||'', m.loc||'',
+                                    req, alloc, iss, remainingAlloc, Math.max(0, req - Math.min(req, alloc)), pctVal(alloc, req),
+                                    iss >= alloc ? 'SELESAI' : (iss > 0 ? 'SEBAGIAN' : 'BELUM TERBIT')
+                                ]);
+                            });
+                        }
+                    });
+                }));
+
+                const allocHeader = ['Tanggal Alokasi','Nama Artikel','Brand','Kondisi','Size','Nama Mitra','Lokasi','Jumlah Permintaan','Qty Alokasi Sales','Qty Sudah Terbit','Sisa Belum Terbit','% Terpenuhi','Status'];
+                const wsDetailGudang = XLSX.utils.aoa_to_sheet([allocHeader, ...detailRows]);
+                const workbookSheets = [{
+                    name:'Riwayat Alokasi', ws:wsDetailGudang,
+                    widths:[17,30,10,12,10,28,20,20,20,20,20,16,18],
+                    filter:`A1:M${Math.max(1, detailRows.length+1)}`, freeze:{xSplit:0,ySplit:1},
+                    centerCols:[0,2,3,4,6,7,8,9,10,11,12], percentCols:[11]
+                }];
+                formatWorksheetNumbers(wsDetailGudang,1,detailRows.length,[7,8,9,10],'#,##0');
+
+                const usedNames = new Set(['riwayat alokasi']);
+                Object.entries(rowsByMitra).forEach(([mitraId, mitraRows]) => {
+                    if(!mitraRows.length) return;
+                    const m = _mitras.find(x => x.id === mitraId);
+                    if(!m) return;
+                    const header = ['Tanggal Alokasi','Nama Artikel','Brand','Kondisi','Size','Lokasi Mitra','Jumlah Permintaan','Qty Alokasi Sales','Qty Sudah Terbit','Sisa Alokasi Belum Terbit','Sisa Permintaan','% Terpenuhi','Status'];
+                    // Total request dihitung unik per artikel+size agar alokasi bertahap di beberapa tanggal tidak menggandakan angka permintaan.
+                    const uniqueReq = {};
+                    mitraRows.forEach(r => {
+                        const key = `${r[1]}|${r[4]}`;
+                        uniqueReq[key] = safeNum(r[6]);
+                    });
+                    const totalReq = Object.values(uniqueReq).reduce((a,v)=>a+safeNum(v),0);
+                    const totalAlloc = mitraRows.reduce((a,r)=>a+safeNum(r[7]),0);
+                    const totalIssued = mitraRows.reduce((a,r)=>a+safeNum(r[8]),0);
+                    const totalRemainAlloc = mitraRows.reduce((a,r)=>a+safeNum(r[9]),0);
+                    const totalRemainReq = Math.max(0,totalReq-Math.min(totalReq,totalAlloc));
+                    const data = [header, ...mitraRows, ['TOTAL','','','','','',totalReq,totalAlloc,totalIssued,totalRemainAlloc,totalRemainReq,pctVal(totalAlloc,totalReq), '']];
+                    const ws = XLSX.utils.aoa_to_sheet(data);
+                    let baseName = String(m.name || 'Mitra').replace(/[\\\/:*?\[\]]/g,' ').trim() || 'Mitra';
+                    baseName = baseName.slice(0,31);
+                    let name = baseName, idx=2;
+                    while(usedNames.has(name.toLowerCase())) { const suffix=` ${idx++}`; name=(baseName.slice(0,31-suffix.length)+suffix); }
+                    usedNames.add(name.toLowerCase());
+                    workbookSheets.push({
+                        name, ws,
+                        widths:[17,30,10,12,10,20,20,20,20,26,20,16,18],
+                        filter:`A1:M${Math.max(1,data.length-1)}`, freeze:{xSplit:0,ySplit:1},
+                        totalRow:data.length-1, centerCols:[0,2,3,4,6,7,8,9,10,11,12], percentCols:[11]
+                    });
+                    formatWorksheetNumbers(ws,1,data.length-1,[6,7,8,9,10],'#,##0');
+                });
+                finalizeWorkbook(wb, workbookSheets);
+                downloadWorkbook(wb,`Riwayat_Terdistribusi_Gudang_ZS_SHI_${getTodayLocalISO()}.xlsx`,`Laporan distribusi Gudang berhasil didownload (${workbookSheets.length} sheet).`);
+                return;
+            }
+
             const detailHeader=['Tanggal Alokasi','Nama Artikel','Brand','Kondisi','Size','Nama Mitra','Lokasi','Jumlah Permintaan','Qty Alokasi','Qty Sudah Terbit','Sisa Belum Terbit','% Terpenuhi (Alokasi)','% Terpenuhi (Sudah Terbit)','Status'];
             const rows=[detailHeader,...detailRows];
             const wsDetail=XLSX.utils.aoa_to_sheet(rows);
