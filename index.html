@@ -216,7 +216,6 @@
         @media (max-width: 700px) { .stat-grid { grid-template-columns: repeat(2, 1fr); } .top-nav { flex-direction: column; gap:10px; padding: 10px;} body { padding-top: 110px; } }
     </style>
 </head>
-
 <body>
 
 <!-- TOP NAVIGATION HEADER -->
@@ -501,7 +500,7 @@
        </div>
     </div>
 
-    <!-- ================= HALAMAN GUDANG ================= -->
+<!-- ================= HALAMAN GUDANG ================= -->
     <div id="gudang-section" class="hidden fade-in">
         <div class="card">
             <div class="flex-header">
@@ -816,6 +815,8 @@
 
 </div>
 
+<!-- ================= MODAL GLOBAL ================= -->
+    
     <!-- MODAL EDIT MITRA -->
     <div id="modal-edit-mitra" class="modal-overlay hidden">
         <div class="modal-content fade-in" style="max-width: 500px;">
@@ -888,6 +889,7 @@
         </div>
     </div>
 
+    <!-- ================= MODAL TAMBAHAN UNTUK GUDANG ================= -->
     <!-- MODAL EDIT INFO UTAMA (GUDANG) -->
     <div id="modal-edit-info" class="modal-overlay hidden">
         <div class="modal-content fade-in" style="max-width: 400px;">
@@ -947,8 +949,6 @@
 <div id="modal-inventory-import-preview" class="modal-overlay hidden"><div class="modal-content fade-in" style="max-width:1100px;"><div class="flex-header"><h3 style="margin:0;">Preview Import Barang Masuk</h3><button class="btn-dark btn-small" onclick="closeInventoryImportPreview()">Tutup</button></div><div id="inventory-import-summary" class="log-summary" style="margin-bottom:12px;"></div><div class="table-container" style="max-height:55vh;overflow:auto;"><table class="preview-table" id="inventory-import-preview-table"><thead></thead><tbody></tbody></table></div><div id="inventory-import-errors" style="margin-top:12px;"></div><div style="display:flex;gap:10px;justify-content:flex-end;margin-top:15px;"><button class="btn-dark" onclick="closeInventoryImportPreview()">Batal</button><button class="btn-success" id="btn-confirm-inventory-import" onclick="confirmInventoryImport()">✅ Simpan ke Sistem</button></div></div></div>
 <!-- LOG DETAIL -->
 <div id="modal-log-detail" class="modal-overlay hidden"><div class="modal-content fade-in" style="max-width:850px;"><div class="flex-header"><h3 id="log-detail-title" style="margin:0;">Detail Audit Log</h3><button class="btn-dark btn-small" onclick="document.getElementById('modal-log-detail').classList.add('hidden')">Tutup</button></div><div id="log-detail-meta" class="log-summary" style="margin-bottom:12px;"></div><div class="log-detail-grid"><div><h4>Before</h4><pre id="log-detail-before" class="log-json">-</pre></div><div><h4>After</h4><pre id="log-detail-after" class="log-json">-</pre></div></div></div></div>
-
-</body>
 
 <!-- SCRIPT UTAMA PENGENDALI APLIKASI -->
 <script>
@@ -1237,7 +1237,7 @@
         input.value = '';
     }
 
-    // ================= GLOBAL SEARCH (Dimodifikasi u/ Lokasi) =================
+    // ================= GLOBAL SEARCH =================
     function performGlobalSearch() {
         const query = document.getElementById('global-search').value.toLowerCase();
         const resBox = document.getElementById('global-search-results');
@@ -1252,7 +1252,6 @@
         resBox.innerHTML = html;
         resBox.classList.remove('hidden');
     }
-    
     function navigateGlobalSearch(type, id) {
         document.getElementById('global-search-results').classList.add('hidden');
         if(type === 'inventory') {
@@ -1278,7 +1277,7 @@
     function getDetailAllocatedTotal(d) {
         let a = d.allocated || {}; let mitraTotal = 0;
         if(typeof a.mitra === 'object') Object.values(a.mitra).forEach(v => mitraTotal += (parseInt(v) || 0));
-        return mitraTotal; 
+        return mitraTotal; // HANYA MITRA
     }
     function getItemTotalMasuk(item) { return (item.details || []).reduce((sum, d) => sum + (d.totalQty || 0), 0); }
     function getItemProgressPercent(item) {
@@ -1347,6 +1346,7 @@
             currentUser = u; currentUserRole = _users[u].role;
             db.collection("users").doc(u).update({ lastLogin: firebase.firestore.FieldValue.serverTimestamp() }); 
 
+            // Munculkan Header Element
             document.getElementById('top-nav-bar').classList.remove('hidden');
             document.getElementById('nav-search-wrap').style.display = 'block';
             document.getElementById('nav-online-wrap').style.display = 'flex';
@@ -2155,7 +2155,6 @@
     }
     function safeCounterInt(v){ return Math.max(0,parseInt(v,10)||0); }
 
-    // ====== TERBITKAN FORM ORDER & LOGIKA PERUBAHAN GUDANG ======
     async function terbitkanFormOrder() {
         try {
             const checkedBoxes = [...document.querySelectorAll('#order-mitra-checklist input[type="checkbox"]:checked')];
@@ -2181,7 +2180,6 @@
                     const available = parseInt(r.dataset.available) || 0;
                     if(qty > available) return alert(`Qty ${inv.name} ${r.dataset.size} melebihi sisa batch yang tersedia (${available}).`);
                     
-                    // Logika Perubahan Qty (Discrepancy)
                     if(qty < available) {
                         hasDiscrepancy = true;
                         discrepancyNotes.push(`- ${inv.name} (Size ${r.dataset.size}): Alokasi ${available} pcs, Diserahkan ${qty} pcs.`);
@@ -2196,7 +2194,7 @@
                     formNo: '', 
                     mitraId: mitra.id, mitraName: mitra.name, mitraLoc: mitra.loc, brand: mitra.brand,
                     date: dateVal, items, gudangName, notes, status:'issued', 
-                    hasDiscrepancy: hasDiscrepancy, discrepancyNotes: discrepancyNotes.join('\n'), // Simpan record perubahan
+                    hasDiscrepancy: hasDiscrepancy, discrepancyNotes: discrepancyNotes.join('\n'), 
                     createdBy: currentUser || 'Guest', createdAtLocal: Date.now()+formsToIssue.length, timestamp: firebase.firestore.FieldValue.serverTimestamp()
                 });
             });
@@ -2238,18 +2236,15 @@
             firestoreBatch.commit().then(() => {
                 logActivity('Terbitkan Form Order', `${formsToIssue.length} form diterbitkan dari batch alokasi.`, null, formsToIssue, {type:'orderform_issue'});
                 
-                // Broadcast Notifikasi via Chat Sistem jika ada perubahan kuantitas
                 formsToIssue.forEach(fd => {
                     if (fd.hasDiscrepancy) {
                         const m = _mitras.find(x => x.id === fd.mitraId);
                         const msg = `⚠️ PERINGATAN GUDANG:\nForm Order ${fd.formNo} untuk Mitra ${fd.mitraName} diterbitkan dengan jumlah KURANG dari alokasi.\nDetail pengurangan:\n${fd.discrepancyNotes}`;
                         
-                        // Kirim notif chat ke pemilik mitra (Sales Owner)
                         if (m && m.salesOwner) {
                             db.collection("chats").add({sender: 'SYSTEM', receiver: m.salesOwner, message: msg, timestamp: firebase.firestore.FieldValue.serverTimestamp(), read: false});
                         }
                         
-                        // Kirim notif chat ke seluruh SPV / Leader Sales
                         for (let u in _users) {
                             if (isSalesLeaderRole(_users[u].role) && u !== (m ? m.salesOwner : '')) {
                                 db.collection("chats").add({sender: 'SYSTEM', receiver: u, message: msg, timestamp: firebase.firestore.FieldValue.serverTimestamp(), read: false});
@@ -2385,7 +2380,6 @@
         return String(value ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&apos;');
     }
 
-    // ====== DOWNLOAD MULTI EXCEL FORM ORDER ======
     function downloadMultiOrderFormExcelXML(forms) {
         if(!forms || forms.length === 0) return;
         let xml = `<?xml version="1.0"?><?mso-application progid="Excel.Sheet"?><Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"><Styles><Style ss:ID="Bold"><Font ss:Bold="1"/></Style><Style ss:ID="Border"><Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1"/><Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1"/><Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1"/><Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1"/></Borders><Alignment ss:Horizontal="Center" ss:Vertical="Center"/></Style><Style ss:ID="BorderLeft"><Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1"/><Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1"/><Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1"/><Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1"/></Borders><Alignment ss:Horizontal="Left" ss:Vertical="Center"/></Style><Style ss:ID="Header"><Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1"/><Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1"/><Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1"/><Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1"/></Borders><Font ss:Bold="1" ss:Color="#FFFFFF"/><Interior ss:Color="#0f172a" ss:Pattern="Solid"/><Alignment ss:Horizontal="Center" ss:Vertical="Center"/></Style></Styles>`;
@@ -2418,7 +2412,6 @@
         if(forms.length === 1) { generateOrderFormPDF(forms[0]); downloadMultiOrderFormExcelXML(forms); } else { generateMultiOrderFormPDF(forms); downloadMultiOrderFormExcelXML(forms); }
     }
 
-    // ====== TABLE LOADERS ======
     function loadAdminOrderFormData() {
         const tbody = document.querySelector('#admin-orderform-table tbody'); tbody.innerHTML = '';
         const fStatus = document.getElementById('admin-orderform-filter-status').value;
@@ -2426,7 +2419,10 @@
         let list = _orderForms.filter(f => (fStatus === 'ALL' || f.status === fStatus) && (fCari === '' || (f.formNo||'').toLowerCase().includes(fCari) || (f.mitraName||'').toLowerCase().includes(fCari) || (f.mitraLoc||'').toLowerCase().includes(fCari)));
         list.sort((a,b) => document.getElementById('admin-orderform-sort').value === 'terlama' ? a.createdAtLocal - b.createdAtLocal : b.createdAtLocal - a.createdAtLocal);
         list.forEach(f => {
-            let warn = f.hasDiscrepancy ? '<br><span style="color:var(--warning); font-size:0.75em; font-weight:bold;">⚠️ Qty Diubah Gudang</span>' : '';
+            let warn = '';
+            if (f.hasDiscrepancy && f.discrepancyNotes) {
+                warn = `<div style="margin-top:5px; padding:6px; background:#fffbeb; border:1px solid #f59e0b; border-radius:6px; font-size:0.75em; color:#d97706; text-align:left; line-height:1.4; max-width:250px; white-space:normal;"><strong style="display:block; margin-bottom:3px;">⚠️ Perubahan Qty (Oleh Gudang):</strong>${f.discrepancyNotes.replace(/\n/g, '<br>')}</div>`;
+            }
             tbody.innerHTML += `<tr>
             <td><input type="checkbox" class="cb-form-history-admin" value="${f.id}"></td>
             <td>${f.formNo}</td><td>${f.mitraName}<br><small>${f.mitraLoc || '-'}</small></td><td>${formatDateDisplay(f.date)}</td><td>${f.gudangName || '-'}</td><td>${(f.items||[]).length} baris</td>
@@ -2446,17 +2442,11 @@
         let list = _orderForms.filter(f => (fStatus === 'ALL' || f.status === fStatus) && (fCari === '' || (f.formNo||'').toLowerCase().includes(fCari) || (f.mitraName||'').toLowerCase().includes(fCari) || (f.mitraLoc||'').toLowerCase().includes(fCari)));
         list.sort((a,b) => b.createdAtLocal - a.createdAtLocal);
         list.forEach(f => {
-            let warn = f.hasDiscrepancy ? '<br><span style="color:var(--warning); font-size:0.75em; font-weight:bold;">⚠️ Qty Diubah</span>' : '';
+            let warn = '';
+            if (f.hasDiscrepancy && f.discrepancyNotes) {
+                warn = `<div style="margin-top:5px; padding:6px; background:#fffbeb; border:1px solid #f59e0b; border-radius:6px; font-size:0.75em; color:#d97706; text-align:left; line-height:1.4; max-width:250px; white-space:normal;"><strong style="display:block; margin-bottom:3px;">⚠️ Perubahan Qty Terjadi:</strong>${f.discrepancyNotes.replace(/\n/g, '<br>')}</div>`;
+            }
             tbody.innerHTML += `<tr><td><input type="checkbox" class="cb-form-history-gudang" value="${f.id}"></td><td>${f.formNo}</td><td>${f.mitraName}<br><small>${f.mitraLoc || '-'}</small></td><td>${formatDateDisplay(f.date)}</td><td>${(f.items||[]).length} baris</td><td>${f.status === 'void' ? '<span class="status-void">Dibatalkan</span>' : '<span class="status-issued">Diterbitkan</span>'}${warn}</td><td><button class="btn-primary btn-small" onclick="generateOrderFormPDF(_orderForms.find(x=>x.id==='${f.id}'))">📄 PDF</button> ${f.status === 'issued' ? `<button class="btn-danger btn-small" onclick="voidOrderForm('${f.id}')">Batalkan</button>` : ''}</td></tr>`});
-    }
-
-    function loadSalesOrderFormHistory(){
-        const tbody=document.querySelector('#sales-form-table tbody'); if(!tbody)return; const q=(document.getElementById('sales-form-filter-cari')?.value||'').toLowerCase(), st=document.getElementById('sales-form-filter-status')?.value||'issued';
-        let list=_orderForms.filter(f=>{if(st!=='ALL'&&f.status!==st)return false;if(currentUserRole==='sales_staff_zs'&&f.brand!=='ZS')return false;if(currentUserRole==='sales_staff_shi'&&f.brand!=='SHI')return false;return !q||(f.formNo||'').toLowerCase().includes(q)||(f.mitraName||'').toLowerCase().includes(q)||(f.mitraLoc||'').toLowerCase().includes(q);}).sort((a,b)=>(b.createdAtLocal||0)-(a.createdAtLocal||0));
-        tbody.innerHTML=list.map(f=>{
-            let warn = f.hasDiscrepancy ? '<br><span style="color:var(--warning); font-size:0.75em; font-weight:bold;">⚠️ Qty Diubah Gudang</span>' : '';
-            return `<tr><td><b>${f.formNo}</b></td><td>${f.mitraName}<br><small>${f.mitraLoc || '-'}</small></td><td>${formatDateDisplay(f.date)}</td><td>${(f.items||[]).length}</td><td>${(f.items||[]).reduce((s,x)=>s+safeInt(x.qty),0)}</td><td>${f.status==='void'?'<span class="status-void">Dibatalkan</span>':'<span class="status-issued">Diterbitkan</span>'}${warn}</td><td><button class="btn-primary btn-small" onclick="generateOrderFormPDF(_orderForms.find(x=>x.id==='${f.id}'))">📄 PDF</button></td></tr>`
-        }).join('')||'<tr><td colspan="7" class="notif-empty">Belum ada Form Order.</td></tr>';
     }
 
     function voidOrderForm(formId) {
@@ -2566,7 +2556,7 @@
                 let itemMitras = _mitras.filter(m => m.brand === item.brand || m.brand === 'BOTH');
                 
                 item.details.forEach(d => {
-                    let sizeAllocTotal = getDetailAllocatedTotal(d); // Hanya menghitung Mitra
+                    let sizeAllocTotal = getDetailAllocatedTotal(d); 
                     itemTotalStock += d.totalQty; 
                     itemTotalAlloc += sizeAllocTotal;
                     
@@ -2579,7 +2569,7 @@
                 groupTotalStock += itemTotalStock;
                 groupTotalAlloc += itemTotalAlloc;
 
-                if(sizesToRender.length === 0) return; // Lewati jika barang ini tidak punya size yg cocok di tab ini
+                if(sizesToRender.length === 0) return; 
                 
                 let conditionBadge = getBadge(item.condition, 'cond');
                 htmlContent += `<div style="margin-bottom:20px; border:1px solid #ccc; padding:15px; border-radius:8px; background:#fff; box-shadow: 0 4px 6px rgba(0,0,0,0.02);">
@@ -2608,7 +2598,6 @@
                 }
 
                 htmlContent += `<div id="form-${item.id}" class="${activeSalesTab === 'sudah' ? 'hidden' : ''}">`;
-                
                 htmlContent += `
                     <div style="background:#eff6ff; border:1px dashed #3b82f6; padding:12px; margin-bottom:15px; border-radius:8px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
                         <div>
@@ -2636,7 +2625,6 @@
                     } else {
                         itemMitras.forEach((m) => { 
                             let reqKhusus = (d.requested && d.requested.mitra && d.requested.mitra[m.id]) ? d.requested.mitra[m.id] : 0;
-                            
                             let vM = (a.mitra && a.mitra[m.id]) ? a.mitra[m.id] : ''; 
                             if(vM === 0) vM = ''; 
                             sum += (parseInt(vM)||0); 
@@ -3103,6 +3091,18 @@
         });
     }
 
+    function loadSalesOrderFormHistory(){
+        const tbody=document.querySelector('#sales-form-table tbody'); if(!tbody)return; const q=(document.getElementById('sales-form-filter-cari')?.value||'').toLowerCase(), st=document.getElementById('sales-form-filter-status')?.value||'issued';
+        let list=_orderForms.filter(f=>{if(st!=='ALL'&&f.status!==st)return false;if(currentUserRole==='sales_staff_zs'&&f.brand!=='ZS')return false;if(currentUserRole==='sales_staff_shi'&&f.brand!=='SHI')return false;return !q||(f.formNo||'').toLowerCase().includes(q)||(f.mitraName||'').toLowerCase().includes(q)||(f.mitraLoc||'').toLowerCase().includes(q);}).sort((a,b)=>(b.createdAtLocal||0)-(a.createdAtLocal||0));
+        tbody.innerHTML=list.map(f=>{
+            let warn = '';
+            if (f.hasDiscrepancy && f.discrepancyNotes) {
+                warn = `<div style="margin-top:5px; padding:6px; background:#fffbeb; border:1px solid #f59e0b; border-radius:6px; font-size:0.75em; color:#d97706; text-align:left; line-height:1.4; max-width:250px; white-space:normal;"><strong style="display:block; margin-bottom:3px;">⚠️ Qty Diubah Gudang:</strong>${f.discrepancyNotes.replace(/\n/g, '<br>')}</div>`;
+            }
+            return `<tr><td><b>${f.formNo}</b></td><td>${f.mitraName}<br><small>${f.mitraLoc || '-'}</small></td><td>${formatDateDisplay(f.date)}</td><td>${(f.items||[]).length}</td><td>${(f.items||[]).reduce((s,x)=>s+safeInt(x.qty),0)}</td><td>${f.status==='void'?'<span class="status-void">Dibatalkan</span>':'<span class="status-issued">Diterbitkan</span>'}${warn}</td><td><button class="btn-primary btn-small" onclick="generateOrderFormPDF(_orderForms.find(x=>x.id==='${f.id}'))">📄 PDF</button></td></tr>`
+        }).join('')||'<tr><td colspan="7" class="notif-empty">Belum ada Form Order.</td></tr>';
+    }
+
     // ================= FITUR SALES TAMBAHAN =================
     function draftStorageKey(){ return `mitra-request-draft:${currentUser||'guest'}`; }
     function saveMitraRequestDraft(){
@@ -3149,6 +3149,26 @@
     function reassignMitra(mitraId,user){const m=_mitras.find(x=>x.id===mitraId);if(!m)return;const before={salesOwner:m.salesOwner||null};db.collection('mitras').doc(mitraId).update({salesOwner:user||null,salesOwnerUpdatedAtLocal:Date.now(),salesOwnerUpdatedBy:currentUser||'Guest'}).then(()=>logActivity('Reassign Mitra',`Mitra ${m.name} dipindahkan ke sales ${user||'Belum ditugaskan'}`,before,{salesOwner:user||null},{type:'mitra_reassign'})).catch(e=>alert('Gagal reassign mitra: '+e.message));}
 
     // ================= EXPORT EXCEL & REPORT =================
+    function getDiscrepancyNotes(batchId, itemId, size, mitraId) {
+        let catatanGudang = [];
+        _orderForms.forEach(f => {
+            if(f.hasDiscrepancy && f.mitraId === mitraId) {
+                const matchedItem = (f.items || []).find(it => it.allocationBatchId === batchId && it.itemId === itemId && it.size === size);
+                if(matchedItem) {
+                    let lines = (f.discrepancyNotes || '').split('\n');
+                    let itemName = (_inventory.find(i=>i.id===itemId)||{}).name || '';
+                    let matchedLine = lines.find(l => l.includes(itemName) && l.includes(`Size ${size}`));
+                    if(matchedLine) {
+                        catatanGudang.push(`[Form ${f.formNo}] ${matchedLine.replace('- ', '')}`);
+                    } else {
+                        catatanGudang.push(`[Form ${f.formNo}] Diserahkan: ${matchedItem.qty} pcs`);
+                    }
+                }
+            }
+        });
+        return catatanGudang.length > 0 ? catatanGudang.join(' | ') : '-';
+    }
+
     function exportExcelStyles() {
         const thin = { style: 'thin', color: { rgb: 'B8C2CC' } };
         return {
@@ -3214,7 +3234,7 @@
         }
     }
 
-    async function exportExcelInternal(type) {
+    async function exportExcel(type) {
         if(!window.XLSX) return alert('Library Excel gagal dimuat. Coba refresh halaman.');
         const visibleInventory = _inventory.filter(item => {
             if(currentUserRole === 'sales_staff_zs') return item.brand === 'ZS';
@@ -3276,6 +3296,7 @@
             const pivotSourceRows = [];
             _mitras.forEach(m=>mitraSummary[m.id]={mitraId:m.id,mitra:m.name,lokasi:m.loc||'',brand:m.brand||'',request:0,allocated:0,issued:0,batches:new Set(),articleSizes:new Set()});
             const detailRows=[];
+            
             visibleInventory.forEach(item=>(item.details||[]).forEach(d=>{
                 const requested=(d.requested&&d.requested.mitra)||{};
                 const aggregateAllocated=(d.allocated&&d.allocated.mitra)||{};
@@ -3292,7 +3313,10 @@
                     const qty=safeNum(bi.qty), iss=safeNum(bi.issuedQty); if(qty<=0) return;
                     const req=safeNum(requested[m.id]);
                     const sm=mitraSummary[m.id]; if(sm){sm.batches.add(batch.batchId||batch.date||'');}
-                    const row=[batch.date||d.allocationDate||getRawDates(item),item.name||'',item.koleksi||'',item.brand||'',item.condition||'',d.size||'',m.name||'',m.loc||'',req,qty,iss,Math.max(0,qty-iss),pctVal(qty,req),pctVal(iss,req),iss>=qty?'SELESAI':(iss>0?'SEBAGIAN':'BELUM TERBIT')];
+                    
+                    const noteStr = getDiscrepancyNotes(batch.batchId, item.id, d.size, m.id);
+
+                    const row=[batch.date||d.allocationDate||getRawDates(item),item.name||'',item.koleksi||'',item.brand||'',item.condition||'',d.size||'',m.name||'',m.loc||'',req,qty,iss,Math.max(0,qty-iss),pctVal(qty,req),pctVal(iss,req),iss>=qty?'SELESAI':(iss>0?'SEBAGIAN':'BELUM TERBIT'), noteStr];
                     detailRows.push(row);
                     pivotSourceRows.push([m.name||'',item.name||'',item.koleksi||'',item.brand||'',d.size||'',batch.date||'',req,qty,iss,Math.max(0,qty-iss)]);
                 }));
@@ -3311,7 +3335,7 @@
                         if(relevantBatches.length === 0) {
                             rowsByMitra[m.id].push([
                                 '', item.name||'', item.koleksi||'', item.brand||'', item.condition||'', d.size||'', m.loc||'',
-                                req, 0, 0, 0, req, pctVal(0,req), 'BELUM DIALOKASI'
+                                req, 0, 0, 0, req, pctVal(0,req), 'BELUM DIALOKASI', '-'
                             ]);
                         } else {
                             relevantBatches.forEach(batch => {
@@ -3320,22 +3344,23 @@
                                 const alloc = safeNum(bi.qty);
                                 const iss = safeNum(bi.issuedQty);
                                 const remainingAlloc = Math.max(0, alloc - iss);
+                                const noteStr = getDiscrepancyNotes(batch.batchId, item.id, d.size, m.id);
                                 rowsByMitra[m.id].push([
                                     batch.date || d.allocationDate || getRawDates(item), item.name||'', item.koleksi||'', item.brand||'', item.condition||'', d.size||'', m.loc||'',
                                     req, alloc, iss, remainingAlloc, Math.max(0, req - Math.min(req, alloc)), pctVal(alloc, req),
-                                    iss >= alloc ? 'SELESAI' : (iss > 0 ? 'SEBAGIAN' : 'BELUM TERBIT')
+                                    iss >= alloc ? 'SELESAI' : (iss > 0 ? 'SEBAGIAN' : 'BELUM TERBIT'), noteStr
                                 ]);
                             });
                         }
                     });
                 }));
 
-                const allocHeader = ['Tanggal Alokasi','Nama Artikel','Koleksi','Brand','Kondisi','Size','Nama Mitra','Lokasi','Jumlah Permintaan','Qty Alokasi Sales','Qty Sudah Terbit','Sisa Belum Terbit','% Terpenuhi (Alokasi)','% Terpenuhi (Terbit)','Status'];
+                const allocHeader = ['Tanggal Alokasi','Nama Artikel','Koleksi','Brand','Kondisi','Size','Nama Mitra','Lokasi','Jumlah Permintaan','Qty Alokasi Sales','Qty Sudah Terbit','Sisa Belum Terbit','% Terpenuhi (Alokasi)','% Terpenuhi (Terbit)','Status','Catatan Gudang'];
                 const wsDetailGudang = XLSX.utils.aoa_to_sheet([allocHeader, ...detailRows]);
                 const workbookSheets = [{
                     name:'Riwayat Alokasi', ws:wsDetailGudang,
-                    widths:[17,30,22,10,12,10,28,20,20,20,20,20,16,16,18],
-                    filter:`A1:O${Math.max(1, detailRows.length+1)}`, freeze:{xSplit:0,ySplit:1},
+                    widths:[17,30,22,10,12,10,28,20,20,20,20,20,16,16,18,35],
+                    filter:`A1:P${Math.max(1, detailRows.length+1)}`, freeze:{xSplit:0,ySplit:1},
                     centerCols:[0,3,4,5,8,9,10,11,12,13,14], percentCols:[12,13]
                 }];
                 formatWorksheetNumbers(wsDetailGudang,1,detailRows.length,[8,9,10,11],'#,##0');
@@ -3345,7 +3370,7 @@
                     if(!mitraRows.length) return;
                     const m = _mitras.find(x => x.id === mitraId);
                     if(!m) return;
-                    const header = ['Tanggal Alokasi','Nama Artikel','Koleksi','Brand','Kondisi','Size','Lokasi Mitra','Jumlah Permintaan','Qty Alokasi Sales','Qty Sudah Terbit','Sisa Alokasi Belum Terbit','Sisa Permintaan','% Terpenuhi','Status'];
+                    const header = ['Tanggal Alokasi','Nama Artikel','Koleksi','Brand','Kondisi','Size','Lokasi Mitra','Jumlah Permintaan','Qty Alokasi Sales','Qty Sudah Terbit','Sisa Alokasi Belum Terbit','Sisa Permintaan','% Terpenuhi','Status','Catatan Gudang'];
                     
                     const uniqueReq = {};
                     mitraRows.forEach(r => {
@@ -3357,7 +3382,7 @@
                     const totalIssued = mitraRows.reduce((a,r)=>a+safeNum(r[9]),0);
                     const totalRemainAlloc = mitraRows.reduce((a,r)=>a+safeNum(r[10]),0);
                     const totalRemainReq = Math.max(0,totalReq-Math.min(totalReq,totalAlloc));
-                    const data = [header, ...mitraRows, ['TOTAL','','','','','','',totalReq,totalAlloc,totalIssued,totalRemainAlloc,totalRemainReq,pctVal(totalAlloc,totalReq), '']];
+                    const data = [header, ...mitraRows, ['TOTAL','','','','','','',totalReq,totalAlloc,totalIssued,totalRemainAlloc,totalRemainReq,pctVal(totalAlloc,totalReq), '','']];
                     const ws = XLSX.utils.aoa_to_sheet(data);
                     let baseName = String(m.name || 'Mitra').replace(/[\\\/:*?\[\]]/g,' ').trim() || 'Mitra';
                     baseName = baseName.slice(0,31);
@@ -3366,8 +3391,8 @@
                     usedNames.add(name.toLowerCase());
                     workbookSheets.push({
                         name, ws,
-                        widths:[17,30,22,10,12,10,20,20,20,20,26,20,16,18],
-                        filter:`A1:N${Math.max(1,data.length-1)}`, freeze:{xSplit:0,ySplit:1},
+                        widths:[17,30,22,10,12,10,20,20,20,20,26,20,16,18,35],
+                        filter:`A1:O${Math.max(1,data.length-1)}`, freeze:{xSplit:0,ySplit:1},
                         totalRow:data.length-1, centerCols:[0,3,4,5,6,7,8,9,10,11,12,13], percentCols:[12]
                     });
                     formatWorksheetNumbers(ws,1,data.length-1,[7,8,9,10,11],'#,##0');
@@ -3377,19 +3402,23 @@
                 return;
             }
 
-            const detailHeader=['Tanggal Alokasi','Nama Artikel','Koleksi','Brand','Kondisi','Size','Nama Mitra','Lokasi','Jumlah Permintaan','Qty Alokasi','Qty Sudah Terbit','Sisa Belum Terbit','% Terpenuhi (Alokasi)','% Terpenuhi (Sudah Terbit)','Status'];
+            const detailHeader=['Tanggal Alokasi','Nama Artikel','Koleksi','Brand','Kondisi','Size','Nama Mitra','Lokasi','Jumlah Permintaan','Qty Alokasi','Qty Sudah Terbit','Sisa Belum Terbit','% Terpenuhi (Alokasi)','% Terpenuhi (Sudah Terbit)','Status','Catatan Gudang'];
             const rows=[detailHeader,...detailRows];
             const wsDetail=XLSX.utils.aoa_to_sheet(rows);
+            
             const sumRows=[['Nama Mitra','Lokasi','Brand','Total Permintaan (pcs)','Total Alokasi (pcs)','% Permintaan Terpenuhi','Total Sudah Terbit (pcs)','% Sudah Diserahkan','Sisa Alokasi Belum Terbit (pcs)','Jumlah Artikel/Size','Jumlah Batch Alokasi']];
             Object.values(mitraSummary).filter(x=>x.request||x.allocated||x.issued).sort((a,b)=>b.allocated-a.allocated||b.request-a.request).forEach(x=>sumRows.push([x.mitra,x.lokasi,x.brand,x.request,x.allocated,pctVal(x.allocated,x.request),x.issued,pctVal(x.issued,x.request),Math.max(0,x.allocated-x.issued),x.articleSizes.size,x.batches.size]));
             const tr=sumRows.slice(1).reduce((s,r)=>s+safeNum(r[3]),0), ta=sumRows.slice(1).reduce((s,r)=>s+safeNum(r[4]),0), ti=sumRows.slice(1).reduce((s,r)=>s+safeNum(r[6]),0);
             sumRows.push(['TOTAL','','',tr,ta,pctVal(ta,tr),ti,pctVal(ti,tr),Math.max(0,ta-ti),'',sumRows.slice(1).reduce((s,r)=>s+safeNum(r[10]),0)]);
             const wsSummary=XLSX.utils.aoa_to_sheet(sumRows);
+            
             const analysisRows=[['Mitra','Total Permintaan','Total Alokasi','% Terpenuhi','Sudah Terbit','% Diserahkan','Sisa dari Permintaan','Sisa Alokasi Belum Terbit']];
             Object.values(mitraSummary).filter(x=>x.request||x.allocated||x.issued).sort((a,b)=>a.mitra.localeCompare(b.mitra)).forEach(x=>analysisRows.push([x.mitra,x.request,x.allocated,pctVal(x.allocated,x.request),x.issued,pctVal(x.issued,x.request),Math.max(0,x.request-x.allocated),Math.max(0,x.allocated-x.issued)]));
             const wsAnalysis=XLSX.utils.aoa_to_sheet(analysisRows);
+            
             const pivotHeader=['Nama Mitra','Nama Artikel','Koleksi','Brand','Size','Tanggal Alokasi','Jumlah Permintaan','Qty Alokasi','Qty Sudah Terbit','Sisa Belum Terbit'];
             const wsPivot=XLSX.utils.aoa_to_sheet([pivotHeader,...pivotSourceRows]);
+            
             const guide=XLSX.utils.aoa_to_sheet([
                 ['LAPORAN RIWAYAT TERDISTRIBUSI ZS & SHI'],
                 ['Sheet','Fungsi'],
@@ -3399,27 +3428,25 @@
                 ['Data Pivot','Data sumber yang siap dipakai untuk Insert > PivotTable di Excel.'],
                 ['Catatan','Batch ID dan Dibuat Oleh tidak ditampilkan.']
             ]);
+
             finalizeWorkbook(wb,[
-                {name:'Riwayat Alokasi',ws:wsDetail,widths:[17,30,22,10,12,10,28,20,20,16,20,20,22,26,18],filter:`A1:O${Math.max(1,rows.length)}`,freeze:{xSplit:0,ySplit:1},centerCols:[0,3,4,5,8,9,10,11,12,13,14],percentCols:[12,13]},
+                {name:'Riwayat Alokasi',ws:wsDetail,widths:[17,30,22,10,12,10,28,20,20,16,20,20,22,26,18,35],filter:`A1:P${Math.max(1,rows.length)}`,freeze:{xSplit:0,ySplit:1},centerCols:[0,3,4,5,8,9,10,11,12,13,14],percentCols:[12,13]},
                 {name:'Ringkasan Mitra',ws:wsSummary,widths:[28,20,12,21,20,22,23,20,26,20,20],filter:`A1:K${Math.max(1,sumRows.length-1)}`,freeze:{xSplit:0,ySplit:1},totalRow:sumRows.length-1,centerCols:[2,3,4,5,6,7,8,9,10],percentCols:[5,7]},
                 {name:'Analisa Mitra',ws:wsAnalysis,widths:[30,20,18,18,18,18,22,28],filter:`A1:H${Math.max(1,analysisRows.length)}`,freeze:{xSplit:0,ySplit:1},centerCols:[1,2,3,4,5,6,7],percentCols:[3,5]},
                 {name:'Data Pivot',ws:wsPivot,widths:[28,30,22,10,10,17,20,16,20,20],filter:`A1:J${Math.max(1,pivotSourceRows.length+1)}`,freeze:{xSplit:0,ySplit:1},centerCols:[3,4,5,6,7,8,9]},
                 {name:'Panduan',ws:guide,widths:[25,105],titleRow:0,headerRow:1}
             ]);
+            
             formatWorksheetNumbers(wsDetail,1,rows.length-1,[8,9,10,11],'#,##0');
             formatWorksheetNumbers(wsSummary,1,sumRows.length-1,[3,4,6,8,9,10],'#,##0');
             formatWorksheetNumbers(wsAnalysis,1,analysisRows.length-1,[1,2,4,6,7],'#,##0');
             formatWorksheetNumbers(wsPivot,1,pivotSourceRows.length,[6,7,8,9],'#,##0');
+            
             downloadWorkbook(wb,`Riwayat_Terdistribusi_ZS_SHI_${getTodayLocalISO()}.xlsx`,`Laporan riwayat distribusi berhasil didownload (${detailRows.length} baris riwayat alokasi).`);
             return;
         }
 
         alert('Jenis laporan tidak dikenal: '+type);
-    }
-
-    async function exportExcel(type) {
-        try { await exportExcelInternal(type); }
-        catch(e) { console.error('Export Excel error:',e); alert('Gagal membuat laporan Excel: '+(e?.message||e)); }
     }
 
     function safeInt(v){ return Math.max(0, parseInt(v,10)||0); }
@@ -3613,4 +3640,5 @@
     function handleReqUpload(event){const file=event.target.files[0];if(!file)return;const itemId=document.getElementById('req-item-select').value;if(!itemId){alert('Silakan pilih Artikel terlebih dahulu sebelum mengupload!');event.target.value='';return;}const item=_inventory.find(i=>i.id===itemId);if(!item){event.target.value='';return;}const reader=new FileReader();reader.onload=function(e){try{const data=new Uint8Array(e.target.result),wb=XLSX.read(data,{type:'array'}),ws=wb.Sheets[wb.SheetNames[0]],json=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});if(json.length<2)throw new Error('File Excel kosong atau tidak memiliki data.');const headers=json[0];if(!headers[0]||headers[0].toString().trim().toLowerCase()!=='nama mitra')throw new Error('Format Excel salah. Kolom pertama harus "Nama Mitra".');const sizes=[];for(let i=1;i<headers.length;i++){const h=headers[i];if(h&&h.toString().trim().toUpperCase()!=='TOTAL')sizes.push({name:h.toString().trim().toLowerCase(),col:i});}const details=JSON.parse(JSON.stringify(item.details)),errors=[],rows=[];let updateCount=0;for(let r=1;r<json.length;r++){const row=json[r];if(!row||!row[0]||row[0].toString().trim().toUpperCase()==='TOTAL')continue;const mitraName=row[0].toString().trim(),mitra=_mitras.find(m=>m.name.toLowerCase()===mitraName.toLowerCase());if(!mitra){errors.push(`Baris ${r+1}: Mitra "${mitraName}" tidak ditemukan.`);continue;}const pr={mitra:mitraName,values:{},status:'OK'};sizes.forEach(sd=>{const raw=row[sd.col];if(raw===''||raw==null)return;const val=Number(raw),d=details.find(x=>String(x.size).toLowerCase()===sd.name);if(!d){errors.push(`Baris ${r+1}: Size "${sd.name}" tidak ditemukan.`);pr.status='WARNING';return;}if(!Number.isInteger(val)||val<0){errors.push(`Baris ${r+1}: Qty size ${sd.name} tidak valid (${raw}).`);pr.status='WARNING';return;}d.requested=d.requested||{mitra:{}};d.requested.mitra=d.requested.mitra||{};d.requested.mitra[mitra.id]=val;pr.values[d.size]=val;updateCount++;});rows.push(pr);} _pendingRequestImport={item,details,updateCount,errors};const names=details.map(d=>d.size);document.querySelector('#req-preview-table thead').innerHTML='<tr><th>Mitra</th>'+names.map(n=>`<th>${n}</th>`).join('')+'<th>Status</th></tr>';document.querySelector('#req-preview-table tbody').innerHTML=rows.map(r=>`<tr><td><b>${r.mitra}</b></td>${names.map(n=>`<td>${r.values[n]??''}</td>`).join('')}<td class="${r.status==='OK'?'preview-ok':'preview-warn'}">${r.status}</td></tr>`).join('')||'<tr><td colspan="99">Tidak ada baris data.</td></tr>';document.getElementById('req-preview-summary').innerHTML=`Artikel: <b>${item.name}</b> (${item.brand}/${item.condition}) • <span class="preview-ok">${updateCount} field valid</span> • <span class="preview-warn">${errors.length} warning</span>`;document.getElementById('req-preview-errors').innerHTML=errors.length?`<div class="preview-warn"><b>Perlu diperiksa:</b><br>${errors.join('<br>')}</div>`:'<div class="preview-ok">Tidak ada warning. Data siap disimpan.</div>';document.getElementById('btn-confirm-req-import').disabled=!updateCount;document.getElementById('modal-request-preview').classList.remove('hidden');}catch(err){console.error(err);alert('Gagal memproses file Excel: '+err.message);}event.target.value='';};reader.readAsArrayBuffer(file);}
 
 </script>
+</body>
 </html>
