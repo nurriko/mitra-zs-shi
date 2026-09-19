@@ -264,6 +264,7 @@
     </div>
 </div>
 
+
 <div class="container">
     
     <!-- ================= HALAMAN AUTENTIKASI ================= -->
@@ -418,7 +419,7 @@
                 <p style="font-size:0.85em; color:var(--text-muted); margin:8px 0;">Pilih satu atau beberapa Form Order lalu klik tombol aksi di atas tabel.</p>
                 <div class="header-actions">
                     <div class="filter-bar">
-                        <input type="text" id="admin-orderform-filter-cari" placeholder="Cari No. Form / Nama Mitra / Lokasi..." oninput="loadAdminOrderFormData()">
+                        <input type="text" id="admin-orderform-filter-cari" placeholder="Cari No. Form / Nama Mitra..." oninput="loadAdminOrderFormData()">
                         <select id="admin-orderform-filter-status" onchange="loadAdminOrderFormData()"><option value="ALL">Semua Status</option><option value="issued">Diterbitkan</option><option value="void">Dibatalkan</option></select>
                         <select id="admin-orderform-sort" class="sort-select" onchange="loadAdminOrderFormData()">
                             <option value="terbaru">Urutkan: Terbaru</option>
@@ -500,7 +501,7 @@
        </div>
     </div>
 
-<!-- ================= HALAMAN GUDANG ================= -->
+    <!-- ================= HALAMAN GUDANG ================= -->
     <div id="gudang-section" class="hidden fade-in">
         <div class="card">
             <div class="flex-header">
@@ -617,7 +618,7 @@
                 <h3 style="margin-top:30px; border-top: 1px solid #eee; padding-top:20px;">Riwayat Form Order</h3>
                 <div class="header-actions">
                     <div class="filter-bar">
-                        <input type="text" id="orderform-filter-cari" placeholder="Cari No. Form / Nama Mitra / Lokasi..." oninput="loadOrderFormHistory()">
+                        <input type="text" id="orderform-filter-cari" placeholder="Cari No. Form / Nama Mitra..." oninput="loadOrderFormHistory()">
                         <select id="orderform-filter-status" onchange="loadOrderFormHistory()"><option value="ALL">Semua Status</option><option value="issued">Diterbitkan</option><option value="void">Dibatalkan</option></select>
                     </div>
                     <button class="btn-success" onclick="downloadSelectedForms('gudang')">📥 Download Form Terpilih</button>
@@ -752,7 +753,7 @@
             <div id="sales-view-forms" class="hidden">
                 <div class="header-actions">
                     <div class="filter-bar">
-                        <input type="text" id="sales-form-filter-cari" placeholder="Cari No. Form / Mitra / Lokasi..." oninput="loadSalesOrderFormHistory()">
+                        <input type="text" id="sales-form-filter-cari" placeholder="Cari No. Form / Mitra..." oninput="loadSalesOrderFormHistory()">
                         <select id="sales-form-filter-status" onchange="loadSalesOrderFormHistory()"><option value="issued">Diterbitkan</option><option value="ALL">Semua Status</option><option value="void">Dibatalkan</option></select>
                     </div>
                     <button class="btn-success" onclick="exportExcel('alokasi')">📥 Download Riwayat Distribusi</button>
@@ -777,7 +778,6 @@
                     <div style="opacity:.9; font-size:.9em;">Pantau permintaan, alokasi, realisasi distribusi, dan pengelolaan mitra tim.</div>
                 </div>
                 <div class="leader-grid" id="leader-kpis">
-                </div>
                 <div class="profile-card">
                     <div class="form-row">
                         <div class="form-group"><label>Periode Dari</label><input type="date" id="leader-filter-from" onchange="loadLeaderDashboard()"></div>
@@ -814,8 +814,7 @@
     </div>
 
 </div>
-
-<!-- ================= MODAL GLOBAL ================= -->
+    <!-- ================= MODAL GLOBAL ================= -->
     
     <!-- MODAL EDIT MITRA -->
     <div id="modal-edit-mitra" class="modal-overlay hidden">
@@ -1065,6 +1064,7 @@
         if(!document.getElementById('sales-section').classList.contains('hidden')) {
             const sv=document.getElementById('sales-view-forms'); if(sv && !sv.classList.contains('hidden')) loadSalesOrderFormHistory();
         }
+        computeNotifications();
     });
 
     let _settingsInitialized = false;
@@ -1105,6 +1105,24 @@
 
     function toggleEye(inputId) { let input = document.getElementById(inputId); input.type = input.type === "password" ? "text" : "password"; }
     function safeId(str) { return str.replace(/[^a-zA-Z0-9]/g, '_'); }
+    // Label mitra dipakai konsisten di seluruh template Excel (download & upload) agar mitra dengan nama sama tapi lokasi
+    // beda tidak tertukar: formatnya "Nama (Lokasi)". Pencarian tetap mendukung template lama yang hanya berisi nama.
+    function mitraTemplateLabel(m) { return `${m.name} (${m.loc || '-'})`; }
+    function resolveMitraFromLabel(label) {
+        const raw = String(label || '').trim();
+        if(!raw) return { mitra: null, ambiguous: false };
+        const lower = raw.toLowerCase();
+        // 1) Coba cocokkan persis format "Nama (Lokasi)"
+        let exact = _mitras.find(m => mitraTemplateLabel(m).toLowerCase() === lower);
+        if(exact) return { mitra: exact, ambiguous: false };
+        // 2) Fallback: cocokkan berdasarkan nama saja (kompatibel dengan template lama)
+        const nameOnly = raw.replace(/\s*\([^)]*\)\s*$/, '').trim().toLowerCase();
+        const nameMatches = _mitras.filter(m => m.name.toLowerCase() === nameOnly || m.name.toLowerCase() === lower);
+        if(nameMatches.length === 1) return { mitra: nameMatches[0], ambiguous: false };
+        if(nameMatches.length > 1) return { mitra: null, ambiguous: true, candidates: nameMatches };
+        return { mitra: null, ambiguous: false };
+    }
+
     function getBadge(val, type) { 
         if(type === 'brand') {
             if(val === 'ZS') return `<span class="badge badge-zs">ZS</span>`;
@@ -1506,7 +1524,7 @@
         let mitraVolumes={};_inventory.forEach(item=>(item.details||[]).forEach(d=>{if((d.allocationStatus==='partial'||d.allocationStatus==='approved')&&d.allocated?.mitra)Object.entries(d.allocated.mitra).forEach(([mid,v])=>mitraVolumes[mid]=(mitraVolumes[mid]||0)+(parseInt(v)||0));}));let top=Object.entries(mitraVolumes).map(([mid,vol])=>{const m=_mitras.find(x=>x.id===mid);return{name:m?m.name:'Mitra Dihapus',loc:m?m.loc:'',vol};}).filter(x=>x.vol>0).sort((a,b)=>b.vol-a.vol).slice(0,5);document.getElementById('admin-top-mitra').innerHTML=top.length?top.map((m,i)=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #f1f5f9;"><span>${i+1}. <b>${m.name}</b><br><small style="color:var(--text-muted)">${m.loc}</small></span><span style="font-weight:700">${m.vol} pcs</span></div>`).join(''):'<div class="notif-empty">Belum ada alokasi.</div>';
         renderAdminDashboardCharts();
     }
-    function renderAdminDashboardCharts(){if(!window.Chart)return;const monthly={};const ensure=k=>monthly[k]||(monthly[k]={inbound:0,distributed:0});_inventory.forEach(item=>(item.history||[]).forEach(h=>{const k=String(h.date||'').slice(0,7);if(!/^\d{4}-\d{2}$/.test(k))return;(h.added||[]).forEach(x=>ensure(k).inbound+=parseInt(x.qty)||0);}));_orderForms.forEach(f=>{if(f.status!=='issued')return;const k=String(f.date||'').slice(0,7);if(!/^\d{4}-\d{2}$/.test(k))return;(f.items||[]).forEach(x=>ensure(k).distributed+=parseInt(x.qty)||0);});let keys=Object.keys(monthly).sort();if(!keys.length){const n=new Date();keys=[`${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,'0')}`];ensure(keys[0]);}const labels=keys.map(k=>{const[a,b]=k.split('-');return`${b}/${a}`;});const c1=document.getElementById('admin-monthly-stock-chart');if(c1){if(monthlyStockChart)monthlyStockChart.destroy();monthlyStockChart=new Chart(c1,{type:'line',data:{labels,datasets:[{label:'Stok Masuk',data:keys.map(k=>monthly[k].inbound),tension:.25},{label:'Distribusi (Form Order)',data:keys.map(k=>monthly[k].distributed),tension:.25}]},options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},scales:{y:{beginAtZero:true}}}});}const c2=document.getElementById('admin-top-mitra-chart');if(c2){if(topMitraChart)topMitraChart.destroy();topMitraChart=new Chart(c2,{type:'bar',data:{labels:Object.entries((()=>{let t={};_orderForms.forEach(f=>{if(f.status==='issued'){const q=(f.items||[]).reduce((s,x)=>s+(parseInt(x.qty)||0),0);t[f.mitraName]=(t[f.mitraName]||0)+q;}});return t;})()).sort((a,b)=>b[1]-a[1]).slice(0,5).map(x=>x[0]),datasets:[{label:'Qty Distribusi',data:Object.entries((()=>{let t={};_orderForms.forEach(f=>{if(f.status==='issued'){const q=(f.items||[]).reduce((s,x)=>s+(parseInt(x.qty)||0),0);t[f.mitraName]=(t[f.mitraName]||0)+q;}});return t;})()).sort((a,b)=>b[1]-a[1]).slice(0,5).map(x=>x[1])}]},options:{responsive:true,maintainAspectRatio:false,indexAxis:'y',scales:{x:{beginAtZero:true}}}});}}
+    function renderAdminDashboardCharts(){if(!window.Chart)return;const monthly={};const ensure=k=>monthly[k]||(monthly[k]={inbound:0,distributed:0});_inventory.forEach(item=>(item.history||[]).forEach(h=>{const k=String(h.date||'').slice(0,7);if(!/^\d{4}-\d{2}$/.test(k))return;(h.added||[]).forEach(x=>ensure(k).inbound+=parseInt(x.qty)||0);}));_orderForms.forEach(f=>{if(f.status!=='issued')return;const k=String(f.date||'').slice(0,7);if(!/^\d{4}-\d{2}$/.test(k))return;(f.items||[]).forEach(x=>ensure(k).distributed+=parseInt(x.qty)||0);});let keys=Object.keys(monthly).sort();if(!keys.length){const n=new Date();keys=[`${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,'0')}`];ensure(keys[0]);}const labels=keys.map(k=>{const[a,b]=k.split('-');return`${b}/${a}`;});const c1=document.getElementById('admin-monthly-stock-chart');if(c1){if(monthlyStockChart)monthlyStockChart.destroy();monthlyStockChart=new Chart(c1,{type:'line',data:{labels,datasets:[{label:'Stok Masuk',data:keys.map(k=>monthly[k].inbound),tension:.25},{label:'Distribusi (Form Order)',data:keys.map(k=>monthly[k].distributed),tension:.25}]},options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},scales:{y:{beginAtZero:true}}}});}const c2=document.getElementById('admin-top-mitra-chart');if(c2){if(topMitraChart)topMitraChart.destroy();const mitraVol=(()=>{let t={};_orderForms.forEach(f=>{if(f.status==='issued'){const q=(f.items||[]).reduce((s,x)=>s+(parseInt(x.qty)||0),0);const key=`${f.mitraName} (${f.mitraLoc||'-'})`;t[key]=(t[key]||0)+q;}});return t;})();const topEntries=Object.entries(mitraVol).sort((a,b)=>b[1]-a[1]).slice(0,5);topMitraChart=new Chart(c2,{type:'bar',data:{labels:topEntries.map(x=>x[0]),datasets:[{label:'Qty Distribusi',data:topEntries.map(x=>x[1])}]},options:{responsive:true,maintainAspectRatio:false,indexAxis:'y',scales:{x:{beginAtZero:true}}}});}}
 
     function showDashboardDetail(type) {
         const title = document.getElementById('dashboard-detail-title'); const body = document.getElementById('dashboard-detail-body');
@@ -1653,6 +1671,7 @@
 
     // ================= BAGIAN GUDANG =================
     
+    // Fitur AutoFill Nama Baju (Untuk Gudang)
     function autoFillItemInfo() {
         let name = document.getElementById('itemName').value.trim().toLowerCase();
         let existing = _inventory.find(i => i.name.toLowerCase() === name);
@@ -1721,6 +1740,7 @@
         document.getElementById('itemName').value = ''; document.getElementById('itemQtyProduksi').value = ''; renderSizeCheckboxes('size-container', ''); 
     }
 
+    // LOGIKA BARU: Menggabungkan Tampilan Tabel Gudang (Group by Nama & Brand)
     function loadGudangData() {
         const tbody = document.querySelector('#gudang-table tbody'); tbody.innerHTML = '';
         const fName = document.getElementById('gudang-filter-nama').value.toLowerCase();
@@ -1773,10 +1793,12 @@
             let percent = g.qtyProduksi > 0 ? ((totalMasuk / g.qtyProduksi) * 100).toFixed(1) : 0;
             let imgStr = g.image ? `<img src="${g.image}" class="item-image-preview">` : `<span style="font-size:0.8em; color:#999;">No Image</span>`;
             
+            // Rekap Size Oke
             let sizeMapOke = {}; 
             g.okeDetails.forEach(d => { sizeMapOke[d.size] = (sizeMapOke[d.size]||0) + d.totalQty; });
             let okeStr = Object.entries(sizeMapOke).map(([s,q]) => `<span style="background:#d1fae5; color:#047857; padding:2px 6px; border-radius:4px; font-size:0.85em; margin-right:5px; margin-bottom:5px; display:inline-block; border:1px solid #a7f3d0;"><b>${s}</b>: ${q}</span>`).join('');
             
+            // Rekap Size Defect
             let sizeMapDefect = {}; 
             g.defectDetails.forEach(d => { sizeMapDefect[d.size] = (sizeMapDefect[d.size]||0) + d.totalQty; });
             let defectStr = Object.entries(sizeMapDefect).map(([s,q]) => `<span style="background:#fee2e2; color:#b91c1c; padding:2px 6px; border-radius:4px; font-size:0.85em; margin-right:5px; margin-bottom:5px; display:inline-block; border:1px solid #fecaca;"><b>${s}</b>: ${q}</span>`).join('');
@@ -1801,6 +1823,7 @@
         if (list.length === 0) tbody.innerHTML = `<tr><td colspan="4" class="notif-empty">Belum ada barang masuk di Gudang.</td></tr>`;
     }
 
+    // Fungsi Update untuk Grouped Modal
     function openEditInfoModalGrouped(idsStr) {
         let ids = idsStr.split(',');
         let item = _inventory.find(i => i.id === ids[0]);
@@ -1869,7 +1892,7 @@
                     timeline.push({ 
                         type: f.status === 'void' ? `Dibatalkan (Void) - ${item.condition}` : `Form Diterbitkan - ${item.condition}`, 
                         date: f.date, ts: f.createdAtLocal || new Date(f.date).getTime(), 
-                        desc: `Ke Mitra ${f.mitraName} (Form: ${f.formNo}) - ${desc}`, 
+                        desc: `Ke Mitra ${f.mitraName} (${f.mitraLoc||'-'}) (Form: ${f.formNo}) - ${desc}`, 
                         color: f.status === 'void' ? 'var(--danger)' : 'var(--secondary)',
                         rawHtml: ''
                     });
@@ -1891,6 +1914,7 @@
     
     function closeItemHistoryFullModal() { document.getElementById('modal-item-history-full').classList.add('hidden'); }
 
+    // Fitur Edit Riwayat Masuk (Per Transaksi/Batch)
     function openEditBatchModal(itemId, entryId) {
         closeItemHistoryFullModal();
         let item = _inventory.find(i => i.id === itemId); let entry = item.history.find(e => e.entryId === entryId);
@@ -1937,7 +1961,7 @@
                 const batches = getAllocationBatches(d).slice().sort((a,b)=>String(b.date||'').localeCompare(String(a.date||'')));
                 batches.forEach(b => {
                     let mParts=[];
-                    (b.items||[]).forEach(x=>{ const m=_mitras.find(mm=>mm.id===x.mitraId); if(fMitra!=='ALL'&&x.mitraId!==fMitra)return; if((parseInt(x.qty)||0)>0)mParts.push(`${m?m.name:'Mitra'}: ${x.qty} pcs (terbit ${parseInt(x.issuedQty)||0})`); });
+                    (b.items||[]).forEach(x=>{ const m=_mitras.find(mm=>mm.id===x.mitraId); if(fMitra!=='ALL'&&x.mitraId!==fMitra)return; if((parseInt(x.qty)||0)>0)mParts.push(`${m?m.name+' ('+(m.loc||'-')+')':'Mitra'}: ${x.qty} pcs (terbit ${parseInt(x.issuedQty)||0})`); });
                     if(!mParts.length) return;
                     rendered++;
                     const bQty=getBatchQtyTotal(b), bIssued=getBatchIssuedTotal(b), status=bIssued>=bQty?'SELESAI':(bIssued>0?'SEBAGIAN TERBIT':'SIAP FORM');
@@ -2010,6 +2034,7 @@
         if(rendered === 0) tbody.innerHTML = `<tr><td colspan="3" class="notif-empty">Belum ada data permintaan khusus yang diinput Sales.</td></tr>`;
     }
 
+    // ================= FUNGSI SISA STOK REAL-TIME & HIGHLIGHT SELISIH =================
     function calcSisa(itemId, sid, totalQty) {
         let totalInput = 0;
         document.querySelectorAll(`input[id^="m-${itemId}-${sid}-"]`).forEach(i => {
@@ -2017,6 +2042,7 @@
             totalInput += val;
             let req = parseInt(i.getAttribute('data-req')) || 0;
             
+            // Cek selisih dan highlight kotak jika berbeda
             if(req > 0 && i.value !== '' && val !== req) {
                 i.style.backgroundColor = '#fffbeb';
                 i.style.borderColor = '#f59e0b';
@@ -2031,16 +2057,31 @@
         if(sisaEl) { let s = totalQty - totalInput; sisaEl.innerText = s; sisaEl.style.color = s < 0 ? 'var(--danger)' : (s === 0 ? 'var(--success)' : 'var(--primary)'); }
     }
 
+    // ================= NOTIFIKASI STOK =================
     function computeNotifications() {
         let entries = [];
         _inventory.forEach(item => {
             (item.details || []).forEach(d => { let sisa = (d.totalQty || 0) - getDetailAllocatedTotal(d); if(sisa > 0 && sisa <= _settings.lowStockThreshold) entries.push({ icon: '⚠️', title: `Stok Menipis: ${item.name}`, sub: `Size ${d.size} (${item.condition}) — sisa ${sisa} pcs belum dialokasikan` }); });
             if(isNearTargetItem(item)) entries.push({ icon: '🎯', title: `Mendekati Target Produksi: ${item.name}`, sub: `Progress ${getItemProgressPercent(item).toFixed(0)}%` });
         });
+        // Notifikasi ke Sales Staff/Leader saat Gudang menerbitkan Form Order dengan qty lebih kecil dari yang dialokasikan.
+        const isSalesRole = currentUserRole === 'sales_staff_zs' || currentUserRole === 'sales_staff_shi' || isSalesLeaderRole(currentUserRole);
+        if(isSalesRole) {
+            const cutoff = Date.now() - (14 * 24 * 60 * 60 * 1000); // hanya 14 hari terakhir agar tidak menumpuk selamanya
+            _orderForms.filter(f => f.hasQtyAdjustment && f.status !== 'void' && (f.createdAtLocal || 0) >= cutoff)
+                .filter(f => currentUserRole === 'sales_staff_zs' ? f.brand === 'ZS' : currentUserRole === 'sales_staff_shi' ? f.brand === 'SHI' : true)
+                .sort((a,b) => (b.createdAtLocal||0) - (a.createdAtLocal||0))
+                .forEach(f => entries.push({
+                    icon: '✂️',
+                    title: `Qty Diserahkan Dikurangi Gudang: ${f.mitraName} (${f.mitraLoc||'-'})`,
+                    sub: `Form ${f.formNo} — ${f.qtyAdjustmentNote || 'Ada item dengan qty diserahkan lebih kecil dari alokasi.'}`,
+                    onclick: `switchSalesTab('forms')`
+                }));
+        }
         const countEl = document.getElementById(`notif-count-global`); const listEl = document.getElementById(`notif-list-global`);
         if(!countEl || !listEl) return;
         if(entries.length === 0) { countEl.classList.add('hidden'); listEl.innerHTML = `<div class="notif-empty">Kosong</div>`; } 
-        else { countEl.classList.remove('hidden'); countEl.innerText = entries.length; listEl.innerHTML = entries.map(e => `<div class="notif-item"><span class="notif-icon">${e.icon}</span><div><div class="notif-title">${e.title}</div><div class="notif-sub">${e.sub}</div></div></div>`).join(''); }
+        else { countEl.classList.remove('hidden'); countEl.innerText = entries.length; listEl.innerHTML = entries.map(e => `<div class="notif-item"${e.onclick ? ` style="cursor:pointer;" onclick="${e.onclick}"` : ''}><span class="notif-icon">${e.icon}</span><div><div class="notif-title">${e.title}</div><div class="notif-sub">${e.sub}</div></div></div>`).join(''); }
     }
     function toggleNotifPanel(role) { document.getElementById(`notif-panel-${role}`).classList.toggle('hidden'); }
     document.addEventListener('click', e => {
@@ -2063,6 +2104,7 @@
             if(!d.issued.mitra) d.issued.mitra = {};
             d.issued.mitra[form.mitraId] = Math.max(0, (parseInt(d.issued.mitra[form.mitraId]) || 0) - (parseInt(it.qty) || 0));
 
+            // Batch allocation tetap ada; hanya realisasi "sudah terbit" yang dikembalikan.
             const batches = getAllocationBatches(d);
             const batch = batches.find(b => b.batchId === it.allocationBatchId) || batches.slice().reverse().find(b => (b.items||[]).some(x => x.mitraId === form.mitraId && (parseInt(x.issuedQty)||0)>0));
             if(batch) {
@@ -2135,6 +2177,8 @@
                 return Array.from({length:count},(_,i)=>`FO-${dateKey}-${String(start+i).padStart(3,'0')}`);
             });
         } catch(err) {
+            // Fallback: sebagian role (mis. gudang) mungkin belum diizinkan menulis ke collection 'counters' oleh Firestore Security Rules.
+            // Supaya Form Order tetap bisa diterbitkan, nomor urut diturunkan dari data _orderForms yang sudah tersedia di client.
             console.warn('reserveFormNumbers: gagal pakai counter transaksi, pakai fallback lokal.', err);
             const prefix = `FO-${dateKey}-`;
             let existingNums = _orderForms
@@ -2169,9 +2213,6 @@
                 const mitra = _mitras.find(m => m.id === cb.value); if(!mitra) return;
                 const block = document.querySelector(`.order-mitra-block[data-mitraid="${mitra.id}"]`); if(!block) return;
                 let items = [];
-                let hasDiscrepancy = false;
-                let discrepancyNotes = [];
-
                 block.querySelectorAll('tr[data-itemid]').forEach(r => {
                     const qty = parseInt(r.querySelector('input[type="number"]').value) || 0;
                     if(!r.querySelector('input[type="checkbox"]').checked || qty <= 0) return;
@@ -2179,26 +2220,27 @@
                     const batchId = r.dataset.batchid;
                     const available = parseInt(r.dataset.available) || 0;
                     if(qty > available) return alert(`Qty ${inv.name} ${r.dataset.size} melebihi sisa batch yang tersedia (${available}).`);
-                    
-                    if(qty < available) {
-                        hasDiscrepancy = true;
-                        discrepancyNotes.push(`- ${inv.name} (Size ${r.dataset.size}): Alokasi ${available} pcs, Diserahkan ${qty} pcs.`);
-                    }
-
-                    items.push({ itemId: inv.id, itemName: inv.name, koleksi: inv.koleksi || '', brand: inv.brand, condition: inv.condition, size: r.dataset.size, qty, allocationBatchId: batchId });
+                    items.push({ itemId: inv.id, itemName: inv.name, koleksi: inv.koleksi || '', brand: inv.brand, condition: inv.condition, size: r.dataset.size, qty, originalAvailable: available, allocationBatchId: batchId });
                     if(!allUpdatesByItem[inv.id]) allUpdatesByItem[inv.id] = [];
                     allUpdatesByItem[inv.id].push({ size: r.dataset.size, qty, mitraId: mitra.id, batchId });
                 });
                 if(items.length === 0) return;
+                const adjustedItems = items.filter(it => it.qty < it.originalAvailable);
                 formsToIssue.push({
                     formNo: '', 
                     mitraId: mitra.id, mitraName: mitra.name, mitraLoc: mitra.loc, brand: mitra.brand,
-                    date: dateVal, items, gudangName, notes, status:'issued', 
-                    hasDiscrepancy: hasDiscrepancy, discrepancyNotes: discrepancyNotes.join('\n'), 
-                    createdBy: currentUser || 'Guest', createdAtLocal: Date.now()+formsToIssue.length, timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                    date: dateVal, items, gudangName, notes, status:'issued', createdBy: currentUser || 'Guest', createdAtLocal: Date.now()+formsToIssue.length, timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+                    hasQtyAdjustment: adjustedItems.length > 0,
+                    qtyAdjustmentNote: adjustedItems.length > 0 ? adjustedItems.map(it => `${it.itemName} (${it.size}): dialokasikan ${it.originalAvailable} pcs, diserahkan ${it.qty} pcs (kurang ${it.originalAvailable - it.qty} pcs)`).join(' | ') : ''
                 });
             });
             if(formsToIssue.length === 0) return alert('Tidak ada alokasi/batch yang dipilih untuk diterbitkan.');
+            const totalAdjusted = formsToIssue.filter(f => f.hasQtyAdjustment);
+            if(totalAdjusted.length > 0) {
+                const summary = totalAdjusted.map(f => `• ${f.mitraName} (${f.mitraLoc||'-'}):\n   ${f.qtyAdjustmentNote.split(' | ').join('\n   ')}`).join('\n');
+                const proceed = confirm(`Qty yang diserahkan lebih kecil dari alokasi pada ${totalAdjusted.length} mitra:\n\n${summary}\n\nSales Staff/Leader terkait akan mendapat notifikasi soal perubahan ini. Lanjutkan terbitkan Form Order?`);
+                if(!proceed) return;
+            }
             const reservedFormNos = await reserveFormNumbers(formsToIssue.length);
             formsToIssue.forEach((fd,idx)=>fd.formNo=reservedFormNos[idx]);
 
@@ -2235,24 +2277,6 @@
 
             firestoreBatch.commit().then(() => {
                 logActivity('Terbitkan Form Order', `${formsToIssue.length} form diterbitkan dari batch alokasi.`, null, formsToIssue, {type:'orderform_issue'});
-                
-                formsToIssue.forEach(fd => {
-                    if (fd.hasDiscrepancy) {
-                        const m = _mitras.find(x => x.id === fd.mitraId);
-                        const msg = `⚠️ PERINGATAN GUDANG:\nForm Order ${fd.formNo} untuk Mitra ${fd.mitraName} diterbitkan dengan jumlah KURANG dari alokasi.\nDetail pengurangan:\n${fd.discrepancyNotes}`;
-                        
-                        if (m && m.salesOwner) {
-                            db.collection("chats").add({sender: 'SYSTEM', receiver: m.salesOwner, message: msg, timestamp: firebase.firestore.FieldValue.serverTimestamp(), read: false});
-                        }
-                        
-                        for (let u in _users) {
-                            if (isSalesLeaderRole(_users[u].role) && u !== (m ? m.salesOwner : '')) {
-                                db.collection("chats").add({sender: 'SYSTEM', receiver: u, message: msg, timestamp: firebase.firestore.FieldValue.serverTimestamp(), read: false});
-                            }
-                        }
-                    }
-                });
-
                 document.querySelectorAll('#order-mitra-checklist input[type="checkbox"]').forEach(cb=>cb.checked=false);
                 onFormOrderMitraChange();
                 loadOrderFormHistory();
@@ -2387,19 +2411,9 @@
         forms.forEach((f) => {
             let sName = (f.mitraName || 'Sheet').replace(/[\\/?*\[\]:]/g, '').substring(0, 25); let c = 1; while(usedNames.has(sName)) { sName = `${sName}_${c++}`; } usedNames.add(sName);
             let tq = (f.items || []).reduce((s, i) => s + (parseInt(i.qty) || 0), 0);
-            xml += `<Worksheet ss:Name="${escapeXml(sName)}"><Table><Column ss:Width="40"/><Column ss:Width="200"/><Column ss:Width="120"/><Column ss:Width="80"/><Column ss:Width="80"/><Column ss:Width="80"/><Column ss:Width="60"/>
-<Row><Cell ss:MergeAcross="6" ss:StyleID="Bold"><Data ss:Type="String">FORM ORDER / SERAH TERIMA BARANG MITRA</Data></Cell></Row>
-<Row><Cell><Data ss:Type="String">No. Form</Data></Cell><Cell ss:StyleID="Bold"><Data ss:Type="String">${escapeXml(f.formNo)}</Data></Cell></Row>
-<Row><Cell><Data ss:Type="String">Tanggal</Data></Cell><Cell><Data ss:Type="String">${escapeXml(formatDateDisplay(f.date))}</Data></Cell></Row>
-<Row><Cell><Data ss:Type="String">Mitra</Data></Cell><Cell><Data ss:Type="String">${escapeXml(f.mitraName)}</Data></Cell></Row>
-<Row><Cell><Data ss:Type="String">Lokasi Mitra</Data></Cell><Cell><Data ss:Type="String">${escapeXml(f.mitraLoc || '-')}</Data></Cell></Row>
-<Row><Cell><Data ss:Type="String">Gudang</Data></Cell><Cell><Data ss:Type="String">${escapeXml(f.gudangName || '-')}</Data></Cell></Row>
-<Row><Cell><Data ss:Type="String">Catatan</Data></Cell><Cell><Data ss:Type="String">${escapeXml(f.notes || '-')}</Data></Cell></Row>
-<Row ss:Index="9"><Cell ss:StyleID="Header"><Data ss:Type="String">No</Data></Cell><Cell ss:StyleID="Header"><Data ss:Type="String">Nama Artikel</Data></Cell><Cell ss:StyleID="Header"><Data ss:Type="String">Koleksi</Data></Cell><Cell ss:StyleID="Header"><Data ss:Type="String">Brand</Data></Cell><Cell ss:StyleID="Header"><Data ss:Type="String">Kondisi</Data></Cell><Cell ss:StyleID="Header"><Data ss:Type="String">Size</Data></Cell><Cell ss:StyleID="Header"><Data ss:Type="String">Qty</Data></Cell></Row>`;
+            xml += `<Worksheet ss:Name="${escapeXml(sName)}"><Table><Column ss:Width="40"/><Column ss:Width="200"/><Column ss:Width="120"/><Column ss:Width="80"/><Column ss:Width="80"/><Column ss:Width="80"/><Column ss:Width="60"/><Row><Cell ss:MergeAcross="6" ss:StyleID="Bold"><Data ss:Type="String">FORM ORDER / SERAH TERIMA BARANG MITRA</Data></Cell></Row><Row><Cell><Data ss:Type="String">No. Form</Data></Cell><Cell ss:StyleID="Bold"><Data ss:Type="String">${escapeXml(f.formNo)}</Data></Cell></Row><Row><Cell><Data ss:Type="String">Tanggal</Data></Cell><Cell><Data ss:Type="String">${escapeXml(formatDateDisplay(f.date))}</Data></Cell></Row><Row><Cell><Data ss:Type="String">Mitra</Data></Cell><Cell><Data ss:Type="String">${escapeXml(f.mitraName)}</Data></Cell></Row><Row><Cell><Data ss:Type="String">Lokasi Mitra</Data></Cell><Cell><Data ss:Type="String">${escapeXml(f.mitraLoc || '-')}</Data></Cell></Row><Row><Cell><Data ss:Type="String">Gudang</Data></Cell><Cell><Data ss:Type="String">${escapeXml(f.gudangName || '-')}</Data></Cell></Row><Row><Cell><Data ss:Type="String">Catatan</Data></Cell><Cell><Data ss:Type="String">${escapeXml(f.notes || '-')}</Data></Cell></Row><Row ss:Index="9"><Cell ss:StyleID="Header"><Data ss:Type="String">No</Data></Cell><Cell ss:StyleID="Header"><Data ss:Type="String">Nama Artikel</Data></Cell><Cell ss:StyleID="Header"><Data ss:Type="String">Koleksi</Data></Cell><Cell ss:StyleID="Header"><Data ss:Type="String">Brand</Data></Cell><Cell ss:StyleID="Header"><Data ss:Type="String">Kondisi</Data></Cell><Cell ss:StyleID="Header"><Data ss:Type="String">Size</Data></Cell><Cell ss:StyleID="Header"><Data ss:Type="String">Qty</Data></Cell></Row>`;
             (f.items || []).forEach((it, i) => { xml += `<Row><Cell ss:StyleID="Border"><Data ss:Type="Number">${i+1}</Data></Cell><Cell ss:StyleID="BorderLeft"><Data ss:Type="String">${escapeXml(it.itemName)}</Data></Cell><Cell ss:StyleID="BorderLeft"><Data ss:Type="String">${escapeXml(it.koleksi || '-')}</Data></Cell><Cell ss:StyleID="Border"><Data ss:Type="String">${escapeXml(it.brand)}</Data></Cell><Cell ss:StyleID="Border"><Data ss:Type="String">${escapeXml(it.condition)}</Data></Cell><Cell ss:StyleID="Border"><Data ss:Type="String">${escapeXml(it.size)}</Data></Cell><Cell ss:StyleID="Border"><Data ss:Type="Number">${it.qty}</Data></Cell></Row>`; });
-            xml += `<Row><Cell ss:Index="6" ss:StyleID="Header"><Data ss:Type="String">TOTAL QTY</Data></Cell><Cell ss:StyleID="Border"><Data ss:Type="Number">${tq}</Data></Cell></Row>
-<Row ss:Index="${10 + (f.items||[]).length + 3}"><Cell ss:MergeAcross="2"><Data ss:Type="String">Diserahkan oleh (Gudang):</Data></Cell><Cell ss:MergeAcross="2"><Data ss:Type="String">Diterima oleh (Mitra):</Data></Cell></Row>
-<Row ss:Index="${10 + (f.items||[]).length + 5}"><Cell ss:MergeAcross="2"><Data ss:Type="String">Nama: ${escapeXml(f.gudangName || '-')}</Data></Cell><Cell ss:MergeAcross="2"><Data ss:Type="String">Nama: .......................................</Data></Cell></Row></Table></Worksheet>`;
+            xml += `<Row><Cell ss:Index="6" ss:StyleID="Header"><Data ss:Type="String">TOTAL QTY</Data></Cell><Cell ss:StyleID="Border"><Data ss:Type="Number">${tq}</Data></Cell></Row><Row ss:Index="${10 + (f.items||[]).length + 3}"><Cell ss:MergeAcross="2"><Data ss:Type="String">Diserahkan oleh (Gudang):</Data></Cell><Cell ss:MergeAcross="2"><Data ss:Type="String">Diterima oleh (Mitra):</Data></Cell></Row><Row ss:Index="${10 + (f.items||[]).length + 5}"><Cell ss:MergeAcross="2"><Data ss:Type="String">Nama: ${escapeXml(f.gudangName || '-')}</Data></Cell><Cell ss:MergeAcross="2"><Data ss:Type="String">Nama: .......................................</Data></Cell></Row></Table></Worksheet>`;
         });
         xml += `</Workbook>`;
         let blob = new Blob([xml], { type: 'application/vnd.ms-excel' }); let url = URL.createObjectURL(blob); let a = document.createElement('a'); a.href = url; a.download = `FormOrder_${forms.length===1?forms[0].formNo:Date.now()}.xls`; document.body.appendChild(a); a.click(); document.body.removeChild(a);
@@ -2416,37 +2430,27 @@
         const tbody = document.querySelector('#admin-orderform-table tbody'); tbody.innerHTML = '';
         const fStatus = document.getElementById('admin-orderform-filter-status').value;
         const fCari = document.getElementById('admin-orderform-filter-cari').value.toLowerCase();
-        let list = _orderForms.filter(f => (fStatus === 'ALL' || f.status === fStatus) && (fCari === '' || (f.formNo||'').toLowerCase().includes(fCari) || (f.mitraName||'').toLowerCase().includes(fCari) || (f.mitraLoc||'').toLowerCase().includes(fCari)));
+        let list = _orderForms.filter(f => (fStatus === 'ALL' || f.status === fStatus) && (fCari === '' || f.formNo.toLowerCase().includes(fCari) || f.mitraName.toLowerCase().includes(fCari) || (f.mitraLoc||'').toLowerCase().includes(fCari)));
         list.sort((a,b) => document.getElementById('admin-orderform-sort').value === 'terlama' ? a.createdAtLocal - b.createdAtLocal : b.createdAtLocal - a.createdAtLocal);
-        list.forEach(f => {
-            let warn = '';
-            if (f.hasDiscrepancy && f.discrepancyNotes) {
-                warn = `<div style="margin-top:5px; padding:6px; background:#fffbeb; border:1px solid #f59e0b; border-radius:6px; font-size:0.75em; color:#d97706; text-align:left; line-height:1.4; max-width:250px; white-space:normal;"><strong style="display:block; margin-bottom:3px;">⚠️ Perubahan Qty (Oleh Gudang):</strong>${f.discrepancyNotes.replace(/\n/g, '<br>')}</div>`;
-            }
-            tbody.innerHTML += `<tr>
+        list.forEach(f => tbody.innerHTML += `<tr>
             <td><input type="checkbox" class="cb-form-history-admin" value="${f.id}"></td>
-            <td>${f.formNo}</td><td>${f.mitraName}<br><small>${f.mitraLoc || '-'}</small></td><td>${formatDateDisplay(f.date)}</td><td>${f.gudangName || '-'}</td><td>${(f.items||[]).length} baris</td>
-            <td>${f.status === 'void' ? '<span class="status-void">Dibatalkan</span>' : '<span class="status-issued">Diterbitkan</span>'}${warn}</td>
+            <td>${f.formNo}${f.hasQtyAdjustment?`<br><span class="badge" style="background:#fef3c7;color:#92400e;cursor:pointer;" title="Klik untuk lihat detail" onclick="showQtyAdjustmentDetail('${f.id}')">✂️ Qty Dikurangi</span>`:''}</td><td>${f.mitraName}<br><small style="color:var(--text-muted);">${f.mitraLoc||'-'}</small></td><td>${formatDateDisplay(f.date)}</td><td>${f.gudangName || '-'}</td><td>${(f.items||[]).length} baris</td>
+            <td>${f.status === 'void' ? '<span class="status-void">Dibatalkan</span>' : '<span class="status-issued">Diterbitkan</span>'}</td>
             <td style="white-space:nowrap;">
                 <button class="btn-primary btn-small" onclick="generateOrderFormPDF(_orderForms.find(x=>x.id==='${f.id}'))" title="Download PDF">📄</button> 
                 ${f.status === 'issued' ? `<button class="btn-warning btn-small" onclick="voidOrderForm('${f.id}')" title="Batalkan Form">Batal</button>` : ''}
                 <button class="btn-danger btn-small" onclick="deleteOrderFormAdmin('${f.id}')" title="Hapus Permanen">🗑️</button>
             </td>
-        </tr>`});
+        </tr>`);
     }
 
     function loadOrderFormHistory() {
         const tbody = document.querySelector('#orderform-table tbody'); tbody.innerHTML = '';
         const fStatus = document.getElementById('orderform-filter-status').value;
         const fCari = document.getElementById('orderform-filter-cari').value.toLowerCase();
-        let list = _orderForms.filter(f => (fStatus === 'ALL' || f.status === fStatus) && (fCari === '' || (f.formNo||'').toLowerCase().includes(fCari) || (f.mitraName||'').toLowerCase().includes(fCari) || (f.mitraLoc||'').toLowerCase().includes(fCari)));
+        let list = _orderForms.filter(f => (fStatus === 'ALL' || f.status === fStatus) && (fCari === '' || f.formNo.toLowerCase().includes(fCari) || f.mitraName.toLowerCase().includes(fCari) || (f.mitraLoc||'').toLowerCase().includes(fCari)));
         list.sort((a,b) => b.createdAtLocal - a.createdAtLocal);
-        list.forEach(f => {
-            let warn = '';
-            if (f.hasDiscrepancy && f.discrepancyNotes) {
-                warn = `<div style="margin-top:5px; padding:6px; background:#fffbeb; border:1px solid #f59e0b; border-radius:6px; font-size:0.75em; color:#d97706; text-align:left; line-height:1.4; max-width:250px; white-space:normal;"><strong style="display:block; margin-bottom:3px;">⚠️ Perubahan Qty Terjadi:</strong>${f.discrepancyNotes.replace(/\n/g, '<br>')}</div>`;
-            }
-            tbody.innerHTML += `<tr><td><input type="checkbox" class="cb-form-history-gudang" value="${f.id}"></td><td>${f.formNo}</td><td>${f.mitraName}<br><small>${f.mitraLoc || '-'}</small></td><td>${formatDateDisplay(f.date)}</td><td>${(f.items||[]).length} baris</td><td>${f.status === 'void' ? '<span class="status-void">Dibatalkan</span>' : '<span class="status-issued">Diterbitkan</span>'}${warn}</td><td><button class="btn-primary btn-small" onclick="generateOrderFormPDF(_orderForms.find(x=>x.id==='${f.id}'))">📄 PDF</button> ${f.status === 'issued' ? `<button class="btn-danger btn-small" onclick="voidOrderForm('${f.id}')">Batalkan</button>` : ''}</td></tr>`});
+        list.forEach(f => tbody.innerHTML += `<tr><td><input type="checkbox" class="cb-form-history-gudang" value="${f.id}"></td><td>${f.formNo}${f.hasQtyAdjustment?`<br><span class="badge" style="background:#fef3c7;color:#92400e;cursor:pointer;" title="Klik untuk lihat detail" onclick="showQtyAdjustmentDetail('${f.id}')">✂️ Qty Dikurangi</span>`:''}</td><td>${f.mitraName}<br><small style="color:var(--text-muted);">${f.mitraLoc||'-'}</small></td><td>${formatDateDisplay(f.date)}</td><td>${(f.items||[]).length} baris</td><td>${f.status === 'void' ? '<span class="status-void">Dibatalkan</span>' : '<span class="status-issued">Diterbitkan</span>'}</td><td><button class="btn-primary btn-small" onclick="generateOrderFormPDF(_orderForms.find(x=>x.id==='${f.id}'))">📄 PDF</button> ${f.status === 'issued' ? `<button class="btn-danger btn-small" onclick="voidOrderForm('${f.id}')">Batalkan</button>` : ''}</td></tr>`);
     }
 
     function voidOrderForm(formId) {
@@ -2494,6 +2498,7 @@
         else {document.getElementById('sales-view-data').classList.remove('hidden');loadSalesData();let btnEx=document.getElementById('btn-export-sales');if(btnEx){btnEx.innerText=tab==='belum'?"📥 Download Laporan Sisa Stok":"📥 Download Laporan Alokasi Approved";btnEx.onclick=()=>exportExcel(tab==='belum'?'sales_belum':'alokasi');}}
     }
 
+    // LOGIKA BARU: Tampilan Data Sales Digabung per Nama + Desain List Sejajar (Khusus Distribusi Mitra)
     function loadSalesData() {
         const fName = document.getElementById('sales-filter-nama').value.toLowerCase();
         const tbody = document.querySelector('#sales-table tbody'); tbody.innerHTML = '';
@@ -2524,6 +2529,7 @@
 
         let groupedArr = Object.values(grouped);
         
+        // Sorting
         let sortVal = document.getElementById('sales-sort').value;
         groupedArr.forEach(g => {
             g.totalGroupStock = 0; g.totalGroupAlloc = 0;
@@ -2556,7 +2562,7 @@
                 let itemMitras = _mitras.filter(m => m.brand === item.brand || m.brand === 'BOTH');
                 
                 item.details.forEach(d => {
-                    let sizeAllocTotal = getDetailAllocatedTotal(d); 
+                    let sizeAllocTotal = getDetailAllocatedTotal(d); // Hanya menghitung Mitra
                     itemTotalStock += d.totalQty; 
                     itemTotalAlloc += sizeAllocTotal;
                     
@@ -2569,7 +2575,7 @@
                 groupTotalStock += itemTotalStock;
                 groupTotalAlloc += itemTotalAlloc;
 
-                if(sizesToRender.length === 0) return; 
+                if(sizesToRender.length === 0) return; // Lewati jika barang ini tidak punya size yg cocok di tab ini
                 
                 let conditionBadge = getBadge(item.condition, 'cond');
                 htmlContent += `<div style="margin-bottom:20px; border:1px solid #ccc; padding:15px; border-radius:8px; background:#fff; box-shadow: 0 4px 6px rgba(0,0,0,0.02);">
@@ -2583,13 +2589,13 @@
                     sizesToRender.forEach(d => {
                         let a = d.allocated || {}; let badges = [];
                         if(typeof a.mitra === 'object') {
-                            for(let mid in a.mitra) if(a.mitra[mid] > 0) { let mObj = _mitras.find(x => x.id == mid); badges.push(`<span class="alloc-badge alloc-badge-mitra">${mObj?mObj.name:'Mitra'}: ${a.mitra[mid]}</span>`); }
+                            for(let mid in a.mitra) if(a.mitra[mid] > 0) { let mObj = _mitras.find(x => x.id == mid); badges.push(`<span class="alloc-badge alloc-badge-mitra">${mObj?mObj.name+' ('+(mObj.loc||'-')+')':'Mitra'}: ${a.mitra[mid]}</span>`); }
                         }
                         const batches = getAllocationBatches(d).slice().sort((a,b)=>String(b.date||'').localeCompare(String(a.date||'')));
                         let batchHtml = batches.length ? batches.map(b => {
                             const bQty = getBatchQtyTotal(b), bIssued = getBatchIssuedTotal(b);
                             const bStatus = bIssued >= bQty ? 'SELESAI' : (bIssued > 0 ? 'SEBAGIAN TERBIT' : 'SIAP FORM');
-                            const detail = (b.items||[]).map(x => { const m=_mitras.find(z=>z.id===x.mitraId); return `${m?m.name:'Mitra'}: ${x.qty} pcs`; }).join(' · ');
+                            const detail = (b.items||[]).map(x => { const m=_mitras.find(z=>z.id===x.mitraId); return `${m?m.name+' ('+(m.loc||'-')+')':'Mitra'}: ${x.qty} pcs`; }).join(' · ');
                             return `<div style="margin:7px 0;padding:8px;border:1px solid #e2e8f0;border-radius:6px;background:#fff;"><b>${formatDateDisplay(b.date||'-')}</b> · ${bStatus}<br><small>${detail || '-'} | Total ${bQty} | Sudah terbit ${bIssued}</small></div>`;
                         }).join('') : '<span style="font-size:.8em;color:#999;">Belum ada batch.</span>';
                         if(badges.length > 0 || batches.length > 0) summaryHtml += `<div style="margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid #eee;"><span style="display:inline-block;min-width:65px;font-weight:bold;color:var(--primary);">Size ${d.size}</span> ${getAllocationStatusLabel(d.allocationStatus||'none')}<div style="margin:6px 0;">${badges.join(' ')}</div><div>${batchHtml}</div></div>`;
@@ -2598,6 +2604,8 @@
                 }
 
                 htmlContent += `<div id="form-${item.id}" class="${activeSalesTab === 'sudah' ? 'hidden' : ''}">`;
+                
+                // UPLOAD BOX (Ditambahkan pada setiap blok item/kondisi)
                 htmlContent += `
                     <div style="background:#eff6ff; border:1px dashed #3b82f6; padding:12px; margin-bottom:15px; border-radius:8px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
                         <div>
@@ -2625,8 +2633,10 @@
                     } else {
                         itemMitras.forEach((m) => { 
                             let reqKhusus = (d.requested && d.requested.mitra && d.requested.mitra[m.id]) ? d.requested.mitra[m.id] : 0;
+                            
+                            // HANYA MENGAMBIL NILAI DARI ALLOCATED DB ATAU KOSONG (Menghapus Auto-Fill)
                             let vM = (a.mitra && a.mitra[m.id]) ? a.mitra[m.id] : ''; 
-                            if(vM === 0) vM = ''; 
+                            if(vM === 0) vM = ''; // Memastikan jika 0 tetap tampil kosong
                             sum += (parseInt(vM)||0); 
                             
                             let diffStyle = '';
@@ -2636,7 +2646,7 @@
                             
                             mitraRowsHtml += `
                             <div style="display:flex; align-items:center; justify-content:space-between; border-bottom:1px dashed #e2e8f0; padding:8px 0;">
-                                <div style="flex:2; font-weight:600; font-size:0.9em; color:#334155;" title="${m.name}">
+                                <div style="flex:2; font-weight:600; font-size:0.9em; color:#334155;" title="${m.name} (${m.loc||'-'})">
                                     ${m.name} <br><span style="font-size:0.8em; color:var(--text-muted); font-weight:normal;">${m.loc}</span>
                                 </div>
                                 <div style="flex:1; text-align:center; font-size:0.95em; color:var(--primary); font-weight:bold; background:#eff6ff; padding:4px; border-radius:6px; margin:0 10px;">
@@ -2728,6 +2738,8 @@
     function toggleEditAlloc(id) { document.getElementById(`summary-${id}`).classList.toggle('hidden'); document.getElementById(`form-${id}`).classList.toggle('hidden'); }
     function toggleAccordion(key) { const r = document.getElementById(`acc-${key}`); if(r) r.classList.toggle('hidden'); }
 
+    // MODIFIKASI: FUNGSI BARU saveAllocation YANG MEMAKSA SALES MENGETIK ANGKA DISTRIBUSI
+    // STATUS DISTRIBUSI: none = 0%, partial = sebagian, approved = 100% stok size teralokasi
     function getAllocationStatusByQty(totalQty, allocatedQty) {
         totalQty = parseInt(totalQty) || 0;
         allocatedQty = parseInt(allocatedQty) || 0;
@@ -2785,6 +2797,7 @@
 
     function reduceUnissuedFromBatches(batches, mitraId, qtyToReduce) {
         let remaining = Math.max(0, parseInt(qtyToReduce) || 0);
+        // Mulai dari batch terbaru agar koreksi pada alokasi terakhir terjadi lebih dahulu.
         const ordered = (batches || []).slice().sort((a,b) => String(b.date||'').localeCompare(String(a.date||'')));
         for(const batch of ordered) {
             if(remaining <= 0) break;
@@ -2802,6 +2815,7 @@
             const issuedTotal = getBatchIssuedTotal(batch), qtyTotal = getBatchQtyTotal(batch);
             batch.status = issuedTotal >= qtyTotal && qtyTotal > 0 ? 'issued' : (issuedTotal > 0 ? 'partial_issued' : 'open');
         }
+        // Hapus baris mitra yang qty-nya sudah 0, dan batch kosong.
         for(let i=(batches||[]).length-1;i>=0;i--) {
             const b=batches[i];
             b.items=(b.items||[]).filter(x => (parseInt(x.qty)||0)>0 || (parseInt(x.issuedQty)||0)>0);
@@ -2857,13 +2871,15 @@
 
                 const issuedQty = (d.issued && d.issued.mitra) ? (parseInt(d.issued.mitra[m.id]) || 0) : 0;
                 if (finalQty < issuedQty) {
-                    alert(`Size ${d.size} / ${m.name}: alokasi ${finalQty} pcs tidak boleh lebih kecil dari Qty yang sudah diterbitkan (${issuedQty} pcs). Batalkan Form Order terlebih dahulu jika ingin mengurangi alokasi.`);
+                    alert(`Size ${d.size} / ${m.name} (${m.loc||'-'}): alokasi ${finalQty} pcs tidak boleh lebih kecil dari Qty yang sudah diterbitkan (${issuedQty} pcs). Batalkan Form Order terlebih dahulu jika ingin mengurangi alokasi.`);
                     hasError = true;
                     return;
                 }
                 if (finalQty > 0) finalMitraObj[m.id] = finalQty;
                 totalFinal += finalQty;
 
+                // Dalam mode ADD, input user adalah quantity baru untuk batch hari ini.
+                // Dalam mode UPDATE, hanya perubahan positif yang dicatat sebagai batch koreksi.
                 let delta = mode === 'add' ? entered : (finalQty - oldQty);
                 if (delta > 0) addedItems.push({ mitraId: m.id, qty: delta, issuedQty: 0 });
             });
@@ -2884,7 +2900,7 @@
                     if(finalQty < oldQty) {
                         const remainingReduction = reduceUnissuedFromBatches(existingBatches, m.id, oldQty - finalQty);
                         if(remainingReduction > 0) {
-                            alert(`Alokasi ${m.name} tidak bisa dikurangi ${oldQty-finalQty} pcs karena batch yang tersedia sudah terbit atau tidak ditemukan.`);
+                            alert(`Alokasi ${m.name} (${m.loc||'-'}) tidak bisa dikurangi ${oldQty-finalQty} pcs karena batch yang tersedia sudah terbit atau tidak ditemukan.`);
                             hasError = true;
                             break;
                         }
@@ -2950,6 +2966,7 @@
     }
 
     // ================= FUNGSI PERMINTAAN KHUSUS MITRA =================
+    
     function populateReqItemSelect() {
         const select = document.getElementById('req-item-select');
         if(!select) return;
@@ -3091,18 +3108,6 @@
         });
     }
 
-    function loadSalesOrderFormHistory(){
-        const tbody=document.querySelector('#sales-form-table tbody'); if(!tbody)return; const q=(document.getElementById('sales-form-filter-cari')?.value||'').toLowerCase(), st=document.getElementById('sales-form-filter-status')?.value||'issued';
-        let list=_orderForms.filter(f=>{if(st!=='ALL'&&f.status!==st)return false;if(currentUserRole==='sales_staff_zs'&&f.brand!=='ZS')return false;if(currentUserRole==='sales_staff_shi'&&f.brand!=='SHI')return false;return !q||(f.formNo||'').toLowerCase().includes(q)||(f.mitraName||'').toLowerCase().includes(q)||(f.mitraLoc||'').toLowerCase().includes(q);}).sort((a,b)=>(b.createdAtLocal||0)-(a.createdAtLocal||0));
-        tbody.innerHTML=list.map(f=>{
-            let warn = '';
-            if (f.hasDiscrepancy && f.discrepancyNotes) {
-                warn = `<div style="margin-top:5px; padding:6px; background:#fffbeb; border:1px solid #f59e0b; border-radius:6px; font-size:0.75em; color:#d97706; text-align:left; line-height:1.4; max-width:250px; white-space:normal;"><strong style="display:block; margin-bottom:3px;">⚠️ Qty Diubah Gudang:</strong>${f.discrepancyNotes.replace(/\n/g, '<br>')}</div>`;
-            }
-            return `<tr><td><b>${f.formNo}</b></td><td>${f.mitraName}<br><small>${f.mitraLoc || '-'}</small></td><td>${formatDateDisplay(f.date)}</td><td>${(f.items||[]).length}</td><td>${(f.items||[]).reduce((s,x)=>s+safeInt(x.qty),0)}</td><td>${f.status==='void'?'<span class="status-void">Dibatalkan</span>':'<span class="status-issued">Diterbitkan</span>'}${warn}</td><td><button class="btn-primary btn-small" onclick="generateOrderFormPDF(_orderForms.find(x=>x.id==='${f.id}'))">📄 PDF</button></td></tr>`
-        }).join('')||'<tr><td colspan="7" class="notif-empty">Belum ada Form Order.</td></tr>';
-    }
-
     // ================= FITUR SALES TAMBAHAN =================
     function draftStorageKey(){ return `mitra-request-draft:${currentUser||'guest'}`; }
     function saveMitraRequestDraft(){
@@ -3135,6 +3140,17 @@
         `<h4 style="margin-top:20px">Riwayat Form Order</h4><div class="table-container"><table><thead><tr><th>No. Form</th><th>Tanggal</th><th>Qty</th><th>Status</th></tr></thead><tbody>${formRows.map(f=>`<tr><td>${f.formNo}</td><td>${formatDateDisplay(f.date)}</td><td>${(f.items||[]).reduce((s,x)=>s+safeInt(x.qty),0)}</td><td>${f.status}</td></tr>`).join('')||'<tr><td colspan="4">Belum ada Form Order.</td></tr>'}</tbody></table></div>`;
     }
 
+    function loadSalesOrderFormHistory(){
+        const tbody=document.querySelector('#sales-form-table tbody'); if(!tbody)return; const q=(document.getElementById('sales-form-filter-cari')?.value||'').toLowerCase(), st=document.getElementById('sales-form-filter-status')?.value||'issued';
+        let list=_orderForms.filter(f=>{if(st!=='ALL'&&f.status!==st)return false;if(currentUserRole==='sales_staff_zs'&&f.brand!=='ZS')return false;if(currentUserRole==='sales_staff_shi'&&f.brand!=='SHI')return false;return !q||(f.formNo||'').toLowerCase().includes(q)||(f.mitraName||'').toLowerCase().includes(q)||(f.mitraLoc||'').toLowerCase().includes(q);}).sort((a,b)=>(b.createdAtLocal||0)-(a.createdAtLocal||0));
+        tbody.innerHTML=list.map(f=>`<tr><td><b>${f.formNo}</b>${f.hasQtyAdjustment?`<br><span class="badge" style="background:#fef3c7;color:#92400e;cursor:pointer;" title="Klik untuk lihat detail" onclick="showQtyAdjustmentDetail('${f.id}')">✂️ Qty Dikurangi Gudang</span>`:''}</td><td>${f.mitraName}<br><small style="color:var(--text-muted);">${f.mitraLoc||'-'}</small></td><td>${formatDateDisplay(f.date)}</td><td>${(f.items||[]).length}</td><td>${(f.items||[]).reduce((s,x)=>s+safeInt(x.qty),0)}</td><td>${f.status==='void'?'<span class="status-void">Dibatalkan</span>':'<span class="status-issued">Diterbitkan</span>'}</td><td><button class="btn-primary btn-small" onclick="generateOrderFormPDF(_orderForms.find(x=>x.id==='${f.id}'))">📄 PDF</button></td></tr>`).join('')||'<tr><td colspan="7" class="notif-empty">Belum ada Form Order.</td></tr>';
+    }
+    function showQtyAdjustmentDetail(formId) {
+        const f = _orderForms.find(x => x.id === formId); if(!f) return;
+        const detail = (f.qtyAdjustmentNote || '').split(' | ').join('\n');
+        alert(`Detail perubahan qty pada Form ${f.formNo} (Mitra: ${f.mitraName} - ${f.mitraLoc||'-'}):\n\n${detail || 'Tidak ada detail.'}`);
+    }
+
     function loadLeaderDashboard(){
         if(!isSalesLeaderRole(currentUserRole))return;
         const from=document.getElementById('leader-filter-from')?.value||'', to=document.getElementById('leader-filter-to')?.value||'', brand=document.getElementById('leader-filter-brand')?.value||'ALL';
@@ -3149,26 +3165,6 @@
     function reassignMitra(mitraId,user){const m=_mitras.find(x=>x.id===mitraId);if(!m)return;const before={salesOwner:m.salesOwner||null};db.collection('mitras').doc(mitraId).update({salesOwner:user||null,salesOwnerUpdatedAtLocal:Date.now(),salesOwnerUpdatedBy:currentUser||'Guest'}).then(()=>logActivity('Reassign Mitra',`Mitra ${m.name} dipindahkan ke sales ${user||'Belum ditugaskan'}`,before,{salesOwner:user||null},{type:'mitra_reassign'})).catch(e=>alert('Gagal reassign mitra: '+e.message));}
 
     // ================= EXPORT EXCEL & REPORT =================
-    function getDiscrepancyNotes(batchId, itemId, size, mitraId) {
-        let catatanGudang = [];
-        _orderForms.forEach(f => {
-            if(f.hasDiscrepancy && f.mitraId === mitraId) {
-                const matchedItem = (f.items || []).find(it => it.allocationBatchId === batchId && it.itemId === itemId && it.size === size);
-                if(matchedItem) {
-                    let lines = (f.discrepancyNotes || '').split('\n');
-                    let itemName = (_inventory.find(i=>i.id===itemId)||{}).name || '';
-                    let matchedLine = lines.find(l => l.includes(itemName) && l.includes(`Size ${size}`));
-                    if(matchedLine) {
-                        catatanGudang.push(`[Form ${f.formNo}] ${matchedLine.replace('- ', '')}`);
-                    } else {
-                        catatanGudang.push(`[Form ${f.formNo}] Diserahkan: ${matchedItem.qty} pcs`);
-                    }
-                }
-            }
-        });
-        return catatanGudang.length > 0 ? catatanGudang.join(' | ') : '-';
-    }
-
     function exportExcelStyles() {
         const thin = { style: 'thin', color: { rgb: 'B8C2CC' } };
         return {
@@ -3234,7 +3230,27 @@
         }
     }
 
-    async function exportExcel(type) {
+    // Mencari Form Order mana saja yang qty-nya dikurangi Gudang saat diserahkan (dibanding qty yang tersedia/dialokasikan saat itu),
+    // untuk item/size/batch/mitra tertentu. Dipakai khusus di Excel (Riwayat Distribusi) — TIDAK dipakai di PDF Form Order.
+    function findOrderFormAdjustments(itemId, size, batchId, mitraId) {
+        let matches = [];
+        _orderForms.forEach(f => {
+            if(f.mitraId !== mitraId || f.status === 'void') return;
+            (f.items || []).forEach(it => {
+                if(it.itemId === itemId && it.size === size && it.allocationBatchId === batchId && safeNum(it.qty) < safeNum(it.originalAvailable)) {
+                    matches.push({ formNo: f.formNo, qty: safeNum(it.qty), originalAvailable: safeNum(it.originalAvailable), diff: safeNum(it.originalAvailable) - safeNum(it.qty) });
+                }
+            });
+        });
+        return matches;
+    }
+    function qtyAdjustmentColumns(itemId, size, batchId, mitraId) {
+        const matches = findOrderFormAdjustments(itemId, size, batchId, mitraId);
+        if(matches.length === 0) return ['-', ''];
+        return ['YA', matches.map(a => `Form ${a.formNo}: tersedia ${a.originalAvailable} pcs, diserahkan ${a.qty} pcs (kurang ${a.diff} pcs)`).join(' | ')];
+    }
+
+    async function exportExcelInternal(type) {
         if(!window.XLSX) return alert('Library Excel gagal dimuat. Coba refresh halaman.');
         const visibleInventory = _inventory.filter(item => {
             if(currentUserRole === 'sales_staff_zs') return item.brand === 'ZS';
@@ -3246,6 +3262,7 @@
         const dateSortValue = v => { const t=Date.parse(String(v||'')); return Number.isNaN(t)?0:t; };
         const wb = XLSX.utils.book_new();
 
+        // 1) SALES: SISA STOK / BELUM DIDISTRIBUSIKAN
         if(type === 'sales_belum') {
             const rows=[['Artikel','Koleksi','Brand','Kondisi','Size','Total Stok (pcs)','Total Dialokasi (pcs)','Sisa Stok Belum Dialokasi (pcs)','% Dialokasi','Status']];
             visibleInventory.forEach(item=>(item.details||[]).forEach(d=>{
@@ -3260,6 +3277,7 @@
             return;
         }
 
+        // 2) GUDANG / STOCK INPUT
         if(type === 'gudang_input') {
             const rows=[['Tanggal Masuk','Artikel','Koleksi','Brand','Kondisi','Total Masuk (pcs)','Sisa Belum Dialokasi (pcs)','Progress Produksi']];
             visibleInventory.forEach(item=>rows.push([getRawDates(item),item.name||'',item.koleksi||'',item.brand||'',item.condition||'',getItemTotalMasuk(item),getItemAvailableStock(item),item.qtyProduksi>0?pctVal(getItemTotalMasuk(item),item.qtyProduksi):0]));
@@ -3270,6 +3288,7 @@
             return;
         }
 
+        // 3) SALES REQUEST
         if(type === 'sales_request') {
             const rows=[['Artikel','Koleksi','Brand','Kondisi','Size','Nama Mitra','Lokasi','Jumlah Permintaan','Total Alokasi','% Terpenuhi','Sudah Terbit','% Diserahkan','Sisa Permintaan','Sisa Alokasi Belum Terbit']];
             visibleInventory.forEach(item=>(item.details||[]).forEach(d=>{
@@ -3291,12 +3310,12 @@
             return;
         }
 
+        // 4) RIWAYAT DISTRIBUSI / ALOKASI
         if(type === 'alokasi') {
             const mitraSummary = {};
             const pivotSourceRows = [];
             _mitras.forEach(m=>mitraSummary[m.id]={mitraId:m.id,mitra:m.name,lokasi:m.loc||'',brand:m.brand||'',request:0,allocated:0,issued:0,batches:new Set(),articleSizes:new Set()});
             const detailRows=[];
-            
             visibleInventory.forEach(item=>(item.details||[]).forEach(d=>{
                 const requested=(d.requested&&d.requested.mitra)||{};
                 const aggregateAllocated=(d.allocated&&d.allocated.mitra)||{};
@@ -3313,15 +3332,12 @@
                     const qty=safeNum(bi.qty), iss=safeNum(bi.issuedQty); if(qty<=0) return;
                     const req=safeNum(requested[m.id]);
                     const sm=mitraSummary[m.id]; if(sm){sm.batches.add(batch.batchId||batch.date||'');}
-                    
-                    const noteStr = getDiscrepancyNotes(batch.batchId, item.id, d.size, m.id);
-
-                    const row=[batch.date||d.allocationDate||getRawDates(item),item.name||'',item.koleksi||'',item.brand||'',item.condition||'',d.size||'',m.name||'',m.loc||'',req,qty,iss,Math.max(0,qty-iss),pctVal(qty,req),pctVal(iss,req),iss>=qty?'SELESAI':(iss>0?'SEBAGIAN':'BELUM TERBIT'), noteStr];
+                    const row=[batch.date||d.allocationDate||getRawDates(item),item.name||'',item.koleksi||'',item.brand||'',item.condition||'',d.size||'',m.name||'',m.loc||'',req,qty,iss,Math.max(0,qty-iss),pctVal(qty,req),pctVal(iss,req),iss>=qty?'SELESAI':(iss>0?'SEBAGIAN':'BELUM TERBIT'),...qtyAdjustmentColumns(item.id,d.size,batch.batchId,m.id)];
                     detailRows.push(row);
-                    pivotSourceRows.push([m.name||'',item.name||'',item.koleksi||'',item.brand||'',d.size||'',batch.date||'',req,qty,iss,Math.max(0,qty-iss)]);
+                    pivotSourceRows.push([m.name||'',m.loc||'',item.name||'',item.koleksi||'',item.brand||'',d.size||'',batch.date||'',req,qty,iss,Math.max(0,qty-iss)]);
                 }));
             }));
-            
+            // Khusus USER GUDANG: workbook dibuat lebih sederhana, hanya Riwayat Alokasi + sheet per Mitra.
             if(currentUserRole === 'gudang') {
                 const rowsByMitra = {};
                 _mitras.forEach(m => rowsByMitra[m.id] = []);
@@ -3335,7 +3351,7 @@
                         if(relevantBatches.length === 0) {
                             rowsByMitra[m.id].push([
                                 '', item.name||'', item.koleksi||'', item.brand||'', item.condition||'', d.size||'', m.loc||'',
-                                req, 0, 0, 0, req, pctVal(0,req), 'BELUM DIALOKASI', '-'
+                                req, 0, 0, 0, req, pctVal(0,req), 'BELUM DIALOKASI', '-', ''
                             ]);
                         } else {
                             relevantBatches.forEach(batch => {
@@ -3344,24 +3360,24 @@
                                 const alloc = safeNum(bi.qty);
                                 const iss = safeNum(bi.issuedQty);
                                 const remainingAlloc = Math.max(0, alloc - iss);
-                                const noteStr = getDiscrepancyNotes(batch.batchId, item.id, d.size, m.id);
                                 rowsByMitra[m.id].push([
                                     batch.date || d.allocationDate || getRawDates(item), item.name||'', item.koleksi||'', item.brand||'', item.condition||'', d.size||'', m.loc||'',
                                     req, alloc, iss, remainingAlloc, Math.max(0, req - Math.min(req, alloc)), pctVal(alloc, req),
-                                    iss >= alloc ? 'SELESAI' : (iss > 0 ? 'SEBAGIAN' : 'BELUM TERBIT'), noteStr
+                                    iss >= alloc ? 'SELESAI' : (iss > 0 ? 'SEBAGIAN' : 'BELUM TERBIT'),
+                                    ...qtyAdjustmentColumns(item.id, d.size, batch.batchId, m.id)
                                 ]);
                             });
                         }
                     });
                 }));
 
-                const allocHeader = ['Tanggal Alokasi','Nama Artikel','Koleksi','Brand','Kondisi','Size','Nama Mitra','Lokasi','Jumlah Permintaan','Qty Alokasi Sales','Qty Sudah Terbit','Sisa Belum Terbit','% Terpenuhi (Alokasi)','% Terpenuhi (Terbit)','Status','Catatan Gudang'];
+                const allocHeader = ['Tanggal Alokasi','Nama Artikel','Koleksi','Brand','Kondisi','Size','Nama Mitra','Lokasi','Jumlah Permintaan','Qty Alokasi Sales','Qty Sudah Terbit','Sisa Belum Terbit','% Terpenuhi (Alokasi)','% Terpenuhi (Terbit)','Status','Qty Diubah Gudang','Detail Perubahan Qty'];
                 const wsDetailGudang = XLSX.utils.aoa_to_sheet([allocHeader, ...detailRows]);
                 const workbookSheets = [{
                     name:'Riwayat Alokasi', ws:wsDetailGudang,
-                    widths:[17,30,22,10,12,10,28,20,20,20,20,20,16,16,18,35],
-                    filter:`A1:P${Math.max(1, detailRows.length+1)}`, freeze:{xSplit:0,ySplit:1},
-                    centerCols:[0,3,4,5,8,9,10,11,12,13,14], percentCols:[12,13]
+                    widths:[17,30,22,10,12,10,28,20,20,20,20,20,16,16,18,18,55],
+                    filter:`A1:Q${Math.max(1, detailRows.length+1)}`, freeze:{xSplit:0,ySplit:1},
+                    centerCols:[0,3,4,5,8,9,10,11,12,13,14,15], percentCols:[12,13]
                 }];
                 formatWorksheetNumbers(wsDetailGudang,1,detailRows.length,[8,9,10,11],'#,##0');
 
@@ -3370,8 +3386,8 @@
                     if(!mitraRows.length) return;
                     const m = _mitras.find(x => x.id === mitraId);
                     if(!m) return;
-                    const header = ['Tanggal Alokasi','Nama Artikel','Koleksi','Brand','Kondisi','Size','Lokasi Mitra','Jumlah Permintaan','Qty Alokasi Sales','Qty Sudah Terbit','Sisa Alokasi Belum Terbit','Sisa Permintaan','% Terpenuhi','Status','Catatan Gudang'];
-                    
+                    const header = ['Tanggal Alokasi','Nama Artikel','Koleksi','Brand','Kondisi','Size','Lokasi Mitra','Jumlah Permintaan','Qty Alokasi Sales','Qty Sudah Terbit','Sisa Alokasi Belum Terbit','Sisa Permintaan','% Terpenuhi','Status','Qty Diubah Gudang','Detail Perubahan Qty'];
+                    // Total request dihitung unik per artikel+size agar alokasi bertahap di beberapa tanggal tidak menggandakan angka permintaan.
                     const uniqueReq = {};
                     mitraRows.forEach(r => {
                         const key = `${r[1]}|${r[5]}`;
@@ -3382,18 +3398,18 @@
                     const totalIssued = mitraRows.reduce((a,r)=>a+safeNum(r[9]),0);
                     const totalRemainAlloc = mitraRows.reduce((a,r)=>a+safeNum(r[10]),0);
                     const totalRemainReq = Math.max(0,totalReq-Math.min(totalReq,totalAlloc));
-                    const data = [header, ...mitraRows, ['TOTAL','','','','','','',totalReq,totalAlloc,totalIssued,totalRemainAlloc,totalRemainReq,pctVal(totalAlloc,totalReq), '','']];
+                    const data = [header, ...mitraRows, ['TOTAL','','','','','','',totalReq,totalAlloc,totalIssued,totalRemainAlloc,totalRemainReq,pctVal(totalAlloc,totalReq), '', '', '']];
                     const ws = XLSX.utils.aoa_to_sheet(data);
-                    let baseName = String(m.name || 'Mitra').replace(/[\\\/:*?\[\]]/g,' ').trim() || 'Mitra';
+                    let baseName = String(`${m.name || 'Mitra'} (${m.loc || '-'})`).replace(/[\\\/:*?\[\]]/g,' ').trim() || 'Mitra';
                     baseName = baseName.slice(0,31);
                     let name = baseName, idx=2;
                     while(usedNames.has(name.toLowerCase())) { const suffix=` ${idx++}`; name=(baseName.slice(0,31-suffix.length)+suffix); }
                     usedNames.add(name.toLowerCase());
                     workbookSheets.push({
                         name, ws,
-                        widths:[17,30,22,10,12,10,20,20,20,20,26,20,16,18,35],
-                        filter:`A1:O${Math.max(1,data.length-1)}`, freeze:{xSplit:0,ySplit:1},
-                        totalRow:data.length-1, centerCols:[0,3,4,5,6,7,8,9,10,11,12,13], percentCols:[12]
+                        widths:[17,30,22,10,12,10,20,20,20,20,26,20,16,18,18,55],
+                        filter:`A1:P${Math.max(1,data.length-1)}`, freeze:{xSplit:0,ySplit:1},
+                        totalRow:data.length-1, centerCols:[0,3,4,5,6,7,8,9,10,11,12,13,14], percentCols:[12]
                     });
                     formatWorksheetNumbers(ws,1,data.length-1,[7,8,9,10,11],'#,##0');
                 });
@@ -3402,23 +3418,19 @@
                 return;
             }
 
-            const detailHeader=['Tanggal Alokasi','Nama Artikel','Koleksi','Brand','Kondisi','Size','Nama Mitra','Lokasi','Jumlah Permintaan','Qty Alokasi','Qty Sudah Terbit','Sisa Belum Terbit','% Terpenuhi (Alokasi)','% Terpenuhi (Sudah Terbit)','Status','Catatan Gudang'];
+            const detailHeader=['Tanggal Alokasi','Nama Artikel','Koleksi','Brand','Kondisi','Size','Nama Mitra','Lokasi','Jumlah Permintaan','Qty Alokasi','Qty Sudah Terbit','Sisa Belum Terbit','% Terpenuhi (Alokasi)','% Terpenuhi (Sudah Terbit)','Status','Qty Diubah Gudang','Detail Perubahan Qty'];
             const rows=[detailHeader,...detailRows];
             const wsDetail=XLSX.utils.aoa_to_sheet(rows);
-            
             const sumRows=[['Nama Mitra','Lokasi','Brand','Total Permintaan (pcs)','Total Alokasi (pcs)','% Permintaan Terpenuhi','Total Sudah Terbit (pcs)','% Sudah Diserahkan','Sisa Alokasi Belum Terbit (pcs)','Jumlah Artikel/Size','Jumlah Batch Alokasi']];
             Object.values(mitraSummary).filter(x=>x.request||x.allocated||x.issued).sort((a,b)=>b.allocated-a.allocated||b.request-a.request).forEach(x=>sumRows.push([x.mitra,x.lokasi,x.brand,x.request,x.allocated,pctVal(x.allocated,x.request),x.issued,pctVal(x.issued,x.request),Math.max(0,x.allocated-x.issued),x.articleSizes.size,x.batches.size]));
             const tr=sumRows.slice(1).reduce((s,r)=>s+safeNum(r[3]),0), ta=sumRows.slice(1).reduce((s,r)=>s+safeNum(r[4]),0), ti=sumRows.slice(1).reduce((s,r)=>s+safeNum(r[6]),0);
             sumRows.push(['TOTAL','','',tr,ta,pctVal(ta,tr),ti,pctVal(ti,tr),Math.max(0,ta-ti),'',sumRows.slice(1).reduce((s,r)=>s+safeNum(r[10]),0)]);
             const wsSummary=XLSX.utils.aoa_to_sheet(sumRows);
-            
-            const analysisRows=[['Mitra','Total Permintaan','Total Alokasi','% Terpenuhi','Sudah Terbit','% Diserahkan','Sisa dari Permintaan','Sisa Alokasi Belum Terbit']];
-            Object.values(mitraSummary).filter(x=>x.request||x.allocated||x.issued).sort((a,b)=>a.mitra.localeCompare(b.mitra)).forEach(x=>analysisRows.push([x.mitra,x.request,x.allocated,pctVal(x.allocated,x.request),x.issued,pctVal(x.issued,x.request),Math.max(0,x.request-x.allocated),Math.max(0,x.allocated-x.issued)]));
+            const analysisRows=[['Mitra','Lokasi','Total Permintaan','Total Alokasi','% Terpenuhi','Sudah Terbit','% Diserahkan','Sisa dari Permintaan','Sisa Alokasi Belum Terbit']];
+            Object.values(mitraSummary).filter(x=>x.request||x.allocated||x.issued).sort((a,b)=>a.mitra.localeCompare(b.mitra)).forEach(x=>analysisRows.push([x.mitra,x.lokasi,x.request,x.allocated,pctVal(x.allocated,x.request),x.issued,pctVal(x.issued,x.request),Math.max(0,x.request-x.allocated),Math.max(0,x.allocated-x.issued)]));
             const wsAnalysis=XLSX.utils.aoa_to_sheet(analysisRows);
-            
-            const pivotHeader=['Nama Mitra','Nama Artikel','Koleksi','Brand','Size','Tanggal Alokasi','Jumlah Permintaan','Qty Alokasi','Qty Sudah Terbit','Sisa Belum Terbit'];
+            const pivotHeader=['Nama Mitra','Lokasi Mitra','Nama Artikel','Koleksi','Brand','Size','Tanggal Alokasi','Jumlah Permintaan','Qty Alokasi','Qty Sudah Terbit','Sisa Belum Terbit'];
             const wsPivot=XLSX.utils.aoa_to_sheet([pivotHeader,...pivotSourceRows]);
-            
             const guide=XLSX.utils.aoa_to_sheet([
                 ['LAPORAN RIWAYAT TERDISTRIBUSI ZS & SHI'],
                 ['Sheet','Fungsi'],
@@ -3426,22 +3438,20 @@
                 ['Ringkasan Mitra','Total permintaan, alokasi, persentase terpenuhi, realisasi terbit, dan sisa per mitra.'],
                 ['Analisa Mitra','Ringkasan gap permintaan vs alokasi vs realisasi.'],
                 ['Data Pivot','Data sumber yang siap dipakai untuk Insert > PivotTable di Excel.'],
+                ['Kolom "Qty Diubah Gudang"','Bernilai YA jika qty yang diserahkan Gudang pada Form Order lebih kecil dari qty yang tersedia/dialokasikan saat itu. Lihat kolom "Detail Perubahan Qty" di sebelahnya untuk rincian per Form Order.'],
                 ['Catatan','Batch ID dan Dibuat Oleh tidak ditampilkan.']
             ]);
-
             finalizeWorkbook(wb,[
-                {name:'Riwayat Alokasi',ws:wsDetail,widths:[17,30,22,10,12,10,28,20,20,16,20,20,22,26,18,35],filter:`A1:P${Math.max(1,rows.length)}`,freeze:{xSplit:0,ySplit:1},centerCols:[0,3,4,5,8,9,10,11,12,13,14],percentCols:[12,13]},
+                {name:'Riwayat Alokasi',ws:wsDetail,widths:[17,30,22,10,12,10,28,20,20,16,20,20,22,26,18,18,55],filter:`A1:Q${Math.max(1,rows.length)}`,freeze:{xSplit:0,ySplit:1},centerCols:[0,3,4,5,8,9,10,11,12,13,14,15],percentCols:[12,13]},
                 {name:'Ringkasan Mitra',ws:wsSummary,widths:[28,20,12,21,20,22,23,20,26,20,20],filter:`A1:K${Math.max(1,sumRows.length-1)}`,freeze:{xSplit:0,ySplit:1},totalRow:sumRows.length-1,centerCols:[2,3,4,5,6,7,8,9,10],percentCols:[5,7]},
-                {name:'Analisa Mitra',ws:wsAnalysis,widths:[30,20,18,18,18,18,22,28],filter:`A1:H${Math.max(1,analysisRows.length)}`,freeze:{xSplit:0,ySplit:1},centerCols:[1,2,3,4,5,6,7],percentCols:[3,5]},
-                {name:'Data Pivot',ws:wsPivot,widths:[28,30,22,10,10,17,20,16,20,20],filter:`A1:J${Math.max(1,pivotSourceRows.length+1)}`,freeze:{xSplit:0,ySplit:1},centerCols:[3,4,5,6,7,8,9]},
+                {name:'Analisa Mitra',ws:wsAnalysis,widths:[30,20,20,18,18,18,18,22,28],filter:`A1:I${Math.max(1,analysisRows.length)}`,freeze:{xSplit:0,ySplit:1},centerCols:[2,3,4,5,6,7,8],percentCols:[4,6]},
+                {name:'Data Pivot',ws:wsPivot,widths:[28,18,30,22,10,10,17,20,16,20,20],filter:`A1:K${Math.max(1,pivotSourceRows.length+1)}`,freeze:{xSplit:0,ySplit:1},centerCols:[4,5,6,7,8,9,10]},
                 {name:'Panduan',ws:guide,widths:[25,105],titleRow:0,headerRow:1}
             ]);
-            
             formatWorksheetNumbers(wsDetail,1,rows.length-1,[8,9,10,11],'#,##0');
             formatWorksheetNumbers(wsSummary,1,sumRows.length-1,[3,4,6,8,9,10],'#,##0');
-            formatWorksheetNumbers(wsAnalysis,1,analysisRows.length-1,[1,2,4,6,7],'#,##0');
-            formatWorksheetNumbers(wsPivot,1,pivotSourceRows.length,[6,7,8,9],'#,##0');
-            
+            formatWorksheetNumbers(wsAnalysis,1,analysisRows.length-1,[2,3,5,7,8],'#,##0');
+            formatWorksheetNumbers(wsPivot,1,pivotSourceRows.length,[7,8,9,10],'#,##0');
             downloadWorkbook(wb,`Riwayat_Terdistribusi_ZS_SHI_${getTodayLocalISO()}.xlsx`,`Laporan riwayat distribusi berhasil didownload (${detailRows.length} baris riwayat alokasi).`);
             return;
         }
@@ -3449,7 +3459,15 @@
         alert('Jenis laporan tidak dikenal: '+type);
     }
 
+    async function exportExcel(type) {
+        try { await exportExcelInternal(type); }
+        catch(e) { console.error('Export Excel error:',e); alert('Gagal membuat laporan Excel: '+(e?.message||e)); }
+    }
+
     function safeInt(v){ return Math.max(0, parseInt(v,10)||0); }
+    // safeNum dipakai di banyak tempat pada generator laporan Excel (exportExcelInternal, generatePeriodicReport) tapi
+    // sebelumnya tidak pernah didefinisikan, menyebabkan "safeNum is not defined" saat laporan dibuat. Alias ke safeInt.
+    function safeNum(v){ return safeInt(v); }
 
     function generatePeriodicReport(source) {
         if(!window.XLSX) return alert('Library Excel gagal dimuat. Coba refresh halaman.');
@@ -3461,19 +3479,19 @@
         const stokRows=[['Tanggal Masuk','Nama Artikel','Koleksi','Brand','Kondisi','Total Masuk (pcs)','Sisa di Gudang (Belum Dialokasi)']];
         invFiltered.forEach(i=>stokRows.push([getRawDates(i),i.name,i.koleksi||'',i.brand,i.condition,getItemTotalMasuk(i),getItemAvailableStock(i)]));
         const wsStok=XLSX.utils.aoa_to_sheet(stokRows);
-        const alokasiRows=[['Tanggal Alokasi','Nama Artikel','Koleksi','Brand','Size','Status Batch','Total Stok Size Ini','Nama Mitra','Qty Alokasi','Qty Sudah Terbit','Sisa Belum Terbit']];
-        _inventory.forEach(item=>(item.details||[]).forEach(d=>getAllocationBatches(d).forEach(batch=>(batch.items||[]).forEach(bi=>{ const bdate=batch.date||d.allocationDate||getRawDates(item); if(!inRange(bdate))return; if(safeInt(bi.qty)<=0)return; const m=_mitras.find(x=>x.id===bi.mitraId); alokasiRows.push([bdate,item.name,item.koleksi||'',item.brand,d.size,batch.status||'',d.totalQty,m?m.name:'Mitra Terhapus',safeInt(bi.qty),safeInt(bi.issuedQty),Math.max(0,safeInt(bi.qty)-safeInt(bi.issuedQty))]); }))));
+        const alokasiRows=[['Tanggal Alokasi','Nama Artikel','Koleksi','Brand','Size','Status Batch','Total Stok Size Ini','Nama Mitra','Lokasi Mitra','Qty Alokasi','Qty Sudah Terbit','Sisa Belum Terbit','Qty Diubah Gudang','Detail Perubahan Qty']];
+        _inventory.forEach(item=>(item.details||[]).forEach(d=>getAllocationBatches(d).forEach(batch=>(batch.items||[]).forEach(bi=>{ const bdate=batch.date||d.allocationDate||getRawDates(item); if(!inRange(bdate))return; if(safeInt(bi.qty)<=0)return; const m=_mitras.find(x=>x.id===bi.mitraId); alokasiRows.push([bdate,item.name,item.koleksi||'',item.brand,d.size,batch.status||'',d.totalQty,m?m.name:'Mitra Terhapus',m?(m.loc||'-'):'-',safeInt(bi.qty),safeInt(bi.issuedQty),Math.max(0,safeInt(bi.qty)-safeInt(bi.issuedQty)),...(m?qtyAdjustmentColumns(item.id,d.size,batch.batchId,m.id):['-',''])]); }))));
         const wsAlloc=XLSX.utils.aoa_to_sheet(alokasiRows);
         const orderRows=[['No. Form','Tanggal','Mitra','Lokasi','Gudang Penyerah','Total Qty','Status']];
         _orderForms.filter(f=>inRange(f.date)).forEach(f=>orderRows.push([f.formNo,f.date,f.mitraName,f.mitraLoc,f.gudangName,(f.items||[]).reduce((s,i)=>s+safeInt(i.qty),0),String(f.status||'').toUpperCase()]));
         const wsOrders=XLSX.utils.aoa_to_sheet(orderRows);
         finalizeWorkbook(wb,[
             {name:'Ringkasan Stok',ws:wsStok,widths:[22,35,22,10,12,20,28],filter:`A1:G${Math.max(1,stokRows.length)}`,freeze:{xSplit:0,ySplit:1},centerCols:[0,3,4,5,6]},
-            {name:'Distribusi Mitra',ws:wsAlloc,widths:[17,30,22,10,10,18,20,28,18,20,20],filter:`A1:K${Math.max(1,alokasiRows.length)}`,freeze:{xSplit:0,ySplit:1},centerCols:[0,3,4,5,6,8,9,10]},
+            {name:'Distribusi Mitra',ws:wsAlloc,widths:[17,30,22,10,10,18,20,28,18,18,20,20,18,55],filter:`A1:N${Math.max(1,alokasiRows.length)}`,freeze:{xSplit:0,ySplit:1},centerCols:[0,3,4,5,6,9,10,11,12]},
             {name:'Riwayat Form Order',ws:wsOrders,widths:[20,14,28,20,22,14,16],filter:`A1:G${Math.max(1,orderRows.length)}`,freeze:{xSplit:0,ySplit:1},centerCols:[0,1,5,6]}
         ]);
         formatWorksheetNumbers(wsStok,1,stokRows.length-1,[5,6],'#,##0');
-        formatWorksheetNumbers(wsAlloc,1,alokasiRows.length-1,[6,8,9,10],'#,##0');
+        formatWorksheetNumbers(wsAlloc,1,alokasiRows.length-1,[6,9,10,11],'#,##0');
         formatWorksheetNumbers(wsOrders,1,orderRows.length-1,[5],'#,##0');
         downloadWorkbook(wb,`Laporan_Periodik_ZS_SHI_${from||'ALL'}_${to||'ALL'}.xlsx`,`Laporan periodik berhasil didownload${from||to?` untuk periode ${from||'awal'} s/d ${to||'akhir'}`:''}.`);
     }
@@ -3483,7 +3501,7 @@
         if(!window.XLSX)return alert('Library Excel belum dimuat.');
         const headers=['Nama Artikel','Nama Koleksi','Brand','Kondisi','Target Qty Produksi','Tgl Masuk',...globalSizes];
         const rows=[headers,['Contoh Artikel','Contoh Koleksi','ZS','Oke','100',getTodayLocalISO(),...globalSizes.map(()=> ' ')]];
-        const ws=XLSX.utils.aoa_to_sheet(rows); finalizeWorkbook(XLSX.utils.book_new(),[]); 
+        const ws=XLSX.utils.aoa_to_sheet(rows); finalizeWorkbook(XLSX.utils.book_new(),[]); // no-op safety
         styleWorksheet(ws,{headerRow:0,centerCols:[2,3,4,5]}); ws['!cols']=headers.map((h,i)=>({wch:i<6?22:12})); ws['!freeze']={xSplit:0,ySplit:1}; ws['!autofilter']={ref:`A1:${XLSX.utils.encode_col(headers.length-1)}2`};
         const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,'Template_Barang_Masuk'); downloadWorkbook(wb,'Template_Barang_Masuk_Massal.xlsx','Template import barang masuk berhasil didownload.');
     }
@@ -3507,14 +3525,14 @@
 
         let mitrasToUse = _mitras.filter(m => m.brand === item.brand || m.brand === 'BOTH');
         mitrasToUse.forEach(m => {
-            let row = [m.name];
-            sizes.forEach(() => row.push('')); 
-            row.push(''); 
+            let row = [mitraTemplateLabel(m)];
+            sizes.forEach(() => row.push('')); // Dibiarkan kosong agar diisi sales
+            row.push(''); // Kolom total
             data.push(row);
         });
 
         const ws = XLSX.utils.aoa_to_sheet(data);
-        let wscols = [{wch: 35}];
+        let wscols = [{wch: 42}];
         sizes.forEach(() => wscols.push({wch: 12}));
         wscols.push({wch: 14});
         ws['!cols'] = wscols;
@@ -3559,13 +3577,14 @@
                 }
 
                 let updateCount = 0;
+                let skippedAmbiguous = [];
 
                 for(let r = 1; r < json.length; r++) {
                     let row = json[r];
                     if(!row || row.length === 0 || !row[0]) continue; 
 
-                    let mitraName = row[0].toString().trim().toLowerCase();
-                    let mitra = _mitras.find(m => m.name.toLowerCase() === mitraName);
+                    const { mitra, ambiguous } = resolveMitraFromLabel(row[0]);
+                    if(ambiguous) { skippedAmbiguous.push(String(row[0]).trim()); continue; }
                     if(!mitra) continue; 
 
                     sizesInExcel.forEach(sizeData => {
@@ -3579,7 +3598,7 @@
                                 let inputEl = document.getElementById(`m-${item.id}-${sid}-${mitra.id}`);
                                 if(inputEl && !inputEl.readOnly) {
                                     inputEl.value = val;
-                                    calcSisa(item.id, sid, d.totalQty);
+                                    calcSisa(item.id, sid, d.totalQty); // Trigger the change check for differences
                                     updateCount++;
                                 }
                             }
@@ -3587,21 +3606,24 @@
                     });
                 }
 
+                if(skippedAmbiguous.length > 0) {
+                    alert(`Baris berikut dilewati karena nama mitra "${skippedAmbiguous.join('", "')}" dipakai oleh lebih dari 1 lokasi. Gunakan format "Nama (Lokasi)" pada template (download ulang template terbaru) agar tidak ambigu.`);
+                }
                 if(updateCount > 0) {
                     alert(`Berhasil mengisikan angka untuk ${updateCount} field dari Excel!\nPeriksa indikator warna kuning jika ada selisih dengan permintaan, lalu klik "Simpan Distribusi".`);
-                } else {
+                } else if(skippedAmbiguous.length === 0) {
                     alert('Tidak ada data yang valid ditemukan untuk diisi.');
                 }
             } catch(err) {
                 console.error(err);
                 alert('Gagal memproses file Excel.');
             }
-            event.target.value = ''; 
+            event.target.value = ''; // Reset input
         };
         reader.readAsArrayBuffer(file);
     }
 
-    // ================= FUNGSI TEMPLATE & UPLOAD PERMINTAAN KHUSUS =================
+    // ================= FUNGSI TEMPLATE & UPLOAD PERMINTAAN KHUSUS (Sales Tab Akhir) =================
     
     function downloadReqTemplate() {
         if(!window.XLSX) return alert('Library Excel belum dimuat.');
@@ -3617,14 +3639,14 @@
 
         let mitrasToUse = _mitras.filter(m => m.brand === item.brand || m.brand === 'BOTH');
         mitrasToUse.forEach(m => {
-            let row = [m.name];
+            let row = [mitraTemplateLabel(m)];
             sizes.forEach(() => row.push(''));
             row.push('');
             data.push(row);
         });
 
         const ws = XLSX.utils.aoa_to_sheet(data);
-        let wscols = [{wch: 35}]; sizes.forEach(() => wscols.push({wch: 12})); wscols.push({wch: 14}); ws['!cols'] = wscols;
+        let wscols = [{wch: 42}]; sizes.forEach(() => wscols.push({wch: 12})); wscols.push({wch: 14}); ws['!cols'] = wscols;
         ws['!freeze'] = {xSplit:0,ySplit:1};
         ws['!autofilter'] = {ref:`A1:${XLSX.utils.encode_col(data[0].length-1)}${data.length}`};
         styleWorksheet(ws,{headerRow:0,centerCols:sizes.map((_,i)=>i+1).concat([data[0].length-1])});
@@ -3637,7 +3659,8 @@
 
     function closeRequestPreview(){document.getElementById('modal-request-preview').classList.add('hidden');_pendingRequestImport=null;}
     function confirmRequestImport(){if(!_pendingRequestImport)return;const{item,details,updateCount,errors}=_pendingRequestImport;const btn=document.getElementById('btn-confirm-req-import');if(!updateCount)return alert('Tidak ada data valid untuk disimpan.');btn.disabled=true;btn.innerText='Menyimpan...';const before=JSON.parse(JSON.stringify(item.details)),after=JSON.parse(JSON.stringify(details));db.collection('inventory').doc(item.id).update({details:after}).then(()=>logActivity('Upload Permintaan Mitra',`Upload Excel preview/confirm pada artikel ${item.name}. ${updateCount} field disimpan.`,before,after,{type:'request_excel',errorCount:errors.length})).then(()=>{alert(`Berhasil menyimpan ${updateCount} data permintaan.`);closeRequestPreview();onReqItemChange();loadSalesRequestData();}).catch(err=>alert('Gagal menyimpan permintaan: '+err.message)).finally(()=>{btn.disabled=false;btn.innerText='✅ Simpan ke Sistem';});}
-    function handleReqUpload(event){const file=event.target.files[0];if(!file)return;const itemId=document.getElementById('req-item-select').value;if(!itemId){alert('Silakan pilih Artikel terlebih dahulu sebelum mengupload!');event.target.value='';return;}const item=_inventory.find(i=>i.id===itemId);if(!item){event.target.value='';return;}const reader=new FileReader();reader.onload=function(e){try{const data=new Uint8Array(e.target.result),wb=XLSX.read(data,{type:'array'}),ws=wb.Sheets[wb.SheetNames[0]],json=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});if(json.length<2)throw new Error('File Excel kosong atau tidak memiliki data.');const headers=json[0];if(!headers[0]||headers[0].toString().trim().toLowerCase()!=='nama mitra')throw new Error('Format Excel salah. Kolom pertama harus "Nama Mitra".');const sizes=[];for(let i=1;i<headers.length;i++){const h=headers[i];if(h&&h.toString().trim().toUpperCase()!=='TOTAL')sizes.push({name:h.toString().trim().toLowerCase(),col:i});}const details=JSON.parse(JSON.stringify(item.details)),errors=[],rows=[];let updateCount=0;for(let r=1;r<json.length;r++){const row=json[r];if(!row||!row[0]||row[0].toString().trim().toUpperCase()==='TOTAL')continue;const mitraName=row[0].toString().trim(),mitra=_mitras.find(m=>m.name.toLowerCase()===mitraName.toLowerCase());if(!mitra){errors.push(`Baris ${r+1}: Mitra "${mitraName}" tidak ditemukan.`);continue;}const pr={mitra:mitraName,values:{},status:'OK'};sizes.forEach(sd=>{const raw=row[sd.col];if(raw===''||raw==null)return;const val=Number(raw),d=details.find(x=>String(x.size).toLowerCase()===sd.name);if(!d){errors.push(`Baris ${r+1}: Size "${sd.name}" tidak ditemukan.`);pr.status='WARNING';return;}if(!Number.isInteger(val)||val<0){errors.push(`Baris ${r+1}: Qty size ${sd.name} tidak valid (${raw}).`);pr.status='WARNING';return;}d.requested=d.requested||{mitra:{}};d.requested.mitra=d.requested.mitra||{};d.requested.mitra[mitra.id]=val;pr.values[d.size]=val;updateCount++;});rows.push(pr);} _pendingRequestImport={item,details,updateCount,errors};const names=details.map(d=>d.size);document.querySelector('#req-preview-table thead').innerHTML='<tr><th>Mitra</th>'+names.map(n=>`<th>${n}</th>`).join('')+'<th>Status</th></tr>';document.querySelector('#req-preview-table tbody').innerHTML=rows.map(r=>`<tr><td><b>${r.mitra}</b></td>${names.map(n=>`<td>${r.values[n]??''}</td>`).join('')}<td class="${r.status==='OK'?'preview-ok':'preview-warn'}">${r.status}</td></tr>`).join('')||'<tr><td colspan="99">Tidak ada baris data.</td></tr>';document.getElementById('req-preview-summary').innerHTML=`Artikel: <b>${item.name}</b> (${item.brand}/${item.condition}) • <span class="preview-ok">${updateCount} field valid</span> • <span class="preview-warn">${errors.length} warning</span>`;document.getElementById('req-preview-errors').innerHTML=errors.length?`<div class="preview-warn"><b>Perlu diperiksa:</b><br>${errors.join('<br>')}</div>`:'<div class="preview-ok">Tidak ada warning. Data siap disimpan.</div>';document.getElementById('btn-confirm-req-import').disabled=!updateCount;document.getElementById('modal-request-preview').classList.remove('hidden');}catch(err){console.error(err);alert('Gagal memproses file Excel: '+err.message);}event.target.value='';};reader.readAsArrayBuffer(file);}
+    function handleReqUpload(event){const file=event.target.files[0];if(!file)return;const itemId=document.getElementById('req-item-select').value;if(!itemId){alert('Silakan pilih Artikel terlebih dahulu sebelum mengupload!');event.target.value='';return;}const item=_inventory.find(i=>i.id===itemId);if(!item){event.target.value='';return;}const reader=new FileReader();reader.onload=function(e){try{const data=new Uint8Array(e.target.result),wb=XLSX.read(data,{type:'array'}),ws=wb.Sheets[wb.SheetNames[0]],json=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});if(json.length<2)throw new Error('File Excel kosong atau tidak memiliki data.');const headers=json[0];if(!headers[0]||headers[0].toString().trim().toLowerCase()!=='nama mitra')throw new Error('Format Excel salah. Kolom pertama harus "Nama Mitra".');const sizes=[];for(let i=1;i<headers.length;i++){const h=headers[i];if(h&&h.toString().trim().toUpperCase()!=='TOTAL')sizes.push({name:h.toString().trim().toLowerCase(),col:i});}const details=JSON.parse(JSON.stringify(item.details)),errors=[],rows=[];let updateCount=0;for(let r=1;r<json.length;r++){const row=json[r];if(!row||!row[0]||row[0].toString().trim().toUpperCase()==='TOTAL')continue;const mitraLabel=row[0].toString().trim();const{mitra,ambiguous}=resolveMitraFromLabel(mitraLabel);if(ambiguous){errors.push(`Baris ${r+1}: Nama mitra "${mitraLabel}" dipakai lebih dari 1 lokasi. Gunakan format "Nama (Lokasi)" (download ulang template terbaru).`);continue;}if(!mitra){errors.push(`Baris ${r+1}: Mitra "${mitraLabel}" tidak ditemukan.`);continue;}const pr={mitra:mitraLabel,values:{},status:'OK'};sizes.forEach(sd=>{const raw=row[sd.col];if(raw===''||raw==null)return;const val=Number(raw),d=details.find(x=>String(x.size).toLowerCase()===sd.name);if(!d){errors.push(`Baris ${r+1}: Size "${sd.name}" tidak ditemukan.`);pr.status='WARNING';return;}if(!Number.isInteger(val)||val<0){errors.push(`Baris ${r+1}: Qty size ${sd.name} tidak valid (${raw}).`);pr.status='WARNING';return;}d.requested=d.requested||{mitra:{}};d.requested.mitra=d.requested.mitra||{};d.requested.mitra[mitra.id]=val;pr.values[d.size]=val;updateCount++;});rows.push(pr);} _pendingRequestImport={item,details,updateCount,errors};const names=details.map(d=>d.size);document.querySelector('#req-preview-table thead').innerHTML='<tr><th>Mitra</th>'+names.map(n=>`<th>${n}</th>`).join('')+'<th>Status</th></tr>';document.querySelector('#req-preview-table tbody').innerHTML=rows.map(r=>`<tr><td><b>${r.mitra}</b></td>${names.map(n=>`<td>${r.values[n]??''}</td>`).join('')}<td class="${r.status==='OK'?'preview-ok':'preview-warn'}">${r.status}</td></tr>`).join('')||'<tr><td colspan="99">Tidak ada baris data.</td></tr>';document.getElementById('req-preview-summary').innerHTML=`Artikel: <b>${item.name}</b> (${item.brand}/${item.condition}) • <span class="preview-ok">${updateCount} field valid</span> • <span class="preview-warn">${errors.length} warning</span>`;document.getElementById('req-preview-errors').innerHTML=errors.length?`<div class="preview-warn"><b>Perlu diperiksa:</b><br>${errors.join('<br>')}</div>`:'<div class="preview-ok">Tidak ada warning. Data siap disimpan.</div>';document.getElementById('btn-confirm-req-import').disabled=!updateCount;document.getElementById('modal-request-preview').classList.remove('hidden');}catch(err){console.error(err);alert('Gagal memproses file Excel: '+err.message);}event.target.value='';};reader.readAsArrayBuffer(file);}
+
 
 </script>
 </body>
